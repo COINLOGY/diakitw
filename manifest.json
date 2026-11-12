@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "product": "diakitw",
+  "release": "0.4.5",
+  "repository": "COINLOGY/diakitw",
+  "published": true,
+  "license": "Лицензия приложения и условия публикации исходников не выбраны владельцем.",
+  "platforms": [
+    {
+      "id": "mac-silicon",
+      "name": "Mac · Apple Silicon",
+      "architecture": "arm64",
+      "format": "DMG",
+      "requirements": "macOS 14+ · Apple Silicon",
+      "signing": "Ad-hoc, без Developer ID/notarization.",
+      "runtime": "Проверены DMG, подписи, ресурсы и arm64 offline self-check; GUI/live SSH этой сборки не проверены.",
+      "filename": "diakitw-0.4.5-macos-arm64.dmg",
+      "size_bytes": 1422875,
+      "sha256": "c9e14ab8244eda5ccb4e3519d80d504b95508a334ed91b98fe81655f31722252",
+      "url": "https://github.com/COINLOGY/diakitw/releases/download/v0.4.5/diakitw-0.4.5-macos-arm64.dmg",
+      "version": "0.4.5"
+    },
+    {
+      "id": "mac-intel",
+      "name": "Mac · Intel",
+      "architecture": "x86_64",
+      "format": "DMG",
+      "requirements": "macOS 14+ · Intel",
+      "signing": "Ad-hoc, без Developer ID/notarization.",
+      "runtime": "Проверены DMG, архитектура, подписи и ресурсы; запуск на Intel не проверен.",
+      "filename": "diakitw-0.4.5-macos-x86_64.dmg",
+      "size_bytes": 1522116,
+      "sha256": "8f8b5fbebb1d9db437ffda6ea122f0e696a6690e0fffe408f723f92d07f0768f",
+      "url": "https://github.com/COINLOGY/diakitw/releases/download/v0.4.5/diakitw-0.4.5-macos-x86_64.dmg",
+      "version": "0.4.5"
+    },
+    {
+      "id": "android",
+      "name": "Android",
+      "architecture": "Без native ABI-библиотек (DEX); проверен API30 ARM64",
+      "format": "APK",
+      "requirements": "Android 8.0+ · API 26+; target SDK 36",
+      "signing": "Debug-подпись; apksigner и zipalign проверены.",
+      "runtime": "API30 ARM64: установленный APK прочитан обратно, SHA-256 совпал; 14 конфигураций размера/ориентации/шрифта проверены. Физические телефоны, API26/36, VPN и онлайн speedtest не проверены. APK debug, не Play Store release.",
+      "filename": "diakitw-android-0.4.5-debug.apk",
+      "size_bytes": 73757,
+      "sha256": "1a45f40c25319084d4515ac149efc881d774b8810782a04b5ed26fc1a37ec460",
+      "url": "https://github.com/COINLOGY/diakitw/releases/download/v0.4.5/diakitw-android-0.4.5-debug.apk",
+      "version": "0.4.5"
+    },
+    {
+      "id": "windows",
+      "name": "Windows",
+      "architecture": "x64",
+      "format": "Portable ZIP",
+      "requirements": "Windows 10/11 x64 · PowerShell / CIM",
+      "signing": "Без Authenticode.",
+      "runtime": "PE x64 и ZIP проверены; интерфейс проверен в macOS Electron fixtures, запуск на Windows не проверен. Распаковывать весь ZIP.",
+      "filename": "diakitw-0.4.5-windows-x64.zip",
+      "size_bytes": 158111804,
+      "sha256": "95eb12bfd8175830feb15aae79094f8efbf48df560ccce193f98b6656bc00047",
+      "url": "https://github.com/COINLOGY/diakitw/releases/download/v0.4.5/diakitw-0.4.5-windows-x64.zip",
+      "version": "0.4.5"
+    },
+    {
+      "id": "linux",
+      "name": "Linux",
+      "architecture": "x86_64",
+      "format": "Portable tar.gz",
+      "requirements": "Графическая сессия · glibc · GTK / NSS / ALSA",
+      "signing": "Подпись издателя не заявлена.",
+      "runtime": "ELF x64 и архив проверены; запуск на Linux не проверен. Не отключать Chromium sandbox.",
+      "filename": "diakitw-0.4.5-linux-x64.tar.gz",
+      "size_bytes": 123636102,
+      "sha256": "a45b43ebb14ad0f93f1bf7314eba3328eca56f210758c2f69cdb4980c9eddebf",
+      "url": "https://github.com/COINLOGY/diakitw/releases/download/v0.4.5/diakitw-0.4.5-linux-x64.tar.gz",
+      "version": "0.4.5"
+    }
+  ],
+  "prerelease": true,
+  "suite": {
+    "filename": "diakitw-0.4.5-installers-only.zip",
+    "size_bytes": 284767354,
+    "sha256": "874b8bcb1dc5628683820c04d630699f5b36c44a8d0d2a26368c6ddb36bfce8a",
+    "url": "https://github.com/COINLOGY/diakitw/releases/download/v0.4.5/diakitw-0.4.5-installers-only.zip",
+    "installer_count": 5
+  },
+  "distribution_revision": "privacy-clean-1",
+  "changes": "macOS: исправлена верхняя полуокружность общего прибора. Android/Windows/Linux: адаптивная компоновка и подписи; исходная дуга уже была верхней. Возможности платформ различаются.",
+  "packaging": "New distribution hashes: macOS rebuilt from unchanged 0.4.5 inputs with compiler path remapping and debug-symbol stripping, then ad-hoc signed. Windows/Linux: only VERIFICATION-RU.md local paths sanitized; all other members unchanged. Android APK unchanged."
+}
