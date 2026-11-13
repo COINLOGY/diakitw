@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+<key>CFBundleName</key><string>diakitw</string>
+<key>CFBundleDisplayName</key><string>diakitw</string>
+<key>CFBundleIdentifier</key><string>local.emcx.macdir</string>
+<key>CFBundleExecutable</key><string>macdir</string>
+<key>CFBundleIconFile</key><string>macdir</string>
+<key>CFBundlePackageType</key><string>APPL</string>
+<key>CFBundleShortVersionString</key><string>0.5.2</string>
+<key>CFBundleVersion</key><string>52</string>
+<key>LSMinimumSystemVersion</key><string>14.0</string>
+<key>NSHighResolutionCapable</key><true/>
+<key>NSHumanReadableCopyright</key><string>diakitw — локальный анализ; очистка кэшей с подтверждением.</string>
+</dict></plist>

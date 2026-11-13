@@ -1,0 +1,8 @@
+Made with Natural Earth.
+Public domain vector data, 1:110m Admin 0 countries.
+https://www.naturalearthdata.com/about/terms-of-use/
+https://www.naturalearthdata.com/downloads/110m-cultural-vectors/110m-admin-0-countries/
+Original maintainer dataset: https://github.com/nvkelso/natural-earth-vector
+All data versions are public domain, including personal/commercial use and redistribution. No permission needed. Attribution is voluntary and provided here.
+Bundled derivative: ISO_A2_EH + all polygon rings rounded to 0.001 degrees. 177 generalized features; small countries/territories may be absent. De facto/generalized boundaries do not establish sovereignty or precise borders. No warranties of accuracy.
+Location markers, when shown, come from separately validated IPwho.is coordinates, not Natural Earth country centers. Country-only results have no marker. No GPS, web map tiles, keys or external map requests.

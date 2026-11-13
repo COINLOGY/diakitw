@@ -1,0 +1,1 @@
+const {test}=require('node:test');const a=require('node:assert/strict');test('missing network values have neutral selector overriding ID colors',()=>a.ok(require('node:fs').readFileSync('app/style.css','utf8').includes('#rx.neutral,#tx.neutral')));

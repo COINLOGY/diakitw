@@ -1,0 +1,51 @@
+import Foundation
+import MacdirCore
+var count = 0
+func check(_ condition: @autoclosure () -> Bool, _ name: String) {
+ guard condition() else { print("FAIL: \(name)"); exit(1) }
+ count += 1; print("PASS: \(name)")
+}
+var history = TrafficHistory()
+history.append(interface: "en0", time: 10, received: 1024, sent: 2048)
+history.append(interface: "en0", time: 12.5, received: nil, sent: 0)
+check(history.samples.count == 2 && history.samples[1].time == 12.5, "actual monotonic sample times retained")
+check(history.samples[1].received == nil && history.samples[1].sent == 0, "unknown distinct from measured zero")
+history.append(interface: "en0", time: 13, received: .nan, sent: -1)
+check(history.samples.last!.received == nil && history.samples.last!.sent == nil, "invalid rates become gaps")
+history.append(interface: "en0", time: 14, received: .infinity, sent: -.infinity)
+check(history.samples.last!.received == nil && history.samples.last!.sent == nil, "infinite rates become gaps")
+history.append(interface: "en0", time: 14, received: 8, sent: 8)
+history.append(interface: "en0", time: 9, received: 8, sent: 8)
+history.append(interface: "en0", time: .nan, received: 8, sent: 8)
+check(history.samples.count == 4, "duplicate backwards and nonfinite timestamps rejected")
+history.append(interface: "utun0", time: 15, received: 9, sent: 10)
+check(history.samples.count == 1 && history.samples.first!.received == 9, "interface switch isolates history")
+for time in 16...3615 { history.append(interface: "utun0", time: Double(time), received: 0, sent: 2) }
+check(history.samples.count == 3601 && history.samples.first!.time == 15, "one hour inclusive boundary")
+history.append(interface: "utun0", time: 3615.5, received: 0, sent: 2)
+check(history.samples.count == 3601 && history.samples.first!.time == 16, "one hour expiry")
+for i in 1...5000 { history.append(interface: "utun0", time: 3615.5 + Double(i) / 100, received: 0, sent: 2) }
+check(history.samples.count == 3601, "hard sample cap with fast input")
+check(TrafficRange.allCases.map(\.seconds) == [60, 300, 900, 3600], "requested time ranges")
+check(TrafficRange.minute.tickLabels == ["−1 мин", "−30 с", "сейчас"] && TrafficRange.hour.tickLabels == ["−60 мин", "−30 мин", "сейчас"], "time ticks match range")
+var plot = TrafficHistory()
+for time in 0...120 { plot.append(interface: "en0", time: Double(time), received: 1024, sent: time == 0 ? 1e9 : 2048) }
+check(plot.visible(in: .minute).count == 61 && plot.visible(in: .fiveMinutes).count == 121, "range filters without invented startup history")
+check(plot.scale(in: .minute) >= 2048 && plot.scale(in: .minute) < 10000, "shared scale ignores out of range spike")
+plot.append(interface: "en0", time: 121, received: nil, sent: 2048)
+plot.append(interface: "en0", time: 122, received: 0, sent: 2048)
+plot.append(interface: "en0", time: 130, received: 0, sent: 2048)
+check(plot.segments(in: .minute, received: true).count == 3, "nil and delayed observations split paths")
+check(plot.segments(in: .minute, received: false).count == 2, "independent TX gap handling")
+plot.select("utun5")
+check(plot.samples.isEmpty && plot.scale(in: .hour) == 1024, "immediate selector reset and idle scale")
+check(Rates.perSecond(old: 0, new: 100, seconds: .infinity) == nil, "infinite interval unknown not zero")
+check(Rates.perSecond(old: 0, new: 100, seconds: .leastNonzeroMagnitude) == nil, "overflow rate unknown")
+check(Rates.perSecond(old: 100, new: 110, seconds: 2.5) == 4, "actual interval rate")
+check(Rates.perSecond(old: 110, new: 100, seconds: 1) == nil, "reset rate gap")
+let sampler = ResourceSampler()
+let first = sampler.sample(volume: nil)
+Thread.sleep(forTimeInterval: 0.05)
+let second = sampler.sample(volume: nil)
+check(first.networkSampleTime != nil && second.networkSampleTime! > first.networkSampleTime!, "sampler publishes its monotonic network timestamp")
+print("\(count) traffic checks passed")

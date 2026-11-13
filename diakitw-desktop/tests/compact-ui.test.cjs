@@ -1,0 +1,2 @@
+const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs');
+test('compact uniform instruments cap width and use the approved rounded card',()=>{const css=fs.readFileSync('app/style.css','utf8');assert.match(css,/\.gauge,\.rate-gauge\{[^}]*max-width:11rem/);assert.match(css,/\.metric\{[^}]*border-radius:14px/);assert.match(css,/#metrics\{[^}]*grid-auto-rows:1fr/);});

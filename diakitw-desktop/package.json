@@ -1,0 +1,13 @@
+{
+  "name": "diakitw-desktop-build",
+  "version": "0.5.2",
+  "private": true,
+  "scripts": {
+    "test": "node --test tests/*.test.cjs"
+  },
+  "devDependencies": {
+    "electron": "45.2.3",
+    "@electron/packager": "20.3.0",
+    "resedit": "3.1.0"
+  }
+}

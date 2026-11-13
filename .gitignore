@@ -1,0 +1,17 @@
+**/.build*/
+**/node_modules/
+**/build/
+**/dist/
+**/.gradle/
+**/.tools/
+**/evidence/
+**/__pycache__/
+**/.test-classes/
+*.pyc
+*.keystore
+*.jks
+*.p12
+.env
+.env.*
+local.properties
+.DS_Store

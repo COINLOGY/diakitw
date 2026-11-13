@@ -1,0 +1,3 @@
+const {test}=require('node:test');const a=require('node:assert/strict');const fs=require('node:fs');
+test('security wiring denies navigation, windows and network',()=>{const m=fs.readFileSync('app/main.cjs','utf8');for(const s of ['contextIsolation:true','sandbox:true','nodeIntegration:false',"action:'deny'",'will-navigate','setPermissionRequestHandler','validSender','webRequest.onBeforeRequest'])a.ok(m.includes(s),s);const h=fs.readFileSync('app/index.html','utf8');a.ok(h.includes("connect-src 'none'"));a.ok(h.includes("script-src 'self'"));});
+test('renderer exists and never inserts telemetry HTML',()=>{const s=fs.readFileSync('app/renderer.js','utf8');a.ok(s.includes('textContent'));a.ok(!s.includes('innerHTML'));a.ok(s.includes('Н/Д'));});
