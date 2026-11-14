@@ -1,0 +1,60 @@
+name: macOS 0.5.3 build-only
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: macos-053-build-only
+  cancel-in-progress: false
+
+jobs:
+  build:
+    # Standard Apple Silicon runner; free for public repositories, NOT -large/-xlarge.
+    runs-on: macos-15
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+        working-directory: macdir
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+      MACOSX_DEPLOYMENT_TARGET: '14.0'
+    steps:
+      - name: Checkout reviewed source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4, verified upstream ref
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Build both thin architectures and verify installers
+        run: bash ci-build.sh
+      - name: Upload Apple Silicon DMG (not a Release)
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4, verified upstream ref
+        with:
+          name: diakitw-0.5.3-macos-arm64
+          path: macdir/dist/diakitw-0.5.3-macos-arm64.dmg
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
+      - name: Upload Intel DMG (not a Release)
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: diakitw-0.5.3-macos-x86_64
+          path: macdir/dist/diakitw-0.5.3-macos-x86_64.dmg
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
+      - name: Upload bounded verification evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: diakitw-0.5.3-macos-evidence
+          path: |
+            macdir/evidence/**/*.log
+            macdir/evidence/**/*.json
+            macdir/evidence/**/*.txt
+            macdir/evidence/**/*.png
+          if-no-files-found: warn
+          retention-days: 14

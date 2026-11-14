@@ -31,7 +31,7 @@ for f in list((p/'Sources/MacdirCore').glob('*.swift'))+list((p/'Sources/macdir'
         text=text.replace('.help(explanation ?? detail)', '.help(explanation ?? detail).layoutProbe("gauge-" + title)')
     text=text.replace('import MacdirCore\n','').replace('MacdirCore.Scanner','Scanner')
     dest=scratch/f.name; dest.write_text(text); files.append(str(dest))
-subprocess.run(['swiftc','-swift-version','5','-o',str(out/'render-layout')]+files,check=True,cwd=p)
+subprocess.run(['swiftc', '-j', '2','-swift-version','5','-o',str(out/'render-layout')]+files,check=True,cwd=p)
 r=subprocess.run([str(out/'render-layout'),str(out)],cwd=p,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
 (out/'results.txt').write_text(r.stdout); print(r.stdout)
 sys.exit(r.returncode)

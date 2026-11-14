@@ -4,7 +4,7 @@ Only a temporary source copy is changed; production source is never mutated.
 from pathlib import Path
 import os, subprocess, tempfile
 r = Path(__file__).resolve().parents[1]
-e = r/'evidence/diakitw-0.5.2'
+e = r/'evidence/diakitw-0.5.3'
 with tempfile.TemporaryDirectory(prefix='gauge-regression-', dir=os.environ['TMPDIR']) as tmp:
     tmp = Path(tmp)
     source = (r/'Sources/macdir/NeedleGauge.swift').read_text()
@@ -18,7 +18,7 @@ with tempfile.TemporaryDirectory(prefix='gauge-regression-', dir=os.environ['TMP
         copies.append(str(copy))
     binary = tmp/'fault-check'
     core = ['Sources/MacdirCore/' + n + '.swift' for n in ['GaugeScale','NetworkPresentation','MetricPresentation']]
-    subprocess.run(['swiftc','-parse-as-library',str(fault),*copies,*core,'-o',str(binary)],cwd=r,check=True,timeout=45)
+    subprocess.run(['swiftc', '-j', '2','-parse-as-library',str(fault),*copies,*core,'-o',str(binary)],cwd=r,check=True,timeout=45)
     run = subprocess.run([str(binary),str(e/'gauge-fault-injected')],cwd=r,capture_output=True,text=True)
     (e/'gauge-fault-injected.log').write_text(run.stdout+run.stderr)
     assert run.returncode == 1 and 'FAIL lower semicircle' in run.stdout

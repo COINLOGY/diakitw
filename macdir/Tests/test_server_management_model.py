@@ -99,5 +99,5 @@ final class Fake {
 '''.replace('CONFIG', str(root / 'servers.json')).replace('CACHE', str(root / 'hardware.json'))
     (root / 'Checks.swift').write_text(fixture)
     sources = [project / 'Sources/MacdirCore' / name for name in ['MetricPresentation.swift', 'ServerSampler.swift', 'ServerTelemetry.swift', 'ServerConfigStore.swift', 'ServerHardwareCache.swift', 'ServerPassword.swift', 'ServerSSHProcess.swift']]
-    subprocess.run(['swiftc', *map(str, sources), str(root / 'Model.swift'), str(root / 'Checks.swift'), '-o', str(root / 'checks')], check=True)
+    subprocess.run(['swiftc', '-j', '2', *map(str, sources), str(root / 'Model.swift'), str(root / 'Checks.swift'), '-o', str(root / 'checks')], check=True)
     subprocess.run([str(root / 'checks')], check=True, timeout=20)

@@ -69,7 +69,7 @@ struct NeedleGauge: View {
       let f = Double(i) / 40
       var arc = Path()
       arc.addArc(center: center, radius: radius, startAngle: .degrees(GaugeScale.angle(fraction: f)), endAngle: .degrees(GaugeScale.angle(fraction: f + 0.021)), clockwise: false)
-      context.stroke(arc, with: .color(color(f).opacity(fraction == nil ? 0.22 : 0.9)), style: StrokeStyle(lineWidth: 8, lineCap: .butt))
+      context.stroke(arc, with: .color(color(f).opacity(fraction == nil ? 0.22 : 0.9)), style: StrokeStyle(lineWidth: 8 * 7 / 9, lineCap: .butt))
      }
      for i in 0...10 {
       let angle = GaugeScale.angle(fraction: Double(i) / 10) * .pi / 180
@@ -77,19 +77,21 @@ struct NeedleGauge: View {
       var tick = Path()
       tick.move(to: CGPoint(x: center.x + cos(angle) * inner, y: center.y + sin(angle) * inner))
       tick.addLine(to: CGPoint(x: center.x + cos(angle) * (radius - 5), y: center.y + sin(angle) * (radius - 5)))
-      context.stroke(tick, with: .color(.secondary.opacity(0.5)), lineWidth: 1)
+      context.stroke(tick, with: .color(.primary.opacity(i % 5 == 0 ? 0.85 : 0.5)), lineWidth: i % 5 == 0 ? 1.5 : 1)
      }
     }
     if let fraction, fraction.isFinite, (0...1).contains(fraction) {
      InstrumentNeedle(fraction: fraction).fill(color(fraction))
       .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: fraction)
-     Circle().fill(.primary).frame(width: 8, height: 8).position(center)
+     Circle().fill(Color(red: 0.078, green: 0.102, blue: 0.129))
+      .overlay(Circle().strokeBorder(color(fraction), lineWidth: 1.5))
+      .frame(width: 8, height: 8).position(center)
     } else {
      Text("Н/Д").font(.caption).foregroundStyle(.secondary).position(x: center.x, y: center.y - 18)
     }
     ForEach(0..<3) { i in
      let box = geometry.labelBox(i)
-     Text(labels[i]).font(.system(size: 10, weight: .medium, design: .monospaced))
+     Text(labels[i]).font(.system(size: 10, weight: .semibold, design: .monospaced))
       .lineLimit(1).minimumScaleFactor(0.75)
       .frame(width: box.width, height: box.height)
       .position(x: box.midX, y: box.midY)

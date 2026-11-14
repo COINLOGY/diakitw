@@ -116,8 +116,14 @@ statusSample.cpu = 20; statusSample.memoryUsed = 8 * 1_073_741_824; statusSample
 statusSample.swap = 1_073_741_824; statusSample.swapTotal = 1_073_741_824
 let segments = StatusPresentation.segments(statusSample, interface: "missing")
 print("STATUS FORMAT: " + segments.map(\.text).joined(separator: "  "))
-check(segments.map(\.text).joined(separator: "  ") == "020.0%  050.0%  001.0G  000.0%  ↓000.0K  ↑000.0K", "fixed width native status title")
+check(segments.map(\.text).joined(separator: "  ") == " 20.0%   50.0%    1.0G    0.0%  ↓  0.0K  ↑  0.0K", "fixed width native status title")
 check(segments[0].band == .green && segments[1].band == .blue && segments[2].band == .red, "status shares exact gauge color bands")
+for (value, expected) in [(0.0, "  0.0%"), (7.3, "  7.3%"), (100, "100.0%")] {
+ var sample = ResourceSnapshot(); sample.cpu = value
+ let field = StatusPresentation.segments(sample, interface: "missing")[0].text
+ check(field == expected && field.count == 6 && Array(field)[3] == ".", "space-padded CPU decimal alignment")
+}
+check(StatusPresentation.segments(statusSample, interface: "missing", ramMode: .used)[1].text == "  8.0G", "RAM GiB mode keeps width and unit")
 var swapFixture = ResourceSnapshot()
 for (used, expected): (Int64, GaugeScale.Band) in [(0, .green), (200, .green), (201, .blue), (800, .blue), (801, .red), (1000, .red)] {
  swapFixture.swap = used; swapFixture.swapTotal = 1000
@@ -136,17 +142,17 @@ StatusPresentation.saveDiskMode(.free, defaults: preferences)
 check(StatusPresentation.diskMode(defaults: UserDefaults(suiteName: preferenceSuite)!) == .free, "disk mode persists")
 var freeStatus = ResourceSnapshot(); freeStatus.diskTotal = 100 * 1_073_741_824; freeStatus.diskFree = 12 * 1_073_741_824
 let freeSegment = StatusPresentation.segments(freeStatus, interface: "en0", diskMode: .free)[3]
-check(freeSegment.text == "012.0G" && freeSegment.band == .red, "free GiB fourth with occupancy color")
-check(StatusPresentation.segments(ResourceSnapshot(), interface: "en0", diskMode: .free)[3].text == "000.0G", "missing free fixed placeholder")
+check(freeSegment.text == " 12.0G" && freeSegment.band == .red, "free GiB fourth with occupancy color")
+check(StatusPresentation.segments(ResourceSnapshot(), interface: "en0", diskMode: .free)[3].text == "  0.0G", "missing free fixed placeholder")
 let diskSegment = StatusPresentation.segments(diskStatus, interface: "en0")[3]
-check(diskSegment.text == "087.5%" && diskSegment.band == .red, "disk menu occupancy format and color")
+check(diskSegment.text == " 87.5%" && diskSegment.band == .red, "disk menu occupancy format and color")
 check(StatusPresentation.segments(ResourceSnapshot(), interface: "en0").allSatisfy { $0.band == .unknown }, "unknown status is neutral")
-check(StatusPresentation.rate(1024) == "001.0K" && StatusPresentation.rate(5.2 * 1024) == "005.2K", "fixed binary network rates rounded")
-check(StatusPresentation.rate(nil) == "000.0K" && StatusPresentation.rate(.nan) == "000.0K" && StatusPresentation.rate(-1) == "000.0K", "missing rate placeholder")
+check(StatusPresentation.rate(1024) == "  1.0K" && StatusPresentation.rate(5.2 * 1024) == "  5.2K", "fixed binary network rates rounded")
+check(StatusPresentation.rate(nil) == "  0.0K" && StatusPresentation.rate(.nan) == "  0.0K" && StatusPresentation.rate(-1) == "  0.0K", "missing rate placeholder")
 check(StatusPresentation.rate(1e20) == "+++.+M", "overflow preserves width")
-check(StatusPresentation.rate(999.94 * 1024) == "999.9K" && StatusPresentation.rate(999.95 * 1024) == "001.0M", "switch when rounding would overflow KiB")
-check(StatusPresentation.rate(12.36 * 1_048_576) == "012.4M", "MiB rounding and padding")
-check(StatusPresentation.rate(0) == "000.0K" && StatusPresentation.rate(1) == "000.0K", "zero and sub KiB rates")
+check(StatusPresentation.rate(999.94 * 1024) == "999.9K" && StatusPresentation.rate(999.95 * 1024) == "  1.0M", "switch when rounding would overflow KiB")
+check(StatusPresentation.rate(12.36 * 1_048_576) == " 12.4M", "MiB rounding and padding")
+check(StatusPresentation.rate(0) == "  0.0K" && StatusPresentation.rate(1) == "  0.0K", "zero and sub KiB rates")
 for rate: Double? in [nil, -1, .nan, .infinity, 0, 1, 999.95 * 1024, 999.95 * 1_048_576, 1e300] {
  check(StatusPresentation.rate(rate).count == 6, "network status field constant width")
  let presented = NetworkPresentation(rate)

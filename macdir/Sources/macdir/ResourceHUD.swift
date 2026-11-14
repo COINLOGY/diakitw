@@ -103,7 +103,7 @@ import MacdirCore
    "DSK · пул APFS: " + MetricPresentation.capacity(s.diskOccupied, total: s.diskTotal) + " · свободно " + MetricPresentation.size(s.diskFree),
    "↓ RX · \(interface): \(rateDetail(n?.received))",
    "↑ TX · \(interface): \(rateDetail(n?.sent))",
-   "G = GiB · K = KiB/с · M = MiB/с · 000.0 · диск GiB: \(diskMode == .free ? "свободно" : "занято") · серые нули: нет замера · +: переполнение",
+   "G = GiB · K = KiB/с · M = MiB/с · выравнивание пробелами · диск GiB: \(diskMode == .free ? "свободно" : "занято") · серые нули: нет замера · +: переполнение",
    "Порядок значков: удерживайте ⌘ и перетащите"
   ]
   for (detail, text) in zip(details, lines) { detail.title = text }

@@ -26,14 +26,14 @@ public struct GaugeGeometry {
   radius = max(0, min(60, width / 2 - 12, height - 44))
   center = CGPoint(x: width / 2, y: radius + 22)
  }
- /// Approved triangle-needles-v2-tail.html coordinates relative to (150,146).
+ /// Approved v4: wider triangle base; v2 tip and straight tail stay unchanged.
  /// Keep a three-point gap from the deepest tick (radius - 13).
  /// The existing 22-point lower gutter also contains the maximum tail (9.34 pt).
  public func needlePoints(fraction: Double?) -> [CGPoint] {
   guard let fraction, fraction.isFinite, (0...1).contains(fraction) else { return [] }
   let scale = max(0, radius - 16) / 99
   let angle = fraction * .pi
-  return [(-99.0, 0.0), (0, -8), (21, -4), (21, 4), (0, 8)].map { x, y in
+  return [(-99.0, 0.0), (0, -10), (21, -4), (21, 4), (0, 10)].map { x, y in
    CGPoint(x: center.x + (x * cos(angle) - y * sin(angle)) * scale,
            y: center.y + (x * sin(angle) + y * cos(angle)) * scale)
   }

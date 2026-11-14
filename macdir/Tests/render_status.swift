@@ -4,12 +4,13 @@ import AppKit
  static func main() throws {
   _ = NSApplication.shared
   let output = URL(fileURLWithPath: CommandLine.arguments[1])
-  let example = ["028.1%", "079.3%", "008.3G", "065.2%", "↓088.8K", "↑007.6K"]
+  let example = [" 28.1%", " 79.3%", "  8.3G", " 65.2%", "↓ 88.8K", "↑  7.6K"]
   var alternate = example
-  alternate[3] = "081.3G"
+  alternate[3] = " 81.3G"
   alternate[4] = "↓999.9M"
-  alternate[5] = "↑000.0M"
-  let variants = [example] + StatusTypography.templates + [alternate]
+  alternate[5] = "↑  0.0M"
+  let variants = [example] + StatusTypography.templates + [alternate,
+   ["  0.0%", "100.0%", "  0.0G", "  7.3G", "↓  0.0K", "↑100.0M"]]
   let width = StatusTypography.fixedWidth
   precondition(StatusTypography.numericFont.pointSize == 13)
   precondition(StatusTypography.numericFont.fontName.contains("Semibold"))

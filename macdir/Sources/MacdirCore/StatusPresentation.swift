@@ -31,9 +31,14 @@ public enum StatusPresentation {
   let valid = value.flatMap { $0.isFinite && $0 >= 0 ? $0 : nil } ?? 0
   let result = String(format: "%.*f", locale: Locale(identifier: "en_US_POSIX"), decimals, valid)
   if result.count > width { return "+++.+" }
-  return String(repeating: "0", count: width - result.count) + result
+  return String(repeating: " ", count: width - result.count) + result
  }
- public static func rate(_ value: Double?) -> String { NetworkPresentation(value).compact }
+ public static func rate(_ value: Double?) -> String {
+  let compact = NetworkPresentation(value).compact
+  // Replace padding only: retain the zero before the decimal, units and overflow.
+  let padding = compact.prefix(2).prefix(while: { $0 == "0" }).count
+  return String(repeating: " ", count: padding) + String(compact.dropFirst(padding))
+ }
  public static func segments(_ s: ResourceSnapshot, interface: String, diskMode: DiskMode = .occupied, ramMode: RAMMode = .percent) -> [Segment] {
   func memory(_ value: Int64?) -> String { field(value.map { Double($0) / 1_073_741_824 }) + "G" }
   func validRate(_ value: Double?) -> Bool { value.map { $0.isFinite && $0 >= 0 } ?? false }

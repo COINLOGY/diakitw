@@ -1,7 +1,7 @@
 import Foundation
 import MacdirCore
 func check(_ ok: @autoclosure () -> Bool, _ name: String) { guard ok() else { print("FAIL: " + name); exit(1) }; print("PASS: " + name) }
-let home = URL(fileURLWithPath: FileManager.default.homeDirectoryForCurrentUser.path + "/.cache/diakitw/scratch").appendingPathComponent("cache-fixture-" + UUID().uuidString)
+let home = URL(fileURLWithPath: ProcessInfo.processInfo.environment["TMPDIR"]!).appendingPathComponent("cache-fixture-" + UUID().uuidString)
 try FileManager.default.createDirectory(at: home, withIntermediateDirectories: true)
 defer { try? FileManager.default.removeItem(at: home) }
 let appRoot = home.appendingPathComponent("Applications")

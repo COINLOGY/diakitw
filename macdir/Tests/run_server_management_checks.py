@@ -13,7 +13,7 @@ scratch = Path(sys.argv[1])
 with tempfile.TemporaryDirectory(prefix='server-config-build-', dir=scratch) as directory:
     binary = Path(directory) / 'checks'
     sources = [project / 'Sources/MacdirCore' / name for name in ['MetricPresentation.swift', 'ServerSampler.swift', 'ServerTelemetry.swift', 'ServerConfigStore.swift', 'ServerPassword.swift', 'ServerSSHProcess.swift']]
-    subprocess.run(['swiftc', *map(str, sources), str(project / 'Tests/server_config_store_checks.swift'), '-o', str(binary)], check=True)
+    subprocess.run(['swiftc', '-j', '2', *map(str, sources), str(project / 'Tests/server_config_store_checks.swift'), '-o', str(binary)], check=True)
     subprocess.run([str(binary), str(scratch)], check=True)
 subprocess.run([sys.executable, str(project / 'Tests/test_server_management_model.py'), str(scratch)], check=True)
 subprocess.run([sys.executable, str(project / 'Tests/test_server_management_wiring.py')], check=True)
