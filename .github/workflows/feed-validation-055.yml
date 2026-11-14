@@ -18,6 +18,5 @@ jobs:
           git fetch --depth=1 origin tag v0.5.4
           mkdir -p .ci-scratch
           curl -fLsS --max-time 60 https://repo.maven.apache.org/maven2/org/json/json/20240303/json-20240303.jar -o .ci-scratch/json.jar
-          curl -fLsS --max-time 60 https://repo.maven.apache.org/maven2/org/json/json/20240303/json-20240303.jar.sha256 -o .ci-scratch/json.sha256
-          python3 -c 'import pathlib,hashlib; p=pathlib.Path(".ci-scratch"); assert hashlib.sha256((p/"json.jar").read_bytes()).hexdigest()==(p/"json.sha256").read_text().strip()'
+          python3 -c 'import pathlib,hashlib; assert hashlib.sha256(pathlib.Path(".ci-scratch/json.jar").read_bytes()).hexdigest()=="3cf6cd6892e32e2b4c1c39e0f52f5248a2f5b37646fdfbb79a66b46b618414ed"'
           python3 release/check-feed-055.py
