@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       scope:
-        description: Full installers or focused server model check
+        description: Full installers or focused server model/layout check
         type: choice
-        options: [full, server-model]
+        options: [full, server-model, layout]
         default: full
 
 
@@ -44,11 +44,18 @@ jobs:
           mkdir -p "$GITHUB_WORKSPACE/.ci-scratch" evidence/diakitw-0.5.3
           export TMPDIR="$(cd "$GITHUB_WORKSPACE/.ci-scratch" && pwd -P)"
           { xcodebuild -version; swift --version; sysctl -n hw.logicalcpu; python3 Tests/test_server_management_model.py "$TMPDIR"; } 2>&1 | tee evidence/diakitw-0.5.3/server-model.log
+      - name: Focused rendered layout check
+        if: inputs.scope == 'layout'
+        timeout-minutes: 5
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/.ci-scratch" evidence/diakitw-0.5.3
+          export TMPDIR="$(cd "$GITHUB_WORKSPACE/.ci-scratch" && pwd -P)"
+          { xcodebuild -version; swift --version; python3 Tests/check_layout.py 0.5.3; } 2>&1 | tee evidence/diakitw-0.5.3/layout.log
       - name: Build both thin architectures and verify installers
-        if: inputs.scope != 'server-model'
+        if: inputs.scope == 'full'
         run: bash ci-build.sh
       - name: Upload Apple Silicon DMG (not a Release)
-        if: inputs.scope != 'server-model'
+        if: inputs.scope == 'full'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4, verified upstream ref
         with:
           name: diakitw-0.5.3-macos-arm64
@@ -57,7 +64,7 @@ jobs:
           retention-days: 14
           compression-level: 0
       - name: Upload Intel DMG (not a Release)
-        if: inputs.scope != 'server-model'
+        if: inputs.scope == 'full'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: diakitw-0.5.3-macos-x86_64

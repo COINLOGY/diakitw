@@ -21,6 +21,13 @@ s=s.replace('TrafficChart(history: model.trafficHistory, range: $model.trafficRa
 s=s.replace('.pickerStyle(.segmented)\n', '.pickerStyle(.segmented).layoutProbe("viewPicker")\n')
 s=s.replace('}.frame(minWidth: 450)', '}.frame(minWidth: 450).layoutProbe("table")')
 s=s.replace('}.padding(.leading, 12).frame(minWidth: 290)', '}.padding(.leading, 12).frame(minWidth: 290).layoutProbe("map")')
+# Probe only the unshipped copy; preserve production padding and proposals.
+for old, new in [
+    ('   }\n   ViewThatFits(in: .horizontal)', '   }.layoutProbe("gaugeRow")\n   ViewThatFits(in: .horizontal)'),
+    ('  }.padding(22).frame(maxWidth: .infinity)', '  }.layoutProbe("dashboardContent").padding(22).frame(maxWidth: .infinity).layoutProbe("dashboardDocument")'),
+]:
+    assert s.count(old) == 1, 'layout probe anchor changed: ' + old
+    s = s.replace(old, new)
 s += (p/'Tests/render_layout.swift').read_text()
 files=[]
 for f in list((p/'Sources/MacdirCore').glob('*.swift'))+list((p/'Sources/macdir').glob('*.swift')):

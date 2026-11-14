@@ -15,7 +15,7 @@ struct LayoutFramesKey: PreferenceKey {
 }
 extension View {
  func layoutProbe(_ name: String) -> some View {
-  background(GeometryReader { geo in Color.clear.preference(key: LayoutFramesKey.self, value: [name: geo.frame(in: .global)]) })
+  background(GeometryReader { geo in Color.clear.preference(key: LayoutFramesKey.self, value: [name: geo.frame(in: .named("layoutHost"))]) })
  }
 }
 MainActor.assumeIsolated {
@@ -49,7 +49,7 @@ MainActor.assumeIsolated {
   model.current = root; model.crumbs = [root]; model.rows = root.children; model.tiles = Array(root.children.prefix(8))
   model.result = ScanResult(root: root); model.elapsed = "2.0 с"
   layoutFrames = [:]
-  let view = MacdirRootView(model: model).environment(\.colorScheme, dark ? .dark : .light).onPreferenceChange(LayoutFramesKey.self) { layoutFrames = $0 }
+  let view = MacdirRootView(model: model).layoutProbe("hostRoot").coordinateSpace(name: "layoutHost").environment(\.colorScheme, dark ? .dark : .light).onPreferenceChange(LayoutFramesKey.self) { layoutFrames = $0 }
   let host = NSHostingView(rootView: view)
   host.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
   let window = NSWindow(contentRect: NSRect(x: -10000, y: -10000, width: width, height: height), styleMask: [.borderless], backing: .buffered, defer: false)
@@ -57,6 +57,16 @@ MainActor.assumeIsolated {
   window.orderFront(nil) // Offscreen at (-10000,-10000); never activates the app.
   for _ in 0..<8 { host.layoutSubtreeIfNeeded(); RunLoop.main.run(until: Date().addingTimeInterval(0.04)) }
   let size = "\(width)x\(height)-\(dark ? "dark" : "light")"
+  func descendants(_ view: NSView) -> [NSView] { [view] + view.subviews.flatMap { descendants($0) } }
+  let scrolls = descendants(host).compactMap { $0 as? NSScrollView }
+  // Named SwiftUI root and AppKit conversions share the hosting view's flipped bounds.
+  if !host.isFlipped || layoutFrames["hostRoot"] != host.bounds { failures.append(size+": coordinate-space calibration failed") }
+  if let outer = scrolls.first, let document = outer.documentView {
+   let clipInHost = outer.contentView.convert(outer.contentView.bounds, to: host)
+   let documentInHost = document.convert(document.bounds, to: host)
+   let scrollInHost = outer.convert(outer.bounds, to: host)
+   print("GEOMETRY", size, "host", host.bounds, "scroll", scrollInHost, "clip", clipInHost, "document", documentInHost, "gutter", scrollInHost.width - clipInHost.width, "style", outer.scrollerStyle.rawValue, "vertical", outer.hasVerticalScroller, "row", String(describing: layoutFrames["gaugeRow"]), "content", String(describing: layoutFrames["dashboardContent"]), "swiftDocument", String(describing: layoutFrames["dashboardDocument"]))
+  } else { failures.append(size+": missing geometry scroll view") }
 
   if let bitmap = host.bitmapImageRepForCachingDisplay(in: host.bounds) {
    host.effectiveAppearance.performAsCurrentDrawingAppearance { host.cacheDisplay(in: host.bounds, to: bitmap) }
@@ -74,8 +84,6 @@ MainActor.assumeIsolated {
    if gauges.count != 6 || gauges.contains(where: { $0.width < 230 || abs($0.height - 112) > 1 || $0.maxY > min(numbers.minY, chart.minY) }) { failures.append(size+": gauges compressed or overlapping traffic") }
    if width >= 1180 && abs((gauges.map(\.maxX).max() ?? 0) - CGFloat(width - 22)) > 1 { failures.append(size+": gauges must fill the available row") }
   } else { failures.append(size+": missing geometry probes") }
-  func descendants(_ view: NSView) -> [NSView] { [view] + view.subviews.flatMap { descendants($0) } }
-  let scrolls = descendants(host).compactMap { $0 as? NSScrollView }
   if let table = descendants(host).compactMap({ $0 as? NSTableView }).first, let tableScroll = table.enclosingScrollView {
    table.scrollRowToVisible(39)
    if tableScroll.contentView.bounds.minY <= 0 { failures.append(size+": table cannot scroll to last row") }
