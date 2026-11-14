@@ -23,11 +23,20 @@ MainActor.assumeIsolated {
  app.appearance = NSAppearance(named: .darkAqua)
  let output = URL(fileURLWithPath: CommandLine.arguments[1])
  var failures: [String] = []
+ func fillsHorizontally(_ actual: CGRect, _ available: CGRect) -> Bool {
+  abs(actual.minX - available.minX) <= 1 && abs(actual.maxX - available.maxX) <= 1
+ }
+ // Negative control: the original 17-point underfill must still be rejected.
+ let control = CGRect(x: 22, y: 0, width: 1379, height: 112)
+ if !fillsHorizontally(control, control) || fillsHorizontally(control.insetBy(dx: 17, dy: 0), control) {
+  failures.append("horizontal-fill negative control failed")
+ }
  let geometryNode = FileNode(path: "/Synthetic/geometry", isDirectory: true); geometryNode.logical = 1
  let treemap = Treemap(nodes: [geometryNode], action: { _ in })
  if !treemap.boxes([geometryNode][...], CGRect(x: 0, y: 0, width: -1, height: 0)).isEmpty { failures.append("degenerate treemap must have no cells") }
  for dark in [true, false] {
  app.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
+ for (styleName, requestedStyle) in [("system", nil), ("overlay", NSScroller.Style.overlay), ("legacy", NSScroller.Style.legacy)] {
  for (width, height) in [(1440, 1200), (1440, 1000), (1180, 800), (1060, 740), (1060, 580), (800, 540), (800, 1400)] {
   let model = Model()
   model.computerName = "Fixture Mac — синтетические данные"
@@ -56,9 +65,16 @@ MainActor.assumeIsolated {
   window.contentView = host; host.frame = NSRect(x: 0, y: 0, width: width, height: height)
   window.orderFront(nil) // Offscreen at (-10000,-10000); never activates the app.
   for _ in 0..<8 { host.layoutSubtreeIfNeeded(); RunLoop.main.run(until: Date().addingTimeInterval(0.04)) }
-  let size = "\(width)x\(height)-\(dark ? "dark" : "light")"
+  let size = "\(width)x\(height)-\(dark ? "dark" : "light")" + (styleName == "system" ? "" : "-" + styleName)
   func descendants(_ view: NSView) -> [NSView] { [view] + view.subviews.flatMap { descendants($0) } }
   let scrolls = descendants(host).compactMap { $0 as? NSScrollView }
+  if let requestedStyle, let outer = scrolls.first {
+   // Per-instance fixture only: never force global preferences or hide the gutter.
+   outer.scrollerStyle = requestedStyle
+   outer.tile()
+   for _ in 0..<8 { host.layoutSubtreeIfNeeded(); RunLoop.main.run(until: Date().addingTimeInterval(0.04)) }
+   if outer.scrollerStyle != requestedStyle { failures.append(size+": requested scrollbar style not exercised") }
+  }
   // Named SwiftUI root and AppKit conversions share the hosting view's flipped bounds.
   if !host.isFlipped || layoutFrames["hostRoot"] != host.bounds { failures.append(size+": coordinate-space calibration failed") }
   if let outer = scrolls.first, let document = outer.documentView {
@@ -66,6 +82,15 @@ MainActor.assumeIsolated {
    let documentInHost = document.convert(document.bounds, to: host)
    let scrollInHost = outer.convert(outer.bounds, to: host)
    print("GEOMETRY", size, "host", host.bounds, "scroll", scrollInHost, "clip", clipInHost, "document", documentInHost, "gutter", scrollInHost.width - clipInHost.width, "style", outer.scrollerStyle.rawValue, "vertical", outer.hasVerticalScroller, "row", String(describing: layoutFrames["gaugeRow"]), "content", String(describing: layoutFrames["dashboardContent"]), "swiftDocument", String(describing: layoutFrames["dashboardDocument"]))
+   if let swiftDocument = layoutFrames["dashboardDocument"], let content = layoutFrames["dashboardContent"], let row = layoutFrames["gaugeRow"] {
+    if !fillsHorizontally(documentInHost, clipInHost) || !fillsHorizontally(swiftDocument, documentInHost) || abs(swiftDocument.minY - documentInHost.minY) > 1 || abs(swiftDocument.height - documentInHost.height) > 1 { failures.append(size+": document/clip coordinate calibration failed") }
+    // Production dashboard has .padding(22); available width comes from the actual clip.
+    let available = clipInHost.insetBy(dx: 22, dy: 0)
+    if !fillsHorizontally(content, available) || !fillsHorizontally(row, available) { failures.append(size+": dashboard/grid must fill actual available content") }
+    let gauges = layoutFrames.filter { $0.key.hasPrefix("gauge-") }.map(\.value)
+    let occupied = gauges.reduce(CGRect.null) { $0.union($1) }
+    if !fillsHorizontally(occupied, row) { failures.append(size+": gauges must fill the available row") }
+   } else { failures.append(size+": missing content geometry probes") }
   } else { failures.append(size+": missing geometry scroll view") }
 
   if let bitmap = host.bitmapImageRepForCachingDisplay(in: host.bounds) {
@@ -82,7 +107,7 @@ MainActor.assumeIsolated {
    if width >= 1180 && chart.minX < numbers.maxX { failures.append(size+": wide chart must follow numbers") }
    let gauges = layoutFrames.filter { $0.key.hasPrefix("gauge-") }.map(\.value)
    if gauges.count != 6 || gauges.contains(where: { $0.width < 230 || abs($0.height - 112) > 1 || $0.maxY > min(numbers.minY, chart.minY) }) { failures.append(size+": gauges compressed or overlapping traffic") }
-   if width >= 1180 && abs((gauges.map(\.maxX).max() ?? 0) - CGFloat(width - 22)) > 1 { failures.append(size+": gauges must fill the available row") }
+
   } else { failures.append(size+": missing geometry probes") }
   if let table = descendants(host).compactMap({ $0 as? NSTableView }).first, let tableScroll = table.enclosingScrollView {
    table.scrollRowToVisible(39)
@@ -106,6 +131,7 @@ MainActor.assumeIsolated {
    print(size, "scroll views", scrolls.count, "outer offset", outer.contentView.bounds.origin)
   } else { failures.append(size+": missing page scroll view") }
   window.contentView = nil
+ }
  }
  }
  // Actual server panel, in-memory telemetry only; no ServersModel or SSH.
