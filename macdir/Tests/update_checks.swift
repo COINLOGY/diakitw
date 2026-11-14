@@ -2,9 +2,9 @@ import Foundation
 
 private func require(_ ok: Bool, _ label: String) { if !ok { fatalError(label) } }
 private func rejects(_ label: String, _ f: () throws -> Void) { do { try f(); fatalError("accepted " + label) } catch {} }
-private func fixture(version: String = "0.5.4", build: Any = 54, channel: String = "preview", platform: String = "macos-arm64", url: String? = nil, schema: Any = 1) throws -> Data {
+private func fixture(version: String = "0.5.4", build: Any = 54, channel: String = "preview", platform: String = "macos-arm64", url: String? = nil, schema: Any = 1, size: Any = 100, hash: String = String(repeating: "a", count: 64), notes: String = "Тест: только браузер") throws -> Data {
     let file = platform == "ios-unsigned" ? "ios-UNSIGNED-device.app.zip" : "\(platform).dmg"
-    return try JSONSerialization.data(withJSONObject: ["schema": schema, "releases": [["version": version, "build": build, "channel": channel, "notes": "Тест: только браузер", "assets": [platform: ["url": url ?? "https://github.com/COINLOGY/diakitw/releases/download/v\(version)/diakitw-\(version)-\(file)", "size": 100, "sha256": String(repeating: "a", count: 64)]]]]])
+    return try JSONSerialization.data(withJSONObject: ["schema": schema, "releases": [["version": version, "build": build, "channel": channel, "notes": notes, "assets": [platform: ["url": url ?? "https://github.com/COINLOGY/diakitw/releases/download/v\(version)/diakitw-\(version)-\(file)", "size": size, "sha256": hash]]]]])
 }
 final class FixtureProtocol: URLProtocol {
     static var mode = "ok"
@@ -43,6 +43,9 @@ final class FixtureProtocol: URLProtocol {
         for s in ["0.5", "0.5.4-beta", "01.5.4", "-1.2.3", "1.2.3\n"] { rejects("semver") { _ = try UpdateContract.Version(s) } }
         for b in [-1, true, 1.5, "54"] as [Any] { rejects("build") { _ = try select(fixture(build: b)) } }
         for s in [2, true, "1"] as [Any] { rejects("schema") { _ = try select(fixture(schema: s)) } }
+        for size in [0, -1, true, 1.5, "100"] as [Any] { rejects("size") { _ = try select(fixture(size: size)) } }
+        for hash in ["", "abc", String(repeating: "z", count: 64)] { rejects("hash") { _ = try select(fixture(hash: hash)) } }
+        for notes in ["<b>html</b>", String(repeating: "a", count: 2001), "bad\u{0001}"] { rejects("notes") { _ = try select(fixture(notes: notes)) } }
         let good = "https://github.com/COINLOGY/diakitw/releases/download/v0.5.4/diakitw-0.5.4-macos-arm64.dmg"
         for u in [good+"?x=1", good+"#a", good.replacingOccurrences(of: "https:", with: "http:"), good.replacingOccurrences(of: "github.com", with: "github.com.evil.invalid"), good.replacingOccurrences(of: "github.com", with: "user@github.com"), good.replacingOccurrences(of: "/diakitw-", with: "/../diakitw-"), good.replacingOccurrences(of: "arm64.dmg", with: "arm64%2edmg"), good.replacingOccurrences(of: "v0.5.4", with: "v0.5.3"), good+"\n"] { rejects("URL") { _ = try select(fixture(url: u)) } }
         rejects("filename") { _ = try select(fixture(url: good.replacingOccurrences(of: "arm64.dmg", with: "x86_64.dmg"))) }
@@ -94,12 +97,16 @@ final class FixtureProtocol: URLProtocol {
         try? await Task.sleep(nanoseconds: 30_000_000)
         require(delayed.offer == nil && delayed.status == "Проверка отменена", "late aborted result rejected")
         print("PASS lifecycle: foreground/24h/60s/1h/no overlap/Later/persistence/cancel/late")
-        for mode in ["ok", "404", "redirect", "cap", "timeout"] {
+        for mode in ["ok", "404", "redirect", "cap", "timeout", "hang"] {
+            let watchdog = Task { try? await Task.sleep(nanoseconds: 13_000_000_000); if !Task.isCancelled { fatalError("transport exceeded whole-request deadline") } }
+            defer { watchdog.cancel() }
             FixtureProtocol.mode = mode
             let config = URLSessionConfiguration.ephemeral; config.protocolClasses = [FixtureProtocol.self]
             do {
                 let result = try await UpdateTransport.fetch(configuration: config)
-                require(mode == "ok" && result == data, "unexpected transport success " + mode)
+                let actual = try select(result)
+                let expected = try select(data)
+                require(mode == "ok" && actual == expected, "unexpected transport success " + mode)
             } catch { require(mode != "ok", "transport fixture failed " + String(describing: error)) }
             require(config.httpCookieStorage == nil && config.urlCache == nil && config.timeoutIntervalForResource == 10, "ephemeral bounds")
         }
