@@ -24,6 +24,7 @@ import MacdirCore
   item = status
   let menu = NSMenu(); menu.autoenablesItems = false; menu.delegate = self
   DesktopActions.shared.addItems(to: menu)
+  UpdateMenu.shared.addItems(to: menu)
   menu.addItem(.separator())
   for detail in details { detail.isEnabled = false; menu.addItem(detail) }
   menu.addItem(.separator())

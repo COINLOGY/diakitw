@@ -1,0 +1,29 @@
+name: iOS 0.5.4 unsigned build and smoke
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ios-054
+  cancel-in-progress: false
+jobs:
+  build-test:
+    runs-on: macos-15-intel
+    timeout-minutes: 20
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Sequential unsigned builds and offline tests
+        run: bash ios/Scripts/ci-build.sh
+      - name: Upload build-only artifacts and evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: diakitw-ios-0.5.4
+          path: ios/out/
+          if-no-files-found: error
+          retention-days: 14
