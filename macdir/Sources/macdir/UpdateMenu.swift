@@ -45,7 +45,7 @@ private struct UpdatePane: View {
     @ObservedObject var checker: UpdateChecker
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("diakitw 0.5.6 (56)").font(.headline)
+            Text("diakitw 0.5.7 (57)").font(.headline)
             Picker("Канал", selection: Binding(get: { checker.channel }, set: { checker.choose($0) })) {
                 Text("Preview").tag("preview"); Text("Stable").tag("stable")
             }.pickerStyle(.segmented)
@@ -58,7 +58,7 @@ private struct UpdatePane: View {
                 }
             }
             Button("Проверить обновления") { checker.check() }.disabled(checker.checking)
-            Text("Проверка при активном приложении: раз в 24 ч. GitHub получает обычный HTTPS-запрос без метрик и параметров. Скачивание — только в браузере; установка вручную. Подпись и хеш скачанного файла здесь не проверяются. Без автозамены и перезапуска.")
+            Text("Проверка при каждом новом запуске; при дальнейшей работе активного приложения — раз в 24 ч. GitHub получает обычный HTTPS-запрос без метрик и параметров. Скачивание — только в браузере; установка вручную. Подпись и хеш скачанного файла здесь не проверяются. Без автозамены и перезапуска.")
                 .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
         }.padding(18).frame(width: 454)
         .onDisappear { checker.cancel() }

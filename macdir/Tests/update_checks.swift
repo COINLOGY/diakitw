@@ -30,7 +30,7 @@ final class FixtureProtocol: URLProtocol {
         func select(_ d: Data, channel: String = "preview", platform: String = "macos-arm64", current: String = "0.5.3", build: Int = 53) throws -> UpdateContract.Offer? {
             try UpdateContract.select(d, channel: channel, platform: platform, current: current, currentBuild: build)
         }
-        require(UpdateContract.version == "0.5.6" && UpdateContract.build == 56, "numeric Mac identity")
+        require(UpdateContract.version == "0.5.7" && UpdateContract.build == 57, "numeric Mac identity")
         rejects("letter version") { _ = try UpdateContract.Version("0.5.5a") }
         let candidate = try fixture(version: "0.5.5", build: 55)
         require(try select(candidate, current: "0.5.4", build: 54)?.version == "0.5.5", "0.5.4 -> 0.5.5")
@@ -69,6 +69,22 @@ final class FixtureProtocol: URLProtocol {
             for _ in 0..<300 { if !c.checking { return }; try? await Task.sleep(nanoseconds: 10_000_000) }
             fatalError("checker stuck")
         }
+        // A fresh process must recheck even when the previous process succeeded moments ago.
+        let launchSuite = UserDefaults(suiteName: suite + "-launch")!
+        defer { launchSuite.removePersistentDomain(forName: suite + "-launch") }
+        var launchCalls = 0
+        let launchLoad: () async throws -> Data = { launchCalls += 1; return data }
+        let firstLaunch = UpdateChecker(defaults: launchSuite, platform: "macos-arm64", current: "0.5.3", currentBuild: 53, now: { time }, load: launchLoad)
+        firstLaunch.setForeground(true); await settle(firstLaunch)
+        require(launchCalls == 1, "first launch checks")
+        firstLaunch.setForeground(false)
+        let secondLaunch = UpdateChecker(defaults: launchSuite, platform: "macos-arm64", current: "0.5.3", currentBuild: 53, now: { time }, load: launchLoad)
+        secondLaunch.setForeground(true); await settle(secondLaunch)
+        require(launchCalls == 2 && secondLaunch.offer != nil, "fresh launch rechecks within 60s / 24h")
+        secondLaunch.setForeground(false)
+        secondLaunch.setForeground(true); await settle(secondLaunch)
+        require(launchCalls == 2, "same process activation retains 24h gate")
+        secondLaunch.setForeground(false)
         require(checker.channel == "preview", "default preview")
         checker.setForeground(true); await settle(checker)
         require(calls == 1 && checker.offer != nil, "automatic startup offer")

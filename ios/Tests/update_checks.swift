@@ -30,7 +30,11 @@ final class FixtureProtocol: URLProtocol {
         func select(_ d: Data, channel: String = "preview", platform: String = "macos-arm64", current: String = "0.5.3", build: Int = 53) throws -> UpdateContract.Offer? {
             try UpdateContract.select(d, channel: channel, platform: platform, current: current, currentBuild: build)
         }
+        #if os(iOS)
         require(UpdateContract.version == "0.5.5" && UpdateContract.build == 55, "numeric iOS identity")
+        #else
+        require(UpdateContract.version == "0.5.7" && UpdateContract.build == 57, "host checks shared macOS identity")
+        #endif
         // 0.5.5a is a UI label, never a parser version or an invented install offer.
         rejects("letter version") { _ = try UpdateContract.Version("0.5.5a") }
         let androidOnly = try fixture(version: "0.5.5", build: 55, platform: "android")
@@ -68,6 +72,23 @@ final class FixtureProtocol: URLProtocol {
             for _ in 0..<300 { if !c.checking { return }; try? await Task.sleep(nanoseconds: 10_000_000) }
             fatalError("checker stuck")
         }
+        // iOS also rechecks on a fresh process even after a recent successful launch.
+        let launchSuite = UserDefaults(suiteName: suite + "-launch")!
+        defer { launchSuite.removePersistentDomain(forName: suite + "-launch") }
+        let launchData = try fixture(platform: "ios-unsigned")
+        var launchCalls = 0
+        let launchLoad: () async throws -> Data = { launchCalls += 1; return launchData }
+        let firstLaunch = UpdateChecker(defaults: launchSuite, platform: "ios-unsigned", current: "0.5.3", currentBuild: 53, now: { time }, load: launchLoad)
+        firstLaunch.setForeground(true); await settle(firstLaunch)
+        require(launchCalls == 1, "first iOS launch checks")
+        firstLaunch.setForeground(false)
+        let secondLaunch = UpdateChecker(defaults: launchSuite, platform: "ios-unsigned", current: "0.5.3", currentBuild: 53, now: { time }, load: launchLoad)
+        secondLaunch.setForeground(true); await settle(secondLaunch)
+        require(launchCalls == 2 && secondLaunch.offer != nil, "fresh iOS launch rechecks within 60s / 24h")
+        secondLaunch.setForeground(false)
+        secondLaunch.setForeground(true); await settle(secondLaunch)
+        require(launchCalls == 2, "iOS reactivation retains 24h gate")
+        secondLaunch.setForeground(false)
         require(checker.channel == "preview", "default preview")
         checker.setForeground(true); await settle(checker)
         require(calls == 1 && checker.offer != nil, "automatic startup offer")

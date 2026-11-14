@@ -10,8 +10,8 @@ public enum UpdateContract {
     public static let endpoint = URL(string: "https://coinlogy.github.io/diakitw/updates/v1.json")!
     public static let cap = 32 * 1024
     #if os(macOS)
-    public static let version = "0.5.6"
-    public static let build = 56
+    public static let version = "0.5.7"
+    public static let build = 57
     #else
     public static let version = "0.5.5"
     public static let build = 55
@@ -161,6 +161,7 @@ public enum UpdateTransport {
     private var timer: Task<Void, Never>?
     private var generation = 0
     private var foreground = false
+    private var startupPending = true
     public init(defaults: UserDefaults = .standard, platform: String = UpdateContract.platform,
                 current: String = UpdateContract.version, currentBuild: Int = UpdateContract.build,
                 now: @escaping () -> Date = Date.init,
@@ -178,7 +179,9 @@ public enum UpdateTransport {
     public func setForeground(_ active: Bool) {
         guard foreground != active else { return }; foreground = active
         if !active { timer?.cancel(); timer = nil; cancel(); return }
-        check(manual: false)
+        let isStartup = startupPending
+        startupPending = false
+        performCheck(manual: false, forceAtLaunch: isStartup)
         timer = Task { [weak self] in
             while !Task.isCancelled {
                 do { try await Task.sleep(nanoseconds: 60_000_000_000) } catch { return }
@@ -191,14 +194,15 @@ public enum UpdateTransport {
         if checking { status = "Проверка отменена" }; checking = false
     }
     public func later() { cancel(); offer = nil; status = "Напоминание скрыто; следующая автопроверка — не раньше чем через 24 ч"; defaults.set(now(), forKey: "diakitw.update.success." + channel) }
-    public func check(manual: Bool = true) {
+    public func check(manual: Bool = true) { performCheck(manual: manual, forceAtLaunch: false) }
+    private func performCheck(manual: Bool, forceAtLaunch: Bool) {
         guard !checking, foreground || manual else { return }
         let date = now()
         func elapsed(_ key: String) -> TimeInterval { defaults.object(forKey: key).flatMap { $0 as? Date }.map { date.timeIntervalSince($0) } ?? .infinity }
-        guard elapsed("diakitw.update.attempt") >= 60 else {
+        guard forceAtLaunch || elapsed("diakitw.update.attempt") >= 60 else {
             if manual { status = "Повторная проверка доступна через 60 с после предыдущей" }; return
         }
-        if !manual && (elapsed("diakitw.update.success." + channel) < 86400 || elapsed("diakitw.update.failure") < 3600) { return }
+        if !manual && !forceAtLaunch && (elapsed("diakitw.update.success." + channel) < 86400 || elapsed("diakitw.update.failure") < 3600) { return }
         defaults.set(date, forKey: "diakitw.update.attempt")
         checking = true; status = "Проверка обновлений…"; offer = nil
         generation += 1; let id = generation
