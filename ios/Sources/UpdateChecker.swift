@@ -1,4 +1,4 @@
-// Shared byte-for-byte with ios/Sources/UpdateChecker.swift. Browser-only stage.
+// iOS browser-only updater. Numeric platform version is separate from the UI label 0.5.5a.
 import Foundation
 import Combine
 import CoreFoundation
@@ -9,8 +9,8 @@ import Darwin
 public enum UpdateContract {
     public static let endpoint = URL(string: "https://coinlogy.github.io/diakitw/updates/v1.json")!
     public static let cap = 32 * 1024
-    public static let version = "0.5.4"
-    public static let build = 54
+    public static let version = "0.5.5"
+    public static let build = 55
     public enum Failure: Error { case invalid, http, oversized }
     public struct Version: Comparable, Equatable {
         let parts: [Int]
