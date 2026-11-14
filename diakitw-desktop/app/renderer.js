@@ -1,4 +1,6 @@
-'use strict';
+ 'use strict';
+window.diakitw.subscribeUpdates?.(s=>{const available=s.status==='available';$('update-notice').hidden=s.status==='dismissed';$('update-download').hidden=!available;$('update-text').textContent=available?'Доступна diakitw '+s.release.version+'\n'+s.release.notes:({current:'Новых версий для выбранного канала нет.',error:'Не удалось проверить обновления. Проверьте сеть и повторите позже.',throttled:'Повторная ручная проверка — не чаще раза в минуту.','download-error':'Не удалось открыть браузер.'}[s.status]||'');});
+for(const [id,command] of [['update-download','download'],['update-later','later']])document.getElementById(id).addEventListener('click',()=>window.diakitw.update(command));
 const $=id=>document.getElementById(id);const colors={green:'#a6e640',blue:'#4cbfff',red:'#ff737d',neutral:'#94a1ae'};
 const valid=n=>typeof n==='number'&&Number.isFinite(n)&&n>=0;
 const pct=p=>p&&valid(p.used)&&valid(p.total)&&p.total>0&&p.used<=p.total?100*p.used/p.total:null;
@@ -22,11 +24,11 @@ function gauge(canvas,p,battery,rate){
  const r=Math.min(w/2-gutter,h-2*font-24,(h-font-16)/(1+Math.hypot(21,4)/114)),x=w/2,y=r+font+12;
  const known=valid(p)&&p<=100;canvas.dataset.needle=String(known);canvas.dataset.unit=rate?.unit||'%';if(r<=20)return;
  const bands=!known?[[0,100,'neutral']]:rate?[[0,100,rate.color]]:[[0,20,band(10,battery)],[20,80,'blue'],[80,100,band(90,battery)]];
- c.globalAlpha=known?.85:.24;c.lineWidth=9;
+ c.globalAlpha=known?.85:.24;c.lineWidth=7;
  for(const [start,end,color] of bands){c.beginPath();c.arc(x,y,r,Math.PI+start/100*Math.PI,Math.PI+end/100*Math.PI);c.strokeStyle=colors[color];c.stroke();}c.globalAlpha=1;
- c.fillStyle='#bdc9d2';c.textAlign='center';
- for(let i=0;i<=4;i++){const a=Math.PI+i/4*Math.PI;c.beginPath();c.moveTo(x+Math.cos(a)*(r-9),y+Math.sin(a)*(r-9));c.lineTo(x+Math.cos(a)*(r-16),y+Math.sin(a)*(r-16));c.lineWidth=1;c.strokeStyle='#8194a3';c.stroke();if(i%2===0)c.fillText(labels[i/2],x+Math.cos(a)*r,i===2?font+4:y+font+8);}
- if(known){const a=p/100*Math.PI,s=r/114;c.beginPath();for(const [i,[u,v]] of [[-99,0],[0,-8],[21,-4],[21,4],[0,8]].entries()){const px=x+(u*Math.cos(a)-v*Math.sin(a))*s,py=y+(u*Math.sin(a)+v*Math.cos(a))*s;if(i===0)c.moveTo(px,py);else c.lineTo(px,py);}c.closePath();c.fillStyle=colors[rate?.color||band(p,battery)];c.fill();c.beginPath();c.arc(x,y,4,0,2*Math.PI);c.fillStyle='#f0f4f8';c.fill();}
+ c.fillStyle='#edf4fc';c.font='600 '+font+'px sans-serif';c.textAlign='center';
+ for(let i=0;i<=4;i++){const a=Math.PI+i/4*Math.PI;c.beginPath();c.moveTo(x+Math.cos(a)*(r-9),y+Math.sin(a)*(r-9));c.lineTo(x+Math.cos(a)*(r-16),y+Math.sin(a)*(r-16));c.lineWidth=i%2===0?1.5:1;c.strokeStyle=i%2===0?'#d6e2ec':'#8194a3';c.stroke();if(i%2===0)c.fillText(labels[i/2],x+Math.cos(a)*r,i===2?font+4:y+font+8);}
+ if(known){const a=p/100*Math.PI,s=r/114;c.beginPath();for(const [i,[u,v]] of [[-99,0],[0,-10],[21,-4],[21,4],[0,10]].entries()){const px=x+(u*Math.cos(a)-v*Math.sin(a))*s,py=y+(u*Math.sin(a)+v*Math.cos(a))*s;if(i===0)c.moveTo(px,py);else c.lineTo(px,py);}c.closePath();c.fillStyle=colors[rate?.color||band(p,battery)];c.fill();c.beginPath();c.arc(x,y,4,0,2*Math.PI);c.fillStyle='#141a21';c.fill();c.beginPath();c.arc(x,y,4-1.5/2,0,2*Math.PI);c.lineWidth=1.5;c.strokeStyle=colors[rate?.color||band(p,battery)];c.stroke();}
 }
 function updateCard(id,p,detail){const card=cards[id];card.p=p;card.value.textContent=valid(p)?(id==='battery'?Math.round(p):p.toFixed(1))+'%':'Н/Д';card.value.className='value '+band(p,id==='battery');card.detail.textContent=detail;gauge(card.canvas,p,id==='battery');}
 function drawHistory(){const [c,w,h]=context($('history'));c.strokeStyle='#35424e';c.lineWidth=1;for(let i=0;i<4;i++){c.beginPath();c.moveTo(0,i*(h-2)/3);c.lineTo(w,i*(h-2)/3);c.stroke();}const max=Math.max(1024,...history.flatMap(n=>[n.rx,n.tx].filter(valid)));$('scale').textContent='Верх шкалы: '+speed(max);const end=latest?.time||0;for(const [key,color] of [['rx',colors.green],['tx',colors.blue]]){c.strokeStyle=color;c.lineWidth=2;c.beginPath();let last=null;for(const n of history){if(!valid(n[key])){last=null;continue;}const x=w*(1-(end-n.time)/60000),y=h-2-n[key]/max*(h-5);if(last===null||n.time-last>10000)c.moveTo(x,y);else c.lineTo(x,y);last=n.time;}c.stroke();}}

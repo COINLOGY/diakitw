@@ -3,10 +3,10 @@ public class GaugeTest {
  static int checks;
  static void near(double expected,double actual){checks++;if(Double.isNaN(expected)?!Double.isNaN(actual):!Double.isFinite(actual)||Math.abs(expected-actual)>0.00001)throw new AssertionError(expected+" != "+actual);}
  public static void main(String[] args){
-  // Approved v2 polygon, not the forked tail. Reflective lookup keeps RED a behavioral assertion.
+  // Approved v4 polygon, not the forked tail. Reflective lookup keeps RED a behavioral assertion.
   try {
    java.lang.reflect.Method method=Gauge.class.getMethod("needle",double.class,double.class);
-   double[][] reference={{-99,0},{0,-8},{21,-4},{21,4},{0,8}};
+   double[][] reference={{-99,0},{0,-10},{21,-4},{21,4},{0,10}};
    for(double f:new double[]{0,.125,.25,.5,.75,.875,1}){
     double[][] points=(double[][])method.invoke(null,f,114.0);
     near(5,points.length);double a=Math.PI*f;

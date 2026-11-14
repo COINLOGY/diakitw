@@ -1,0 +1,29 @@
+name: Shared update feed validation
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  parsers:
+    runs-on: macos-15-intel
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Same manifest through production parsers
+        shell: bash
+        run: |
+          set -euo pipefail
+          node release/check-feed.cjs
+          cmp macdir/Sources/MacdirCore/UpdateChecker.swift ios/Sources/UpdateChecker.swift
+          mkdir -p .ci-scratch/java-current .ci-scratch/java-old
+          swiftc macdir/Sources/MacdirCore/UpdateChecker.swift release/check-feed.swift -o .ci-scratch/feed-check
+          .ci-scratch/feed-check release/fixtures/v1-0.5.4.json
+          curl -fLsS --max-time 60 https://repo.maven.apache.org/maven2/org/json/json/20240303/json-20240303.jar -o .ci-scratch/json.jar
+          shasum -a 256 .ci-scratch/json.jar
+          javac -cp .ci-scratch/json.jar -d .ci-scratch/java-current diakitw-android/app/src/main/java/app/diakitw/Updates.java release/FeedCheck.java
+          java -cp .ci-scratch/json.jar:.ci-scratch/java-current app.diakitw.FeedCheck release/fixtures/v1-0.5.4.json
+          python3 -c 'from pathlib import Path; s=Path("diakitw-android/app/src/main/java/app/diakitw/Updates.java").read_text(); assert s.count("compare(v,\"0.5.4\")<=0||build<=54")==1; Path(".ci-scratch/Updates.java").write_text(s.replace("compare(v,\"0.5.4\")<=0||build<=54","compare(v,\"0.5.3\")<=0||build<=53"))'
+          javac -cp .ci-scratch/json.jar -d .ci-scratch/java-old .ci-scratch/Updates.java release/FeedCheck.java
+          java -cp .ci-scratch/json.jar:.ci-scratch/java-old app.diakitw.FeedCheck release/fixtures/v1-0.5.4.json old-fixture

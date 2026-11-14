@@ -12,7 +12,7 @@ public final class Gauge {
  // Exact approved SVG offsets relative to (150,146), scaled by arc radius 114.
  public static double[][] needle(double fraction,double radius){
   if(!Double.isFinite(angle(fraction))||!Double.isFinite(radius)||radius<=0)return new double[0][0];
-  double[][] p={{-99,0},{0,-8},{21,-4},{21,4},{0,8}};
+  double[][] p={{-99,0},{0,-10},{21,-4},{21,4},{0,10}};
   double a=Math.PI*fraction,c=Math.cos(a),s=Math.sin(a),scale=radius/114;
   for(double[] v:p){double x=v[0],y=v[1];v[0]=(x*c-y*s)*scale;v[1]=(x*s+y*c)*scale;}
   return p;

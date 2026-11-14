@@ -1,7 +1,7 @@
-diakitw 0.5.2
+diakitw 0.5.4 (including previous 0.5.2/0.5.3 own-code releases)
 Own code and documentation: Copyright (c) 2026 EMCx contributors, MIT.
 This express MIT grant also applies to the project's own code in the matching
-0.5.2 release binaries. It supersedes earlier "all rights reserved" / license
+0.5.4 and previous 0.5.2/0.5.3 release binaries. It supersedes earlier "all rights reserved" / license
 not selected wording about our own code embedded in these unchanged candidates.
 It does not replace third-party licenses or copyrights. Preserve runtime LICENSE
 and LICENSES.chromium.html when redistributing Windows/Linux packages.

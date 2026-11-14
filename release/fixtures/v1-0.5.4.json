@@ -1,0 +1,38 @@
+{
+  "schema": 1,
+  "releases": [
+    {
+      "version": "0.5.4",
+      "build": 54,
+      "channel": "preview",
+      "notes": "Preview: foreground update checks and manual browser downloads. No automatic installation or downloaded-file verification. Older clients require one manual installation. Candidate signing and runtime limits apply.",
+      "assets": {
+        "windows-x64": {
+          "url": "https://github.com/COINLOGY/diakitw/releases/download/v0.5.4/diakitw-0.5.4-windows-x64.zip",
+          "size": 158116761,
+          "sha256": "5ca04e2b2070a4f907080e48b4fe8ccf37b0dbb623d52e124cbc9d9d1f86dde4"
+        },
+        "linux-x64": {
+          "url": "https://github.com/COINLOGY/diakitw/releases/download/v0.5.4/diakitw-0.5.4-linux-x64.tar.gz",
+          "size": 124055177,
+          "sha256": "58f4250480d72ae25a8f53adc6810742b9fb20296581d0e914ba1e66553056ff"
+        },
+        "android": {
+          "url": "https://github.com/COINLOGY/diakitw/releases/download/v0.5.4/diakitw-android-0.5.4-candidate.apk",
+          "size": 115471,
+          "sha256": "d777719f0b3805efcbba2cdfe86ab4aa70225944a1d1a163fc92749528a7083a"
+        },
+        "macos-arm64": {
+          "url": "https://github.com/COINLOGY/diakitw/releases/download/v0.5.4/diakitw-0.5.4-macos-arm64.dmg",
+          "size": 1591789,
+          "sha256": "73c5abedc8e25f3a11663450458785537ac9a2c1112078f8d86d72346ebcf216"
+        },
+        "macos-x86_64": {
+          "url": "https://github.com/COINLOGY/diakitw/releases/download/v0.5.4/diakitw-0.5.4-macos-x86_64.dmg",
+          "size": 1705315,
+          "sha256": "928b1166caf8374912fbd7ac978a065bb6acdb6a86d9deb2cddcbf1c2e835dc3"
+        }
+      }
+    }
+  ]
+}

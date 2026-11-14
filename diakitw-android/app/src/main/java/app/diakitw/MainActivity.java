@@ -21,6 +21,31 @@ import java.util.concurrent.*;
 
 public final class MainActivity extends Activity {
  static final int BG=0xff141a21,CARD=0xff1d2732,TEXT=0xffedf4fc,MUTED=0xffafbecd,BLUE=0xff4cbfff,GREEN=0xffa6e640,RED=0xffff747e,LINE=0xff354452;
+ Updates.Policy updates;Updates.Fetch updateFetch;Thread updateThread;Updates.Release updateOffer;TextView updateNotice;AlertDialog updateDialog;
+ final Handler updateResults=new Handler(Looper.getMainLooper());
+ final Runnable updateTick=new Runnable(){public void run(){if(updates==null||!updates.active)return;checkUpdates(false);main.postDelayed(this,3000);}};
+ void saveUpdates(){getPreferences(MODE_PRIVATE).edit().putString("updateChannel",updates.channel).putLong("updateSuccess",updates.success).putLong("updateAttempt",updates.attempt).putLong("updateFailure",updates.failure).apply();}
+ void stopUpdates(){if(updates!=null)updates.stop();if(updateFetch!=null)updateFetch.cancel();main.removeCallbacks(updateTick);if(updateDialog!=null){updateDialog.dismiss();updateDialog=null;}}
+ void checkUpdates(boolean manual){
+  if(updateThread!=null&&updateThread.isAlive()){if(manual)Toast.makeText(this,"Проверка уже выполняется",Toast.LENGTH_SHORT).show();return;}
+  if(!updates.begin(manual,System.currentTimeMillis())){if(manual)Toast.makeText(this,"Повторная проверка — не чаще раза в минуту",Toast.LENGTH_LONG).show();return;}
+  saveUpdates();final int token=updates.generation;final String channel=updates.channel;final Updates.Fetch run=new Updates.Fetch();updateFetch=run;
+  if(manual)Toast.makeText(this,"Проверка обновлений…",Toast.LENGTH_SHORT).show();
+  updateThread=new Thread(()->{Updates.Release result=null;boolean success=false;try{result=Updates.select(run.run(),channel);success=true;}catch(java.io.IOException|RuntimeException ignored){}final Updates.Release offer=result;final boolean ok=success;
+   updateResults.post(()->{if(updateFetch==run)updateFetch=null;if(!updates.complete(token,ok,System.currentTimeMillis()))return;saveUpdates();if(ok){updateOffer=offer;updateNotice.setVisibility(offer==null?View.GONE:View.VISIBLE);if(offer!=null)updateNotice.setText("Доступна diakitw "+offer.version+" · Подробнее");}if(manual){if(offer!=null)showUpdateOffer();else showText("Обновления",ok?"Новых версий для выбранного канала нет.":"Не удалось проверить обновления. Проверьте сеть и повторите позже.");}});
+  },"update-check");updateThread.setDaemon(true);updateThread.start();
+ }
+ void updatesMenu(){
+  if(updateDialog!=null)updateDialog.dismiss();
+  updateDialog=new AlertDialog.Builder(this).setTitle("Обновления · 0.5.4 (54)").setSingleChoiceItems(new String[]{"Стабильный","Тестовый"},updates.channel.equals("stable")?0:1,(d,which)->{if(updateFetch!=null)updateFetch.cancel();updates.channel(which==0?"stable":"preview");updateOffer=null;updateNotice.setVisibility(View.GONE);saveUpdates();})
+   .setPositiveButton("Проверить обновления",(d,w)->checkUpdates(true)).setNegativeButton("Позже",null).show();updateDialog.getWindow().setBackgroundDrawable(panel());
+ }
+ void showUpdateOffer(){
+  final Updates.Release offer=updateOffer;if(offer==null)return;if(updateDialog!=null)updateDialog.dismiss();
+  updateDialog=new AlertDialog.Builder(this).setTitle("Доступна diakitw "+offer.version).setMessage(offer.notes+"\n\nУстановка вручную. Скачать — открыть GitHub в браузере. Автоустановки нет. SHA256 в feed не является независимой подписью.")
+   .setPositiveButton("Скачать",(d,w)->{if(!Updates.validURL(offer.url,offer.version))return;try{Intent browser=new Intent(Intent.ACTION_VIEW,Uri.parse(offer.url));browser.addCategory(Intent.CATEGORY_BROWSABLE);startActivity(browser);}catch(RuntimeException e){showText("Обновления","Не удалось открыть браузер");}})
+   .setNegativeButton("Позже",(d,w)->{updateOffer=null;updateNotice.setVisibility(View.GONE);}).show();updateDialog.getWindow().setBackgroundDrawable(panel());
+ }
  final Handler main=new Handler(Looper.getMainLooper());
  ScheduledExecutorService worker; int generation,testGeneration; SpeedTest test; AlertDialog testDialog;
  Metric cpu,ram,disk,battery; long previousCpu=-1,previousWall=-1; TextView summary; String last="Ещё не измерено";
@@ -33,6 +58,7 @@ public final class MainActivity extends Activity {
  final Runnable ipTick=new Runnable(){public void run(){if(!autoIp.foreground)return;startAutoIp();main.postDelayed(this,1000);}};
  @Override public void onCreate(Bundle state){
   super.onCreate(state);if(state!=null)last=state.getString("summary",last);
+  SharedPreferences prefs=getPreferences(MODE_PRIVATE);updates=new Updates.Policy(prefs.getString("updateChannel","preview"),prefs.getLong("updateSuccess",0),prefs.getLong("updateAttempt",0),prefs.getLong("updateFailure",0),System.currentTimeMillis());
   getWindow().setStatusBarColor(BG);getWindow().setNavigationBarColor(BG);
   Configuration config=getResources().getConfiguration();
   landscape=config.orientation==Configuration.ORIENTATION_LANDSCAPE&&config.fontScale<=1.5f;compact=landscape||config.fontScale>1.3f;
@@ -47,6 +73,7 @@ public final class MainActivity extends Activity {
   for(Metric m:new Metric[]{cpu,ram,disk,battery}){LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,dp(dialHeight()+8),1);p.setMargins(dp(3),dp(1),dp(3),dp(1));metrics.addView(m,p);}
   ScrollView metricViewport=new ScrollView(this);metricViewport.setFillViewport(true);metricViewport.addView(metrics);root.addView(metricViewport,landscape?new LinearLayout.LayoutParams(0,-1,1):new LinearLayout.LayoutParams(-1,0,1));
   LinearLayout footer=new LinearLayout(this);footer.setOrientation(LinearLayout.VERTICAL);footer.setGravity(Gravity.CENTER_VERTICAL);
+  updateNotice=text("",14,BLUE);updateNotice.setVisibility(View.GONE);updateNotice.setMinHeight(dp(48));updateNotice.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);updateNotice.setOnClickListener(v->showUpdateOffer());footer.addView(updateNotice,new LinearLayout.LayoutParams(-1,-2));
   summary=text(last,14,TEXT);summary.setPadding(dp(12),dp(6),dp(12),dp(6));summary.setBackground(shape(CARD,LINE,14));summary.setMinHeight(dp(48));summary.setGravity(Gravity.CENTER_VERTICAL);summary.setOnClickListener(v->openIpDetails());updateSummary();
   summary.setIncludeFontPadding(false);summary.setTextSize(18);footer.addView(summary,new LinearLayout.LayoutParams(-1,-2));
   Button internet=button("Тест интернета",v->openTest());styleButton(internet,true);internet.setMinHeight(dp(56));footer.addView(internet,new LinearLayout.LayoutParams(-1,-2));if(landscape){Space spacer=new Space(this);rail.addView(spacer,new LinearLayout.LayoutParams(-1,0,1));rail.addView(footer);}else root.addView(footer);setContentView(root);
@@ -64,7 +91,8 @@ public final class MainActivity extends Activity {
  GradientDrawable shape(int color,int stroke,int radius){GradientDrawable d=new GradientDrawable();d.setColor(color);d.setCornerRadius(dp(radius));d.setStroke(dp(1),stroke);return d;}
  GradientDrawable panel(){return shape(CARD,LINE,20);}
  void showText(String title,String message){AlertDialog d=new AlertDialog.Builder(this).setTitle(title).setMessage(message).setPositiveButton("Понятно",null).show();d.getWindow().setBackgroundDrawable(panel());d.getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(BLUE);}
- void help(){showText("Обзор · diakitw 0.5.2","RAM: (totalMem − availMem) / totalMem. Хранилище: StatFs total − available, том данных приложения; не здоровье накопителя. Батарея: системный заряд. Нажмите карточку для подробностей. Недоступные показания: Н/Д, без стрелки. Шкалы 0–100%: до 20% зелёный, до 80% синий, выше красный; для заряда батареи цвета обращены. RAM и хранилище: занято / всего GiB.\n\nCPU APP: только процесс diakitw, не нагрузка всего телефона. Разность CPU-времени / монотонное время / число доступных логических CPU. Первый, сброшенный и задержанный более 5 с интервал — Н/Д. SWAP и UID-трафик не показываются.\n\nТест интернета запускается только вручную, отдельно от мониторинга. HTTP RTT — не ICMP ping; включает установление соединения, TLS и обработку сервера. Потери пакетов и jitter не измеряются. Скорости одного короткого потока включают накладные задержки и не являются максимумом линии.\n\nСбор и тест останавливаются при уходе из приложения, повороте или закрытии теста. История теста только в памяти; payload-файлы не создаются.");}
+ void showHelp(String title,String message){AlertDialog d=new AlertDialog.Builder(this).setTitle(title).setMessage(message+"\n\nОбновления: HTTPS GitHub Pages, до 32 KiB, 10 с. Автоматически раз в 24 ч при активном приложении, без автоустановки. GitHub видит IP. Канал по умолчанию: тестовый.").setNeutralButton("Обновления",(x,w)->updatesMenu()).setPositiveButton("Понятно",null).show();d.getWindow().setBackgroundDrawable(panel());}
+ void help(){showHelp("Обзор · diakitw 0.5.4","RAM: (totalMem − availMem) / totalMem. Хранилище: StatFs total − available, том данных приложения; не здоровье накопителя. Батарея: системный заряд. Нажмите карточку для подробностей. Недоступные показания: Н/Д, без стрелки. Шкалы 0–100%: до 20% зелёный, до 80% синий, выше красный; для заряда батареи цвета обращены. RAM и хранилище: занято / всего GiB.\n\nCPU APP: только процесс diakitw, не нагрузка всего телефона. Разность CPU-времени / монотонное время / число доступных логических CPU. Первый, сброшенный и задержанный более 5 с интервал — Н/Д. SWAP и UID-трафик не показываются.\n\nТест интернета запускается только вручную, отдельно от мониторинга. HTTP RTT — не ICMP ping; включает установление соединения, TLS и обработку сервера. Потери пакетов и jitter не измеряются. Скорости одного короткого потока включают накладные задержки и не являются максимумом линии.\n\nСбор и тест останавливаются при уходе из приложения, повороте или закрытии теста. История теста только в памяти; payload-файлы не создаются.");}
  void updateSummary(){
   String label="IP / карта · "+ipStatusLabel();
   String visible=label+"\n"+(ipSnapshot==null?"Н/Д\nСтрана: Н/Д":ipSnapshot.ip+"\n"+countryLabel()+(ipSnapshot.city.isEmpty()?"":" · ≈ "+ipSnapshot.city));
@@ -74,8 +102,8 @@ public final class MainActivity extends Activity {
  String ipStatusLabel(){return ipBadge.equals("Снимок")?"Обновлено":ipBadge;}
  static String flag(String country){return new String(Character.toChars(0x1f1e6+country.charAt(0)-'A'))+new String(Character.toChars(0x1f1e6+country.charAt(1)-'A'));}
  String countryLabel(){return ipSnapshot==null||ipSnapshot.country.isEmpty()?"Страна не определена":flag(ipSnapshot.country)+" "+new Locale("",ipSnapshot.country).getDisplayCountry(new Locale("ru"));}
- @Override protected void onResume(){super.onResume();long remaining=Math.max(0,Math.min(86400000L,getPreferences(MODE_PRIVATE).getLong("ipQuotaUntil",0)-System.currentTimeMillis()));autoIp.blockUntil(SystemClock.elapsedRealtime()+remaining);if(remaining>0){ipBadge="Лимит";ipState="Лимит IPwho.is · проверка отложена до 24 ч";renderIp();}autoIp.resume(SystemClock.elapsedRealtime());watchNetwork();main.post(ipTick);synchronized(this){previousCpu=-1;previousWall=-1;}cpu.update(Double.NaN,"Только diakitw");int token=++generation;worker=Executors.newSingleThreadScheduledExecutor();worker.scheduleWithFixedDelay(()->{Sample s;synchronized(this){if(token!=generation)return;s=sample();}main.post(()->{if(token==generation){cpu.update(s.cpu,"Только diakitw");ram.update(s.ram,s.ramDetail);disk.update(s.disk,s.diskDetail);battery.update(s.battery,s.power);Log.d("diakitw","sample published");}});},0,3,TimeUnit.SECONDS);}
- @Override protected void onPause(){generation++;autoIp.pause();if(ipSnapshot!=null){ipBadge="Устарел";ipState="Приложение было скрыто · снимок не текущий";renderIp();}unwatchNetwork();stopIp();stopTest();if(mapDialog!=null){mapDialog.dismiss();mapDialog=null;expandedMap=null;expandedMapCaption=null;}if(ipDialog!=null){ipDialog.dismiss();ipDialog=null;}if(testDialog!=null){testDialog.dismiss();testDialog=null;}if(worker!=null){worker.shutdownNow();worker=null;}main.removeCallbacksAndMessages(null);Log.i("diakitw","sampler paused; callbacks cancelled");super.onPause();}
+ @Override protected void onResume(){super.onResume();updates.start(System.currentTimeMillis());main.post(updateTick);long remaining=Math.max(0,Math.min(86400000L,getPreferences(MODE_PRIVATE).getLong("ipQuotaUntil",0)-System.currentTimeMillis()));autoIp.blockUntil(SystemClock.elapsedRealtime()+remaining);if(remaining>0){ipBadge="Лимит";ipState="Лимит IPwho.is · проверка отложена до 24 ч";renderIp();}autoIp.resume(SystemClock.elapsedRealtime());watchNetwork();main.post(ipTick);synchronized(this){previousCpu=-1;previousWall=-1;}cpu.update(Double.NaN,"Только diakitw");int token=++generation;worker=Executors.newSingleThreadScheduledExecutor();worker.scheduleWithFixedDelay(()->{Sample s;synchronized(this){if(token!=generation)return;s=sample();}main.post(()->{if(token==generation){cpu.update(s.cpu,"Только diakitw");ram.update(s.ram,s.ramDetail);disk.update(s.disk,s.diskDetail);battery.update(s.battery,s.power);Log.d("diakitw","sample published");}});},0,3,TimeUnit.SECONDS);}
+ @Override protected void onPause(){stopUpdates();generation++;autoIp.pause();if(ipSnapshot!=null){ipBadge="Устарел";ipState="Приложение было скрыто · снимок не текущий";renderIp();}unwatchNetwork();stopIp();stopTest();if(mapDialog!=null){mapDialog.dismiss();mapDialog=null;expandedMap=null;expandedMapCaption=null;}if(ipDialog!=null){ipDialog.dismiss();ipDialog=null;}if(testDialog!=null){testDialog.dismiss();testDialog=null;}if(worker!=null){worker.shutdownNow();worker=null;}main.removeCallbacksAndMessages(null);Log.i("diakitw","sampler paused; callbacks cancelled");super.onPause();}
  @Override public void onSaveInstanceState(Bundle out){out.putString("summary",test!=null?"Отменено при смене экрана":last);super.onSaveInstanceState(out);}
  void stopTest(){testGeneration++;if(test!=null){test.cancel();test=null;last="Отменено · незавершённый тест";updateSummary();Log.i("diakitw","speed cancellation requested");}}
  void openTest(){
@@ -185,7 +213,7 @@ public final class MainActivity extends Activity {
   SpeedFace(int tint){super();this.tint=tint;}
   void setValue(double next){if(Double.compare(next,value)==0)return;value=next;double scale=SpeedScale.maximum(value);known=Double.isFinite(scale);if(!known)scale=10;if(scale!=max){max=scale;middle=SpeedScale.label(max/2);end=SpeedScale.label(max);}invalidate();}
   @Override protected void onDraw(Canvas c){super.onDraw(c);
-   paint.setStyle(Paint.Style.STROKE);paint.setStrokeCap(Paint.Cap.BUTT);paint.setStrokeWidth(dp(3));paint.setColor(known?tint:LINE);c.drawArc(arc,180,180,false,paint);
+   paint.setStyle(Paint.Style.STROKE);paint.setStrokeCap(Paint.Cap.BUTT);paint.setStrokeWidth(dp(3)*7f/9f);paint.setColor(known?tint:LINE);c.drawArc(arc,180,180,false,paint);
    ticks(c);if(known)needle(c,value/max,tint);labels(c,middle,"0",end);
   }
  }
@@ -231,19 +259,20 @@ public final class MainActivity extends Activity {
   @Override protected void onSizeChanged(int w,int h,int oldw,int oldh){super.onSizeChanged(w,h,oldw,oldh);geometryBuilds++;float d=getResources().getDisplayMetrics().density;Paint.FontMetrics fm=paint.getFontMetrics();Gauge.Geometry g=new Gauge.Geometry(w/d,h/d,(fm.descent-fm.ascent)/d);cx=(float)g.cx*d;cy=(float)g.cy*d;r=(float)g.radius*d;arc.set(cx-r,cy-r,cx+r,cy+r);labelTop=cy-r-dp(4)-fm.descent;labelBottom=cy+(float)g.tailClearance*d+dp(4)-fm.ascent;
    for(int i=0;i<=20;i++){double a=Math.toRadians(Gauge.angle(i/20.0));float x=(float)Math.cos(a),y=(float)Math.sin(a);float inner=r*(i%5==0?103f:108f)/114f,outer=r*111f/114f;int j=i*4;tickLines[j]=cx+x*inner;tickLines[j+1]=cy+y*inner;tickLines[j+2]=cx+x*outer;tickLines[j+3]=cy+y*outer;}
   }
-  void ticks(Canvas c){paint.setStyle(Paint.Style.STROKE);paint.setStrokeWidth(dp(1));paint.setColor(MUTED);c.drawLines(tickLines,paint);}
+  void ticks(Canvas c){paint.setStyle(Paint.Style.STROKE);for(int i=0;i<=20;i++){paint.setStrokeWidth(dp(1)*(i%5==0?1.5f:1f));paint.setColor(i%5==0?TEXT:MUTED);c.drawLines(tickLines,i*4,4,paint);}}
   void needle(Canvas c,double fraction,int tint){
    double[][] points=Gauge.needle(fraction,r);if(points.length==0)return;
    needlePath.rewind();needlePath.moveTo(cx+(float)points[0][0],cy+(float)points[0][1]);
    for(int i=1;i<points.length;i++)needlePath.lineTo(cx+(float)points[i][0],cy+(float)points[i][1]);needlePath.close();
-   paint.setColor(tint);paint.setStyle(Paint.Style.FILL);c.drawPath(needlePath,paint);c.drawCircle(cx,cy,dp(3),paint);
+   paint.setColor(tint);paint.setStyle(Paint.Style.FILL);c.drawPath(needlePath,paint);paint.setColor(BG);c.drawCircle(cx,cy,dp(3),paint);
+   float outline=dp(1)*1.5f;paint.setStyle(Paint.Style.STROKE);paint.setStrokeWidth(outline);paint.setColor(tint);c.drawCircle(cx,cy,dp(3)-outline/2,paint);
   }
-  void labels(Canvas c,String middle,String left,String right){paint.setStyle(Paint.Style.FILL);paint.setColor(MUTED);paint.setTextAlign(Paint.Align.CENTER);c.drawText(middle,cx,labelTop,paint);paint.setTextAlign(Paint.Align.LEFT);c.drawText(left,dp(1),labelBottom,paint);paint.setTextAlign(Paint.Align.RIGHT);c.drawText(right,getWidth()-dp(1),labelBottom,paint);}
+  void labels(Canvas c,String middle,String left,String right){paint.setStyle(Paint.Style.FILL);paint.setColor(TEXT);paint.setFakeBoldText(true);paint.setTextAlign(Paint.Align.CENTER);c.drawText(middle,cx,labelTop,paint);paint.setTextAlign(Paint.Align.LEFT);c.drawText(left,dp(1),labelBottom,paint);paint.setTextAlign(Paint.Align.RIGHT);c.drawText(right,getWidth()-dp(1),labelBottom,paint);paint.setFakeBoldText(false);}
  }
  final class ResourceGauge extends DialFace {
   final boolean battery;double fraction=Double.NaN;int color=MUTED;
   ResourceGauge(boolean battery){super();this.battery=battery;}
-  @Override protected void onDraw(Canvas c){super.onDraw(c);paint.setStyle(Paint.Style.STROKE);paint.setStrokeCap(Paint.Cap.BUTT);paint.setStrokeWidth(dp(3));boolean known=Double.isFinite(fraction);
+  @Override protected void onDraw(Canvas c){super.onDraw(c);paint.setStyle(Paint.Style.STROKE);paint.setStrokeCap(Paint.Cap.BUTT);paint.setStrokeWidth(dp(3)*7f/9f);boolean known=Double.isFinite(fraction);
    for(int i=0;i<40;i++){paint.setColor(known?resourceColor((i+.5)*2.5,battery):LINE);c.drawArc(arc,180+i*4.5f,3.6f,false,paint);}
    ticks(c);if(known)needle(c,fraction,color);labels(c,"50%","0%","100%");
   }
