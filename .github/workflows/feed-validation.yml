@@ -1,6 +1,15 @@
 name: Shared update feed validation
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - 'index.html'
+      - 'README.md'
+      - 'manifest.json'
+      - 'site.js'
+      - 'updates/v1.json'
+      - 'release/check-publication-surfaces.py'
+      - '.github/workflows/feed-validation.yml'
 permissions:
   contents: read
 jobs:
@@ -16,6 +25,7 @@ jobs:
         run: |
           set -euo pipefail
           node release/check-feed.cjs
+          python3 release/check-publication-surfaces.py
           cmp macdir/Sources/MacdirCore/UpdateChecker.swift ios/Sources/UpdateChecker.swift
           mkdir -p .ci-scratch/java-current .ci-scratch/java-old
           swiftc macdir/Sources/MacdirCore/UpdateChecker.swift release/check-feed.swift -o .ci-scratch/feed-check

@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "product": "diakitw",
-  "release": "0.5.5a",
+  "release": "macOS 0.5.6 · остальные 0.5.5a",
   "repository": "COINLOGY/diakitw",
   "published": true,
   "license": "MIT — собственный код; сторонние лицензии сохранены.",
@@ -13,14 +13,14 @@
       "format": "DMG",
       "requirements": "macOS 14+ · Apple Silicon",
       "signing": "Ad-hoc, без Developer ID/notarization.",
-      "runtime": "CI DMG/privacy/signature gates and offline arm64 self-check passed; update click-through not tested.",
-      "filename": "diakitw-0.5.5-macos-arm64.dmg",
-      "size_bytes": 1593204,
-      "sha256": "cfcffb59c212d041482c52aed58f401847a57d35458a93d4e3aeb1dd875909e0",
-      "url": "https://github.com/COINLOGY/diakitw/releases/download/v0.5.5/diakitw-0.5.5-macos-arm64.dmg",
-      "version": "0.5.5",
-      "displayVersion": "0.5.5a",
-      "build": 55
+      "runtime": "DMG/privacy/signature gates and offline arm64 self-check passed; installed GUI and update click-through not tested.",
+      "filename": "diakitw-0.5.6-macos-arm64.dmg",
+      "size_bytes": 1593991,
+      "sha256": "6dee475414c194d69e3635f22445c4cb027ca8868a7c3e99f01d6b20a6dbc1ba",
+      "url": "https://github.com/COINLOGY/diakitw/releases/download/v0.5.6/diakitw-0.5.6-macos-arm64.dmg",
+      "version": "0.5.6",
+      "displayVersion": "0.5.6",
+      "build": 56
     },
     {
       "id": "mac-intel",
@@ -29,14 +29,14 @@
       "format": "DMG",
       "requirements": "macOS 14+ · Intel",
       "signing": "Ad-hoc, без Developer ID/notarization.",
-      "runtime": "offline Intel self-check under Rosetta passed; physical Intel not tested.",
-      "filename": "diakitw-0.5.5-macos-x86_64.dmg",
-      "size_bytes": 1703956,
-      "sha256": "b3c440c0945a87a1891e2b51c1a9f3a721c52e9c00412f11a12c7191af6bb72c",
-      "url": "https://github.com/COINLOGY/diakitw/releases/download/v0.5.5/diakitw-0.5.5-macos-x86_64.dmg",
-      "version": "0.5.5",
-      "displayVersion": "0.5.5a",
-      "build": 55
+      "runtime": "DMG/privacy/signature gates passed; Intel runtime not tested (Rosetta unavailable); physical Intel not tested.",
+      "filename": "diakitw-0.5.6-macos-x86_64.dmg",
+      "size_bytes": 1723342,
+      "sha256": "c72df7c6de13bc0205e65b2ab8389990e67fffbc967b34a10799e4dd878c0a74",
+      "url": "https://github.com/COINLOGY/diakitw/releases/download/v0.5.6/diakitw-0.5.6-macos-x86_64.dmg",
+      "version": "0.5.6",
+      "displayVersion": "0.5.6",
+      "build": 56
     },
     {
       "id": "android",
@@ -89,9 +89,9 @@
     }
   ],
   "prerelease": false,
-  "distribution_revision": "055a-final",
-  "changes": "Mobile single Start, HTTP ping RTT (ms), JSON reports; Android signing-key migration.",
-  "packaging": "Five installer/portable packages; three unsigned iOS development archives separately.",
+  "distribution_revision": "056-macos-only",
+  "changes": "macOS 0.5.6: menu network arrows follow K/M; other platforms remain at 0.5.5a with Android signing-key migration.",
+  "packaging": "Two macOS DMG in v0.5.6; three other installer/portable packages and three iOS development archives in v0.5.5.",
   "ios": [
     {
       "platform": "ios-source",
