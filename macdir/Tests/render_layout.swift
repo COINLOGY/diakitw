@@ -18,7 +18,17 @@ extension View {
   background(GeometryReader { geo in Color.clear.preference(key: LayoutFramesKey.self, value: [name: geo.frame(in: .named("layoutHost"))]) })
  }
 }
+// Each style runs in a fresh process. AppleShowScrollBars is supplied through
+// NSArgumentDomain (launch arguments), before AppKit or SwiftUI initialization.
+let styleName = CommandLine.arguments[2]
+let requestedStyle: NSScroller.Style? = styleName == "overlay" ? .overlay : (styleName == "legacy" ? .legacy : nil)
 MainActor.assumeIsolated {
+ let preferredStyle = NSScroller.preferredScrollerStyle
+ if let requestedStyle, preferredStyle != requestedStyle {
+  print("FAIL: preferred scroller style", styleName, "actual", preferredStyle.rawValue)
+  exit(1)
+ }
+ print("STYLE", styleName, "preferred", preferredStyle.rawValue)
  let app = NSApplication.shared; app.setActivationPolicy(.prohibited)
  app.appearance = NSAppearance(named: .darkAqua)
  let output = URL(fileURLWithPath: CommandLine.arguments[1])
@@ -36,7 +46,7 @@ MainActor.assumeIsolated {
  if !treemap.boxes([geometryNode][...], CGRect(x: 0, y: 0, width: -1, height: 0)).isEmpty { failures.append("degenerate treemap must have no cells") }
  for dark in [true, false] {
  app.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
- for (styleName, requestedStyle) in [("system", nil), ("overlay", NSScroller.Style.overlay), ("legacy", NSScroller.Style.legacy)] {
+
  for (width, height) in [(1440, 1200), (1440, 1000), (1180, 800), (1060, 740), (1060, 580), (800, 540), (800, 1400)] {
   let model = Model()
   model.computerName = "Fixture Mac — синтетические данные"
@@ -68,12 +78,8 @@ MainActor.assumeIsolated {
   let size = "\(width)x\(height)-\(dark ? "dark" : "light")" + (styleName == "system" ? "" : "-" + styleName)
   func descendants(_ view: NSView) -> [NSView] { [view] + view.subviews.flatMap { descendants($0) } }
   let scrolls = descendants(host).compactMap { $0 as? NSScrollView }
-  if let requestedStyle, let outer = scrolls.first {
-   // Per-instance fixture only: never force global preferences or hide the gutter.
-   outer.scrollerStyle = requestedStyle
-   outer.tile()
-   for _ in 0..<8 { host.layoutSubtreeIfNeeded(); RunLoop.main.run(until: Date().addingTimeInterval(0.04)) }
-   if outer.scrollerStyle != requestedStyle { failures.append(size+": requested scrollbar style not exercised") }
+  if let outer = scrolls.first {
+   if outer.scrollerStyle != (requestedStyle ?? preferredStyle) { failures.append(size+": requested scrollbar style not exercised") }
   }
   // Named SwiftUI root and AppKit conversions share the hosting view's flipped bounds.
   if !host.isFlipped || layoutFrames["hostRoot"] != host.bounds { failures.append(size+": coordinate-space calibration failed") }
@@ -133,6 +139,10 @@ MainActor.assumeIsolated {
   window.contentView = nil
  }
  }
+ if styleName != "system" {
+  for failure in failures { print("FAIL", failure) }
+  print(failures.isEmpty ? "PASS: rendered first-page layout " + styleName : "FAIL: rendered first-page layout " + styleName)
+  exit(failures.isEmpty ? 0 : 1)
  }
  // Actual server panel, in-memory telemetry only; no ServersModel or SSH.
  let config = try! JSONDecoder().decode(ServerConfig.self, from: Data(#"{"id":"fixture","name":"Fixture server — синтетические данные","target":"fixture@example.invalid","role":"agent"}"#.utf8))

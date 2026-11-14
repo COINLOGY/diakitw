@@ -39,6 +39,17 @@ for f in list((p/'Sources/MacdirCore').glob('*.swift'))+list((p/'Sources/macdir'
     text=text.replace('import MacdirCore\n','').replace('MacdirCore.Scanner','Scanner')
     dest=scratch/f.name; dest.write_text(text); files.append(str(dest))
 subprocess.run(['swiftc', '-j', '2','-swift-version','5','-o',str(out/'render-layout')]+files,check=True,cwd=p)
-r=subprocess.run([str(out/'render-layout'),str(out)],cwd=p,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
-(out/'results.txt').write_text(r.stdout); print(r.stdout)
-sys.exit(r.returncode)
+# Launch arguments populate the volatile NSArgumentDomain; no persistent/global
+# defaults writes. A fresh process establishes each style before the first proposal.
+results = []
+failed = False
+for style, preference in [('system', None), ('overlay', 'WhenScrolling'), ('legacy', 'Always')]:
+    command = [str(out/'render-layout'), str(out), style]
+    if preference is not None:
+        command += ['-AppleShowScrollBars', preference]
+    r = subprocess.run(command, cwd=p, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    results.append(r.stdout)
+    (out/'results.txt').write_text(''.join(results))
+    print(r.stdout)
+    failed |= r.returncode != 0
+sys.exit(1 if failed else 0)
