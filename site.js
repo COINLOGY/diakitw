@@ -28,7 +28,7 @@ if (typeof document !== 'undefined') {
       if(url) {const a=el('a','Скачать '+p.format,'download');a.href=url;c.append(a);} else {const b=el('button','Не опубликовано','download');b.disabled=true;c.append(b);}
       cards.append(c);
     }
-    document.getElementById('state').textContent = m.published ? 'Релиз: '+(m.release || 'без метки') : 'Локальная подготовка · не опубликовано';
+    document.getElementById('state').textContent = m.published ? 'Предварительный релиз: '+(m.release || 'без метки') : 'Локальная подготовка · не опубликовано';
     document.getElementById('license').textContent=m.license;
   }).catch(()=>{document.getElementById('state').textContent='Манифест недоступен · загрузки отключены';document.getElementById('downloads').textContent='Откройте страницу через локальный HTTP-сервер. Для безопасности ссылки не созданы.';});
 }
