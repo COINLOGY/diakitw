@@ -1,0 +1,43 @@
+// !$*UTF8*$!
+{archiveVersion = 1; classes = {}; objectVersion = 56; objects = {
+13561F83FBC9FB4DF1732601 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/Dial.swift; sourceTree = "<group>";};
+8EA0CD1AB848A7E787AFCE26 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/NetworkPolicy.swift; sourceTree = "<group>";};
+C9F425126CEB8FF7845AFE8B = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/BoundedTransfer.swift; sourceTree = "<group>";};
+45D7E6EC9956AFDC59A3CD83 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/Monitor.swift; sourceTree = "<group>";};
+8DD1CD7A9918FFBDDC80F34B = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sources/DiakitwApp.swift; sourceTree = "<group>";};
+2691D04BCC356BCCEEC82405 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tests/XcodeTests.swift; sourceTree = "<group>";};
+D59386E0AE435E292FBE0EBC = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>";};
+A4CC6BC01A927E2A78FD3BEC = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>";};
+681C948D238C526E9E3424E0 = {isa = PBXFileReference; explicitFileType = wrapper.application; path = diakitw.app; sourceTree = BUILT_PRODUCTS_DIR;};
+F739566ED5280322FF98A798 = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; path = DiakitwCoreTests.xctest; sourceTree = BUILT_PRODUCTS_DIR;};
+0A3E27B8CA818264D75C8D81 = {isa = PBXGroup; name = Products; sourceTree = "<group>"; children = (681C948D238C526E9E3424E0, F739566ED5280322FF98A798,);};
+0D6E4079E36703EBD37C0072 = {isa = PBXGroup; sourceTree = "<group>"; children = (13561F83FBC9FB4DF1732601, 8EA0CD1AB848A7E787AFCE26, C9F425126CEB8FF7845AFE8B, 45D7E6EC9956AFDC59A3CD83, 8DD1CD7A9918FFBDDC80F34B, 2691D04BCC356BCCEEC82405, D59386E0AE435E292FBE0EBC, A4CC6BC01A927E2A78FD3BEC, 0A3E27B8CA818264D75C8D81,);};
+73EBF6644258C120893E685D = {isa = XCBuildConfiguration; name = Debug; buildSettings = {SWIFT_VERSION = 5.0;IPHONEOS_DEPLOYMENT_TARGET = 16.0;SDKROOT = iphoneos;CLANG_ENABLE_MODULES = YES;TARGETED_DEVICE_FAMILY = "1,2";CODE_SIGN_STYLE = Automatic;SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";SUPPORTS_MACCATALYST = NO;SWIFT_OPTIMIZATION_LEVEL = "-Onone";};};
+0B0C687DF8B6B8DC790B519C = {isa = XCBuildConfiguration; name = Release; buildSettings = {SWIFT_VERSION = 5.0;IPHONEOS_DEPLOYMENT_TARGET = 16.0;SDKROOT = iphoneos;CLANG_ENABLE_MODULES = YES;TARGETED_DEVICE_FAMILY = "1,2";CODE_SIGN_STYLE = Automatic;SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";SUPPORTS_MACCATALYST = NO;SWIFT_OPTIMIZATION_LEVEL = "-O";};};
+76F8DEC3DFE0BDB465198890 = {isa = XCConfigurationList; buildConfigurations = (73EBF6644258C120893E685D, 0B0C687DF8B6B8DC790B519C,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release;};
+834208523878C3528B39DFB0 = {isa = XCBuildConfiguration; name = Debug; buildSettings = {PRODUCT_NAME = diakitw;PRODUCT_BUNDLE_IDENTIFIER = app.diakitw.ios;INFOPLIST_FILE = Info.plist;GENERATE_INFOPLIST_FILE = NO;MARKETING_VERSION = 0.5.3;CURRENT_PROJECT_VERSION = 53;ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;SWIFT_EMIT_LOC_STRINGS = YES;ENABLE_TESTABILITY = YES;SWIFT_OPTIMIZATION_LEVEL = "-Onone";};};
+5D95C8EA06937794DEE76139 = {isa = XCBuildConfiguration; name = Release; buildSettings = {PRODUCT_NAME = diakitw;PRODUCT_BUNDLE_IDENTIFIER = app.diakitw.ios;INFOPLIST_FILE = Info.plist;GENERATE_INFOPLIST_FILE = NO;MARKETING_VERSION = 0.5.3;CURRENT_PROJECT_VERSION = 53;ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;SWIFT_EMIT_LOC_STRINGS = YES;ENABLE_TESTABILITY = YES;SWIFT_OPTIMIZATION_LEVEL = "-O";};};
+F4A8043BAFE3E67B605A2664 = {isa = XCConfigurationList; buildConfigurations = (834208523878C3528B39DFB0, 5D95C8EA06937794DEE76139,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release;};
+22341BB87F410D35D057D37C = {isa = XCBuildConfiguration; name = Debug; buildSettings = {PRODUCT_NAME = DiakitwCoreTests;PRODUCT_BUNDLE_IDENTIFIER = app.diakitw.ios.coretests;GENERATE_INFOPLIST_FILE = YES;SWIFT_OPTIMIZATION_LEVEL = "-Onone";};};
+A188B1844D481F2A55033242 = {isa = XCBuildConfiguration; name = Release; buildSettings = {PRODUCT_NAME = DiakitwCoreTests;PRODUCT_BUNDLE_IDENTIFIER = app.diakitw.ios.coretests;GENERATE_INFOPLIST_FILE = YES;SWIFT_OPTIMIZATION_LEVEL = "-O";};};
+66347432B32AAA402CD1360D = {isa = XCConfigurationList; buildConfigurations = (22341BB87F410D35D057D37C, A188B1844D481F2A55033242,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release;};
+F1AC5092C6F448AFF9CF6895 = {isa = PBXBuildFile; fileRef = 13561F83FBC9FB4DF1732601;};
+FAF8D843EC743A18330CC273 = {isa = PBXBuildFile; fileRef = 8EA0CD1AB848A7E787AFCE26;};
+1329F67E55E082EA9A237647 = {isa = PBXBuildFile; fileRef = C9F425126CEB8FF7845AFE8B;};
+072A6AAC633307DC8671A59C = {isa = PBXBuildFile; fileRef = 45D7E6EC9956AFDC59A3CD83;};
+8EF0C6C1171120CD4146AC7F = {isa = PBXBuildFile; fileRef = 8DD1CD7A9918FFBDDC80F34B;};
+AFF87A50730392B6633ACECE = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (F1AC5092C6F448AFF9CF6895, FAF8D843EC743A18330CC273, 1329F67E55E082EA9A237647, 072A6AAC633307DC8671A59C, 8EF0C6C1171120CD4146AC7F,); runOnlyForDeploymentPostprocessing = 0;};
+9738A6053591A65BADD306BE = {isa = PBXBuildFile; fileRef = D59386E0AE435E292FBE0EBC;};
+A063F248AA7B9962BF09DF3E = {isa = PBXBuildFile; fileRef = A4CC6BC01A927E2A78FD3BEC;};
+F9187E824FE171A6F0EFAE28 = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (9738A6053591A65BADD306BE, A063F248AA7B9962BF09DF3E,); runOnlyForDeploymentPostprocessing = 0;};
+7A4C2DC8FCA657188648E999 = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0;};
+36316BA15E9CC49EFCD7B385 = {isa = PBXBuildFile; fileRef = 13561F83FBC9FB4DF1732601;};
+3757E42E3C8ECB9AEFE3AFBC = {isa = PBXBuildFile; fileRef = 8EA0CD1AB848A7E787AFCE26;};
+A27A0E20429C0E4368659894 = {isa = PBXBuildFile; fileRef = C9F425126CEB8FF7845AFE8B;};
+812BF7C746D3716DA07B4836 = {isa = PBXBuildFile; fileRef = 2691D04BCC356BCCEEC82405;};
+DEE94446A282611C16F7781C = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (36316BA15E9CC49EFCD7B385, 3757E42E3C8ECB9AEFE3AFBC, A27A0E20429C0E4368659894, 812BF7C746D3716DA07B4836,); runOnlyForDeploymentPostprocessing = 0;};
+B10CDED79664567B030B2B4F = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0;};
+C1E9827DB735CA9BAA54A540 = {isa = PBXNativeTarget; buildConfigurationList = F4A8043BAFE3E67B605A2664; buildPhases = (AFF87A50730392B6633ACECE, F9187E824FE171A6F0EFAE28, 7A4C2DC8FCA657188648E999,); buildRules = (); dependencies = (); name = diakitw; productName = diakitw; productReference = 681C948D238C526E9E3424E0; productType = "com.apple.product-type.application";};
+9805CBD60EB4F66728D5D195 = {isa = PBXNativeTarget; buildConfigurationList = 66347432B32AAA402CD1360D; buildPhases = (DEE94446A282611C16F7781C, B10CDED79664567B030B2B4F,); buildRules = (); dependencies = (); name = DiakitwCoreTests; productName = DiakitwCoreTests; productReference = F739566ED5280322FF98A798; productType = "com.apple.product-type.bundle.unit-test";};
+5113741DF36DAE37A24D70CD = {isa = PBXProject; attributes = {LastUpgradeCheck = 1600;}; buildConfigurationList = 76F8DEC3DFE0BDB465198890; compatibilityVersion = "Xcode 14.0"; developmentRegion = ru; hasScannedForEncodings = 0; knownRegions = (ru, en, Base); mainGroup = 0D6E4079E36703EBD37C0072; productRefGroup = 0A3E27B8CA818264D75C8D81; projectDirPath = ""; projectRoot = ""; targets = (C1E9827DB735CA9BAA54A540, 9805CBD60EB4F66728D5D195,);};
+}; rootObject = 5113741DF36DAE37A24D70CD;}
