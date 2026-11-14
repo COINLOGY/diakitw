@@ -8,10 +8,7 @@ on:
         type: choice
         options: [full, server-model]
         default: full
-      diagnose:
-        description: Trace blocking fixture before repair (focused only)
-        type: boolean
-        default: false
+
 
 permissions:
   contents: read
@@ -42,8 +39,7 @@ jobs:
       - name: Focused server model check
         if: inputs.scope == 'server-model'
         timeout-minutes: 3
-        env:
-          SERVER_MODEL_DIAG: ${{ inputs.diagnose && '1' || '0' }}
+
         run: |
           mkdir -p "$GITHUB_WORKSPACE/.ci-scratch" evidence/diakitw-0.5.3
           export TMPDIR="$(cd "$GITHUB_WORKSPACE/.ci-scratch" && pwd -P)"

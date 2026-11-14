@@ -2,7 +2,7 @@
 Run with an explicit owned scratch directory argument.
 """
 from pathlib import Path
-import os
+
 import subprocess
 import sys
 import tempfile
@@ -15,12 +15,13 @@ with tempfile.TemporaryDirectory(prefix='server-model-', dir=scratch) as directo
     model = model.replace('import MacdirCore', '')
     model = model.replace('private let store = ServerConfigStore()', f'private let store = ServerConfigStore(url: URL(fileURLWithPath: "{root}/servers.json"))')
     model = model.replace('ServerHardwareCache()', f'ServerHardwareCache(url: URL(fileURLWithPath: "{root}/hardware.json"))')
-    model = model.replace('ServerSampler.sample(config, probe: try ServerSampler.bundledProbe(), specs: true, cancellation: cancellation)', 'try Fake.sample()')
-    model = model.replace('ServerSampler.sample(config, probe: try ServerSampler.bundledProbe(), cancellation: cancellation)', 'try Fake.sample()')
+    model = model.replace('ServerSampler.sample(config, probe: try ServerSampler.bundledProbe(), specs: true, cancellation: cancellation)', 'try await Fake.sample()')
+    model = model.replace('ServerSampler.sample(config, probe: try ServerSampler.bundledProbe(), cancellation: cancellation)', 'try await Fake.sample()')
     assert 'ServerSampler.sample(' not in model, 'fixture must never contact real SSH'
     model = model.replace('ServerPasswordStore.', 'FakeCredentials.')
-    if os.environ.get('SERVER_MODEL_DIAG') == '1':
-        model = model.replace('Task {\n', 'Task {\n    Fake.trace("submitted detached")\n')
+    # Observe actual actor-side delivery, not a sleep guessed to allow completion.
+    assert model.count('}.value') == 2
+    model = model.replace('}.value', '}.value\n    Delivery.count += 1')
     (root / 'Model.swift').write_text(model)
     fixture = r'''
 import Foundation
@@ -29,18 +30,26 @@ import Foundation
  static func save(_ password: String, for c: ServerConfig, helper: String) throws { entries[c.passwordReference!] = password }
  static func delete(_ c: ServerConfig) throws { if let ref = c.passwordReference { entries[ref] = nil } }
 }
+@MainActor enum Delivery { static var count = 0 }
 final class Fake {
  static func trace(_ message: String) { FileHandle.standardError.write(Data(("SERVER-MODEL " + message + "\n").utf8)) }
  static let lock = NSLock()
  static var count = 0
- static let old = DispatchSemaphore(value: 0)
- static let new = DispatchSemaphore(value: 0)
+ static var pending: [Int: CheckedContinuation<Void, Never>] = [:]
  static func calls() -> Int { lock.lock(); defer { lock.unlock() }; return count }
- static func sample() throws -> Result<ServerTelemetry, ServerError> {
-  lock.lock(); count += 1; let n = count; lock.unlock()
-  trace("started \(n)")
-  _ = (n <= 2 ? old : new).wait(timeout: .now() + 10)
-  trace("completed \(n)")
+ static func release(_ ids: [Int]) {
+  lock.lock()
+  let ready = ids.map { pending.removeValue(forKey: $0)! }
+  lock.unlock()
+  ready.forEach { $0.resume() }
+ }
+ static func sample() async throws -> Result<ServerTelemetry, ServerError> {
+  // Suspend the task without occupying a cooperative executor thread. Cancellation
+  // deliberately does not release it: stale results must reach the generation guard.
+  await withCheckedContinuation { continuation in
+   lock.lock(); count += 1; let n = count; pending[n] = continuation; lock.unlock()
+   trace("started \(n)")
+  }
   return .failure(.denied)
  }
 }
@@ -62,14 +71,21 @@ final class Fake {
   _ = try store.add(c, expected: store.load()) // deliberately re-use ID
   model.reload(); model.refresh()
   for _ in 0..<100 where Fake.calls() < 4 { try await Task.sleep(for: .milliseconds(10)) }
-  precondition(Fake.calls() == 4)
-  Fake.old.signal(); Fake.old.signal()
-  try await Task.sleep(for: .milliseconds(100))
+  precondition(Fake.calls() == 4 && Delivery.count == 0, "both generations started before either completes")
+  Fake.trace("both generations suspended calls=\(Fake.calls()) delivered=\(Delivery.count)")
+  Fake.release([1, 2])
+  for _ in 0..<100 where Delivery.count < 2 { try await Task.sleep(for: .milliseconds(10)) }
+  precondition(Delivery.count == 2, "both old completions reached actual model")
   precondition(model.states[c.id] == nil && model.inFlight.contains(c.id), "old completion cannot reset new in-flight task")
   precondition(!FileManager.default.fileExists(atPath: "CACHE"), "removed hardware completion cannot persist")
-  Fake.new.signal(); Fake.new.signal()
-  for _ in 0..<100 where !model.inFlight.isEmpty { try await Task.sleep(for: .milliseconds(10)) }
-  precondition(model.states[c.id]?.error == .denied && model.inFlight.isEmpty)
+  model.refresh()
+  try await Task.sleep(for: .milliseconds(50))
+  precondition(Fake.calls() == 4, "stale live and hardware completions cannot clear new overlap guards")
+  Fake.trace("old delivered=\(Delivery.count) new still gated; no stale publication/cache/overlap")
+  Fake.release([3, 4])
+  for _ in 0..<100 where Delivery.count < 4 { try await Task.sleep(for: .milliseconds(10)) }
+  precondition(Delivery.count == 4 && model.states[c.id]?.error == .denied && model.inFlight.isEmpty)
+  precondition(FileManager.default.fileExists(atPath: "CACHE"), "current hardware completion persists")
   model.setVisible(false)
   model.beginAdd(); model.draftName = "Second"; model.draftTarget = "user@second.example"; model.addServer()
   precondition(model.configs.count == 2 && !model.adding)
@@ -103,17 +119,7 @@ final class Fake {
  }
 }
 '''.replace('CONFIG', str(root / 'servers.json')).replace('CACHE', str(root / 'hardware.json'))
-    if os.environ.get('SERVER_MODEL_DIAG') == '1':
-        fixture = fixture.replace('precondition(Fake.calls() == 4) ', 'precondition(Fake.calls() == 4) ')
-        fixture = fixture.replace('  precondition(Fake.calls() == 4)\n', r'''
-  Fake.trace("before old release calls=\(Fake.calls()) inFlight=\(model.inFlight.count) configs=\(model.configs.count)")
-  let before = Fake.calls()
-  Fake.old.signal(); Fake.old.signal()
-  for _ in 0..<100 where Fake.calls() < 4 { try await Task.sleep(for: .milliseconds(10)) }
-  Fake.trace("after old release calls=\(Fake.calls())")
-  Fake.new.signal(); Fake.new.signal()
-  precondition(before == 4, "diagnostic: original four-call assertion before releasing old work")
-''')
+
     (root / 'Checks.swift').write_text(fixture)
     sources = [project / 'Sources/MacdirCore' / name for name in ['MetricPresentation.swift', 'ServerSampler.swift', 'ServerTelemetry.swift', 'ServerConfigStore.swift', 'ServerHardwareCache.swift', 'ServerPassword.swift', 'ServerSSHProcess.swift']]
     subprocess.run(['swiftc', '-j', '2', *map(str, sources), str(root / 'Model.swift'), str(root / 'Checks.swift'), '-o', str(root / 'checks')], check=True)
