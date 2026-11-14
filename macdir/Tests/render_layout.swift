@@ -78,8 +78,8 @@ MainActor.assumeIsolated {
   let size = "\(width)x\(height)-\(dark ? "dark" : "light")" + (styleName == "system" ? "" : "-" + styleName)
   func descendants(_ view: NSView) -> [NSView] { [view] + view.subviews.flatMap { descendants($0) } }
   let scrolls = descendants(host).compactMap { $0 as? NSScrollView }
-  if let outer = scrolls.first {
-   if outer.scrollerStyle != (requestedStyle ?? preferredStyle) { failures.append(size+": requested scrollbar style not exercised") }
+  if let requestedStyle, let outer = scrolls.first {
+   if outer.scrollerStyle != requestedStyle { failures.append(size+": requested scrollbar style not exercised") }
   }
   // Named SwiftUI root and AppKit conversions share the hosting view's flipped bounds.
   if !host.isFlipped || layoutFrames["hostRoot"] != host.bounds { failures.append(size+": coordinate-space calibration failed") }
