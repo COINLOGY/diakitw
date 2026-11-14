@@ -33,9 +33,12 @@ public struct GaugeGeometry {
   guard let fraction, fraction.isFinite, (0...1).contains(fraction) else { return [] }
   let scale = max(0, radius - 16) / 99
   let angle = fraction * .pi
-  return [(-99.0, 0.0), (0, -10), (21, -4), (21, 4), (0, 10)].map { x, y in
-   CGPoint(x: center.x + (x * cos(angle) - y * sin(angle)) * scale,
-           y: center.y + (x * sin(angle) + y * cos(angle)) * scale)
+  let vertices: [(Double, Double)] = [(-99.0, 0.0), (0, -10), (21, -4), (21, 4), (0, 10)]
+  let cosine = cos(angle), sine = sin(angle)
+  return vertices.map { x, y in
+   let dx = (x * cosine - y * sine) * scale
+   let dy = (x * sine + y * cosine) * scale
+   return CGPoint(x: center.x + dx, y: center.y + dy)
   }
  }
  public func labelBox(_ index: Int) -> CGRect {

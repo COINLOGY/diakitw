@@ -19,7 +19,7 @@ def text(path):
 def points(path):
     source = text(path)
     if path == MAC:
-        literal = re.search(r'return (\[\(-99.*?\])\.map', source)[1]
+        literal = re.search(r'let vertices: \[\(Double, Double\)\] = (\[\(-99.*?\])', source)[1]
     elif path == ANDROID:
         literal = re.search(r'double\[\]\[\] p=(.*?);', source)[1].replace('{', '[').replace('}', ']')
     else:
