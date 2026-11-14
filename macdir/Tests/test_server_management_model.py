@@ -2,6 +2,7 @@
 Run with an explicit owned scratch directory argument.
 """
 from pathlib import Path
+import os
 import subprocess
 import sys
 import tempfile
@@ -18,6 +19,8 @@ with tempfile.TemporaryDirectory(prefix='server-model-', dir=scratch) as directo
     model = model.replace('ServerSampler.sample(config, probe: try ServerSampler.bundledProbe(), cancellation: cancellation)', 'try Fake.sample()')
     assert 'ServerSampler.sample(' not in model, 'fixture must never contact real SSH'
     model = model.replace('ServerPasswordStore.', 'FakeCredentials.')
+    if os.environ.get('SERVER_MODEL_DIAG') == '1':
+        model = model.replace('Task {\n', 'Task {\n    Fake.trace("submitted detached")\n')
     (root / 'Model.swift').write_text(model)
     fixture = r'''
 import Foundation
@@ -27,6 +30,7 @@ import Foundation
  static func delete(_ c: ServerConfig) throws { if let ref = c.passwordReference { entries[ref] = nil } }
 }
 final class Fake {
+ static func trace(_ message: String) { FileHandle.standardError.write(Data(("SERVER-MODEL " + message + "\n").utf8)) }
  static let lock = NSLock()
  static var count = 0
  static let old = DispatchSemaphore(value: 0)
@@ -34,7 +38,9 @@ final class Fake {
  static func calls() -> Int { lock.lock(); defer { lock.unlock() }; return count }
  static func sample() throws -> Result<ServerTelemetry, ServerError> {
   lock.lock(); count += 1; let n = count; lock.unlock()
+  trace("started \(n)")
   _ = (n <= 2 ? old : new).wait(timeout: .now() + 10)
+  trace("completed \(n)")
   return .failure(.denied)
  }
 }
@@ -97,6 +103,17 @@ final class Fake {
  }
 }
 '''.replace('CONFIG', str(root / 'servers.json')).replace('CACHE', str(root / 'hardware.json'))
+    if os.environ.get('SERVER_MODEL_DIAG') == '1':
+        fixture = fixture.replace('precondition(Fake.calls() == 4) ', 'precondition(Fake.calls() == 4) ')
+        fixture = fixture.replace('  precondition(Fake.calls() == 4)\n', r'''
+  Fake.trace("before old release calls=\(Fake.calls()) inFlight=\(model.inFlight.count) configs=\(model.configs.count)")
+  let before = Fake.calls()
+  Fake.old.signal(); Fake.old.signal()
+  for _ in 0..<100 where Fake.calls() < 4 { try await Task.sleep(for: .milliseconds(10)) }
+  Fake.trace("after old release calls=\(Fake.calls())")
+  Fake.new.signal(); Fake.new.signal()
+  precondition(before == 4, "diagnostic: original four-call assertion before releasing old work")
+''')
     (root / 'Checks.swift').write_text(fixture)
     sources = [project / 'Sources/MacdirCore' / name for name in ['MetricPresentation.swift', 'ServerSampler.swift', 'ServerTelemetry.swift', 'ServerConfigStore.swift', 'ServerHardwareCache.swift', 'ServerPassword.swift', 'ServerSSHProcess.swift']]
     subprocess.run(['swiftc', '-j', '2', *map(str, sources), str(root / 'Model.swift'), str(root / 'Checks.swift'), '-o', str(root / 'checks')], check=True)

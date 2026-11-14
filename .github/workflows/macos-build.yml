@@ -2,6 +2,16 @@ name: macOS 0.5.3 build-only
 
 on:
   workflow_dispatch:
+    inputs:
+      scope:
+        description: Full installers or focused server model check
+        type: choice
+        options: [full, server-model]
+        default: full
+      diagnose:
+        description: Trace blocking fixture before repair (focused only)
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -29,9 +39,20 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 1
+      - name: Focused server model check
+        if: inputs.scope == 'server-model'
+        timeout-minutes: 3
+        env:
+          SERVER_MODEL_DIAG: ${{ inputs.diagnose && '1' || '0' }}
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/.ci-scratch" evidence/diakitw-0.5.3
+          export TMPDIR="$(cd "$GITHUB_WORKSPACE/.ci-scratch" && pwd -P)"
+          { xcodebuild -version; swift --version; sysctl -n hw.logicalcpu; python3 Tests/test_server_management_model.py "$TMPDIR"; } 2>&1 | tee evidence/diakitw-0.5.3/server-model.log
       - name: Build both thin architectures and verify installers
+        if: inputs.scope != 'server-model'
         run: bash ci-build.sh
       - name: Upload Apple Silicon DMG (not a Release)
+        if: inputs.scope != 'server-model'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4, verified upstream ref
         with:
           name: diakitw-0.5.3-macos-arm64
@@ -40,6 +61,7 @@ jobs:
           retention-days: 14
           compression-level: 0
       - name: Upload Intel DMG (not a Release)
+        if: inputs.scope != 'server-model'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: diakitw-0.5.3-macos-x86_64
