@@ -15,6 +15,7 @@ import Darwin
     @Published var ipStatus = "Ожидание"
     @Published var download: Double?
     @Published var upload: Double?
+    @Published var latencyMS: Double?
     @Published var speedStatus = "Тест ещё не запускался"
     @Published var running = false
     let physicalRAM = Double(ProcessInfo.processInfo.physicalMemory)
@@ -25,6 +26,12 @@ import Darwin
     private var speedID = UUID()
     private var lastLookup: TimeInterval = -.infinity
     private var foreground = false
+
+    // Internal injection seam for offline behavioral tests; production always uses bounded HTTPS.
+    private let speedFetch: (URLRequest, Int) async throws -> Data
+    init(speedFetch: @escaping (URLRequest, Int) async throws -> Data = {
+        try await BoundedTransfer.fetch($0, cap: $1)
+    }) { self.speedFetch = speedFetch }
 
     func setForeground(_ active: Bool) {
         guard active != foreground else { return }
@@ -105,17 +112,29 @@ import Darwin
     }
     func startSpeed() {
         guard foreground, !running else { return }
-        running = true; download = nil; upload = nil
+        running = true; download = nil; upload = nil; latencyMS = nil
         speedID = UUID(); let token = speedID
-        speedStatus = "↓ Загрузка 8 MiB…"
+        speedStatus = "PING · HTTP…"
         speedTask = Task { [weak self] in
             guard let self else { return }
             defer { if self.speedID == token { self.running = false; self.speedTask = nil } }
             do {
+                // Failure of the latency probe leaves Н/Д, but does not fabricate a zero
+                // or prevent the independent throughput measurements.
+                do {
+                    let start = ProcessInfo.processInfo.systemUptime
+                    _ = try await self.speedFetch(URLRequest(url: NetworkPolicy.latencyURL), 4096)
+                    guard !Task.isCancelled, self.speedID == token else { return }
+                    self.latencyMS = NetworkPolicy.latency(seconds: ProcessInfo.processInfo.systemUptime - start)
+                } catch {
+                    try Task.checkCancellation()
+                    guard self.speedID == token else { return }
+                }
+                self.speedStatus = "↓ Загрузка 8 MiB…"
                 var request = URLRequest(url: NetworkPolicy.downloadURL)
                 request.setValue("identity", forHTTPHeaderField: "Accept-Encoding")
                 let start = ProcessInfo.processInfo.systemUptime
-                let data = try await BoundedTransfer.fetch(request, cap: NetworkPolicy.downloadBytes)
+                let data = try await self.speedFetch(request, NetworkPolicy.downloadBytes)
                 guard data.count == NetworkPolicy.downloadBytes else { throw URLError(.cannotDecodeContentData) }
                 guard !Task.isCancelled, self.speedID == token else { return }
                 self.download = NetworkPolicy.rate(bytes: data.count, seconds: ProcessInfo.processInfo.systemUptime - start)
@@ -126,7 +145,7 @@ import Darwin
                 // Synthetic data only, no user files, no payload files on disk.
                 post.httpBody = Data(repeating: 0xA5, count: NetworkPolicy.uploadBytes)
                 let uploadStart = ProcessInfo.processInfo.systemUptime
-                _ = try await BoundedTransfer.fetch(post, cap: 4096)
+                _ = try await self.speedFetch(post, 4096)
                 guard !Task.isCancelled, self.speedID == token else { return }
                 self.upload = NetworkPolicy.rate(bytes: NetworkPolicy.uploadBytes, seconds: ProcessInfo.processInfo.systemUptime - uploadStart)
                 self.speedStatus = "Готово • средняя скорость запроса"

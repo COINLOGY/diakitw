@@ -30,6 +30,11 @@ final class FixtureProtocol: URLProtocol {
         func select(_ d: Data, channel: String = "preview", platform: String = "macos-arm64", current: String = "0.5.3", build: Int = 53) throws -> UpdateContract.Offer? {
             try UpdateContract.select(d, channel: channel, platform: platform, current: current, currentBuild: build)
         }
+        require(UpdateContract.version == "0.5.5" && UpdateContract.build == 55, "numeric iOS identity")
+        // 0.5.5a is a UI label, never a parser version or an invented install offer.
+        rejects("letter version") { _ = try UpdateContract.Version("0.5.5a") }
+        let androidOnly = try fixture(version: "0.5.5", build: 55, platform: "android")
+        require(try select(androidOnly, platform: "ios-unsigned", current: "0.5.4", build: 54) == nil, "Android-only release must not offer unsigned iOS install")
         let data = try fixture()
         require(try select(data)?.version == "0.5.4", "old -> offer")
         require(try select(data, current: "0.5.4", build: 54) == nil, "current -> none")

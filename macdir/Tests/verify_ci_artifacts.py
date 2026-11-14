@@ -7,7 +7,7 @@ import subprocess
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-EVIDENCE = ROOT / 'evidence/diakitw-0.5.4'
+EVIDENCE = ROOT / 'evidence/diakitw-0.5.5'
 spec = importlib.util.spec_from_file_location('packager', ROOT / 'package-diagnostics-dmg.py')
 p = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(p)
@@ -39,12 +39,12 @@ for rec in records:
             assert rejection.returncode != 0 and not rejection.stdout
         rec.update(dmg=dmg.name, self_check=runtime, minimum_macos='14.0', binary_privacy_verified=True)
         print(rec['arch'], runtime)
-with zipfile.ZipFile(ROOT / 'dist/diakitw-0.5.4-arm64/diakitw-0.5.4-macos-arm64.zip') as z:
+with zipfile.ZipFile(ROOT / 'dist/diakitw-0.5.5-arm64/diakitw-0.5.5-macos-arm64.zip') as z:
     assert z.testzip() is None
 result = {
     'commit': os.environ['GITHUB_SHA'],
     'run_url': 'https://github.com/' + os.environ['GITHUB_REPOSITORY'] + '/actions/runs/' + os.environ['GITHUB_RUN_ID'],
-    'version': '0.5.4', 'build': '54', 'compiler_jobs': 2,
+    'version': '0.5.5', 'display_version': '0.5.5a', 'build': '55', 'compiler_jobs': 2,
     'rosetta_available': rosetta, 'artifacts': records,
     'not_run': ['hardware stress/GPU worker', 'live external network/SSH/Keychain', 'installed GUI', 'physical Intel / oldest macOS runtime', 'Developer ID / notarization / Gatekeeper acceptance'],
     'release_published': False,

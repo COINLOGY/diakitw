@@ -30,6 +30,12 @@ final class FixtureProtocol: URLProtocol {
         func select(_ d: Data, channel: String = "preview", platform: String = "macos-arm64", current: String = "0.5.3", build: Int = 53) throws -> UpdateContract.Offer? {
             try UpdateContract.select(d, channel: channel, platform: platform, current: current, currentBuild: build)
         }
+        require(UpdateContract.version == "0.5.5" && UpdateContract.build == 55, "numeric Mac identity")
+        rejects("letter version") { _ = try UpdateContract.Version("0.5.5a") }
+        let candidate = try fixture(version: "0.5.5", build: 55)
+        require(try select(candidate, current: "0.5.4", build: 54)?.version == "0.5.5", "0.5.4 -> 0.5.5")
+        require(try UpdateContract.select(candidate, channel: "preview", platform: "macos-arm64") == nil, "shipped current -> none")
+        require(try UpdateContract.select(fixture(), channel: "preview", platform: "macos-arm64") == nil, "shipped rejects old feed")
         let data = try fixture()
         require(try select(data)?.version == "0.5.4", "old -> offer")
         require(try select(data, current: "0.5.4", build: 54) == nil, "current -> none")

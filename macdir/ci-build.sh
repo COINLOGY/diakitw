@@ -7,7 +7,7 @@ export DEVELOPER_DIR="${DEVELOPER_DIR:?Workflow must pin the reviewed Xcode tool
 [[ -d "$DEVELOPER_DIR" ]]
 export MACOSX_DEPLOYMENT_TARGET=14.0
 export MACDIR_TEST_SCRATCH="$GITHUB_WORKSPACE/.ci-scratch"
-mkdir -p "$MACDIR_TEST_SCRATCH" evidence/diakitw-0.5.4
+mkdir -p "$MACDIR_TEST_SCRATCH" evidence/diakitw-0.5.5
 export TMPDIR="$(cd "$MACDIR_TEST_SCRATCH" && pwd -P)"
 {
   printf 'Commit: %s\nRunner: %s / %s\n' "$GITHUB_SHA" "$RUNNER_OS" "$RUNNER_ARCH"
@@ -16,14 +16,14 @@ export TMPDIR="$(cd "$MACDIR_TEST_SCRATCH" && pwd -P)"
   swift --version
   xcrun --sdk macosx --show-sdk-path
   printf '%s\n' 'Hardware stress/GPU worker/live network/production SSH/Keychain/installed GUI: NOT RUN (not authorized).'
-} | tee evidence/diakitw-0.5.4/toolchain.log
+} | tee evidence/diakitw-0.5.5/toolchain.log
 # Preserve every existing build.sh gate, including real APFS and offscreen renders.
-bash build.sh 2>&1 | tee evidence/diakitw-0.5.4/build-arm64.log
+bash build.sh 2>&1 | tee evidence/diakitw-0.5.5/build-arm64.log
 swift build --jobs 2 --build-system native -c release \
   --scratch-path .build-diakitw-intel --triple x86_64-apple-macosx14.0 \
   --sdk "$(xcrun --sdk macosx --show-sdk-path)" \
   -Xswiftc -file-prefix-map -Xswiftc "$PWD=/diakitw-src" \
   -Xswiftc -debug-prefix-map -Xswiftc "$PWD=/diakitw-src" \
-  2>&1 | tee evidence/diakitw-0.5.4/build-intel.log
-python3 package-diagnostics-dmg.py 2>&1 | tee evidence/diakitw-0.5.4/package.log
-python3 Tests/verify_ci_artifacts.py 2>&1 | tee evidence/diakitw-0.5.4/final-verification.log
+  2>&1 | tee evidence/diakitw-0.5.5/build-intel.log
+python3 package-diagnostics-dmg.py 2>&1 | tee evidence/diakitw-0.5.5/package.log
+python3 Tests/verify_ci_artifacts.py 2>&1 | tee evidence/diakitw-0.5.5/final-verification.log

@@ -99,7 +99,6 @@ private struct MetricCard: View {
 
 @MainActor private final class Presentation: ObservableObject {
     @Published var help = false
-    @Published var confirm = false
 }
 
 struct ContentView: View {
@@ -140,15 +139,24 @@ struct ContentView: View {
                     MetricCard(title: "↓ Загрузка", number: number(model.download), detail: "Мбит/с • диапазон прибора", value: model.download, maximum: Dial.speedScale(model.download), speedColor: Theme.lime)
                     MetricCard(title: "↑ Отправка", number: number(model.upload), detail: "Мбит/с • диапазон прибора", value: model.upload, maximum: Dial.speedScale(model.upload), speedColor: Theme.cyan)
                 }
+                Text(NetworkPolicy.latencyReport(model.latencyMS)).font(.subheadline.monospaced())
+                    .accessibilityIdentifier("latency-report")
+                Text("Один HTTPS-запрос целиком, включая DNS/TCP/TLS и ответ сервера; не ICMP, не jitter и не потери пакетов.")
+                    .font(.caption).foregroundStyle(Theme.muted)
                 Text(model.speedStatus).font(.caption).foregroundStyle(Theme.muted)
+                Text(NetworkPolicy.trafficNotice).font(.caption).foregroundStyle(Theme.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("traffic-notice")
                 Button {
-                    if model.running { model.cancelSpeed() } else { presentation.confirm = true }
+                    if model.running { model.cancelSpeed() } else { model.startSpeed() }
                 } label: {
-                    Text(model.running ? "Отменить тест" : "Старт теста интернета")
+                    Text(model.running ? "Отменить тест" : "Старт")
                         .font(.headline).frame(maxWidth: .infinity, minHeight: 48)
                 }.buttonStyle(.borderedProminent).tint(Theme.cyan).foregroundStyle(Theme.background)
+                    .accessibilityIdentifier("speed-start-stop")
+                    .id("speed-controls")
                 UpdateSection(checker: updates)
-                Text("0.5.4 · iOS").font(.caption2).foregroundStyle(Theme.muted)
+                Text("0.5.5a · iOS · build 55").font(.caption2).foregroundStyle(Theme.muted)
             }.padding(16).frame(maxWidth: 1000)
                 .frame(maxWidth: .infinity)
         }
@@ -156,12 +164,6 @@ struct ContentView: View {
         .onAppear { model.setForeground(phase == .active); updates.setForeground(phase == .active) }
         .onChange(of: phase) { model.setForeground($0 == .active); updates.setForeground($0 == .active) }
         .onDisappear { model.setForeground(false); updates.setForeground(false) }
-        .alert("Тест использует интернет", isPresented: $presentation.confirm) {
-            Button("Отмена", role: .cancel) {}
-            Button("Старт") { model.startSpeed() }
-        } message: {
-            Text("8 MiB загрузки + 2 MiB синтетической отправки, до 44 секунд. Служебный трафик и буферы сети — сверх этого объёма. Возможна плата оператора. Сервер Cloudflare; VPN влияет на результат. Отмена или уход из приложения останавливает тест.")
-        }
         .sheet(isPresented: $presentation.help) {
             NavigationStack {
                 ScrollView {
@@ -179,9 +181,9 @@ struct ContentView: View {
 
     IP и приблизительная география — 2ip через EMCx: GET https://aia.emcx.pro/diakitw-api/geo без параметров и токена в приложении. EMCx и 2ip получают IP выхода; серверный кеш 1 час, общая квота 300/день и 9000/месяц. Запросы только на переднем плане, с задержкой 1.5 с и интервалом не менее 60 с. Только при ошибке используется прежний api.country.is. IP и страна заменяются одним снимком; отсутствующие город и координаты не выдумываются. При полной ошибке данные очищаются. Это выход в интернет/VPN, не GPS. Смена VPN обнаруживается периодическим обновлением, не мгновенно. Геолокация устройства не запрашивается.
 
-    Скорость — два отдельных последовательных запроса к speed.cloudflare.com только после Старт и подтверждения. Загрузка 8 MiB, отправка 2 MiB искусственных данных, ответ отправки до 4 KiB. Пользовательские файлы не читаются и не отправляются. Средняя полезная скорость = биты / полное время запроса, включая установку соединения и ответ. Короткий тест может занижать пропускную способность; это не гарантированный тариф провайдера. Результаты показываются после каждого завершённого направления. Шкала прибора адаптивная, не процент загрузки канала. Ping, jitter и потери пакетов не измеряются.
+    Скорость — два отдельных последовательных запроса к speed.cloudflare.com после одного нажатия «Старт». Согласие на трафик дано этим нажатием; бюджет виден перед кнопкой. Сначала выполняется один HTTP PING: HTTPS GET /__down?bytes=0, ответ до 4 KiB, монотонное время от запуска запроса до полного ответа, включая DNS/TCP/TLS и обработку сервером. Это HTTP latency, не ICMP RTT. Загрузка 8 MiB, отправка 2 MiB искусственных данных, ответ отправки до 4 KiB. Пользовательские файлы не читаются и не отправляются. Средняя полезная скорость = биты / полное время запроса, включая установку соединения и ответ. Короткий тест может занижать пропускную способность; это не гарантированный тариф провайдера. Результаты показываются после каждого завершённого направления. Шкала прибора адаптивная, не процент загрузки канала. ICMP ping, jitter и потери пакетов не измеряются. Ошибка или отмена до завершения HTTP PING даёт Н/Д; завершённое измерение сохраняется при последующей отмене. Повторный запуск очищает прежние значения.
 
-    Каждый запрос имеет срок до 22 секунд, ограничение сохраняемого ответа, без перенаправлений, cookies и дискового кеша. Лимит полезных данных не является точной квотой трафика оператора: TLS, заголовки и буферизация добавляют байты. Незавершённые результаты не выдумываются. Сеть отменяется при уходе в фон.
+    Всего до 66 секунд. Каждый запрос имеет срок до 22 секунд, ограничение сохраняемого ответа, без перенаправлений, cookies и дискового кеша. Лимит полезных данных не является точной квотой трафика оператора: TLS, заголовки и буферизация добавляют байты. Незавершённые результаты не выдумываются. Сеть отменяется при уходе в фон.
     """
 }
 

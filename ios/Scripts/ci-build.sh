@@ -9,6 +9,7 @@ xcrun --sdk iphoneos --show-sdk-version | tee -a "$OUT/evidence/toolchain.txt"
 xcrun --sdk iphonesimulator --show-sdk-version | tee -a "$OUT/evidence/toolchain.txt"
 swift --version | tee -a "$OUT/evidence/toolchain.txt"
 python3 Tests/test_expressive.py | tee "$OUT/evidence/presentation.log"
+python3 Tests/test_speed_contract.py | tee "$OUT/evidence/speed-contract.log"
 swiftc -j 2 -parse-as-library Sources/UpdateChecker.swift Tests/update_checks.swift -o "$OUT/update-checks"
 "$OUT/update-checks" | tee "$OUT/evidence/update-checks.log"
 bash test.sh 2>&1 | tee "$OUT/evidence/host-tests.log"
@@ -18,9 +19,9 @@ DEVICE="$RUNNER_TEMP/device/Build/Products/Release-iphoneos/diakitw.app"
 file "$DEVICE/diakitw" | tee "$OUT/evidence/device-macho.txt"
 plutil -p "$DEVICE/Info.plist" > "$OUT/evidence/device-plist.txt"
 if codesign -dv "$DEVICE" 2> "$OUT/evidence/device-signature.txt"; then exit 1; fi
-ditto -c -k --keepParent "$DEVICE" "$OUT/diakitw-0.5.4-ios-UNSIGNED-device.app.zip"
+ditto -c -k --keepParent "$DEVICE" "$OUT/diakitw-0.5.5-ios-UNSIGNED-device.app.zip"
 xcodebuild "${COMMON[@]}" -configuration Release -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath "$RUNNER_TEMP/simulator" build 2>&1 | tee "$OUT/evidence/simulator-build.log"
-ditto -c -k --keepParent "$RUNNER_TEMP/simulator/Build/Products/Release-iphonesimulator/diakitw.app" "$OUT/diakitw-0.5.4-ios-simulator.app.zip"
+ditto -c -k --keepParent "$RUNNER_TEMP/simulator/Build/Products/Release-iphonesimulator/diakitw.app" "$OUT/diakitw-0.5.5-ios-simulator.app.zip"
 xcrun simctl list devices available -j > "$OUT/evidence/simulators.json"
 UDID=$(python3 - "$OUT/evidence/simulators.json" <<'PY'
 import json,sys
@@ -46,6 +47,6 @@ for MODE in present unknown; do
  xcrun simctl terminate "$UDID" app.diakitw.ios
  done
 xcrun simctl shutdown "$UDID"
-git -C .. archive --format=zip HEAD ios LICENSE NOTICE .github/workflows/ios-build.yml > "$OUT/diakitw-0.5.4-ios-SOURCE.zip"
+git -C .. archive --format=zip HEAD ios LICENSE NOTICE .github/workflows/ios-build.yml > "$OUT/diakitw-0.5.5-ios-SOURCE.zip"
 (cd "$OUT"; shasum -a 256 *.zip > SHA256SUMS.txt)
 printf 'PASS: two cold launches of test-only app copy, screenshots captured; no live network.\nProduction simulator bundle compiled, not launched; no physical device acceptance.\n' > "$OUT/evidence/smoke-result.txt"

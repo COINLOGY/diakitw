@@ -45,7 +45,7 @@ private struct UpdatePane: View {
     @ObservedObject var checker: UpdateChecker
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("diakitw 0.5.4 (54)").font(.headline)
+            Text("diakitw 0.5.5a (55)").font(.headline)
             Picker("Канал", selection: Binding(get: { checker.channel }, set: { checker.choose($0) })) {
                 Text("Preview").tag("preview"); Text("Stable").tag("stable")
             }.pickerStyle(.segmented)

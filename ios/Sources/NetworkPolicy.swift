@@ -8,6 +8,20 @@ enum NetworkPolicy {
     static let egressURL = URL(string: "https://aia.emcx.pro/diakitw-api/geo")!
     static let fallbackURL = URL(string: "https://api.country.is/")!
     static let downloadURL = URL(string: "https://speed.cloudflare.com/__down?bytes=8388608")!
+    // One empty HTTPS response, timed end-to-end using the monotonic clock.
+    static let latencyURL = URL(string: "https://speed.cloudflare.com/__down?bytes=0")!
+    static let trafficNotice = "Нажимая «Старт», вы разрешаете один тест Cloudflare: 8 MiB загрузки + 2 MiB синтетической отправки и HTTP PING (ответ до 4 KiB), до 66 секунд. TLS, заголовки и буферы — сверх лимита; возможна плата оператора. VPN влияет на результат. Отмена или уход в фон останавливает тест."
+    static func latency(seconds: Double) -> Double? {
+        let ms = seconds * 1000
+        return seconds > 0 && ms.isFinite && ms > 0 ? ms : nil
+    }
+    static func latencyReport(_ milliseconds: Double?) -> String {
+        let value: String
+        if let ms = milliseconds, ms.isFinite, ms > 0 {
+            value = String(format: "%.1f", locale: Locale(identifier: "en_US_POSIX"), ms) + " мс"
+        } else { value = "Н/Д" }
+        return "PING · HTTP: " + value + " · не ICMP"
+    }
     static let uploadURL = URL(string: "https://speed.cloudflare.com/__up")!
     static func rate(bytes: Int, seconds: Double) -> Double? {
         guard bytes > 0, seconds.isFinite, seconds > 0 else { return nil }

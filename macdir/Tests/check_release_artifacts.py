@@ -25,8 +25,8 @@ class ArtifactChecks(unittest.TestCase):
             old.parent.mkdir(); old.write_bytes(b'previous distribution sentinel')
             paths = [module.artifact_paths(root, arch) for arch in ('arm64', 'x86_64')]
             for arch, p in zip(('arm64', 'x86_64'), paths):
-                self.assertEqual(p['app'], root / f'dist/diakitw-0.5.4-{arch}/diakitw.app')
-                self.assertEqual(p['dmg'], root / f'dist/diakitw-0.5.4-macos-{arch}.dmg')
+                self.assertEqual(p['app'], root / f'dist/diakitw-0.5.5-{arch}/diakitw.app')
+                self.assertEqual(p['dmg'], root / f'dist/diakitw-0.5.5-macos-{arch}.dmg')
                 module.require_absent(p['dmg'])
                 p['dmg'].write_bytes(b'new distribution sentinel')
                 with self.assertRaises(FileExistsError):
@@ -64,9 +64,9 @@ class ArtifactChecks(unittest.TestCase):
 
     def test_build_names_and_allowlist(self):
         build = (ROOT / 'build.sh').read_text()
-        self.assertIn('dist/diakitw-0.5.4-arm64', build)
+        self.assertIn('dist/diakitw-0.5.5-arm64', build)
         self.assertIn('APP="$OUTPUT/diakitw.app"', build)
-        self.assertIn('diakitw-0.5.4-macos-arm64.zip', build)
+        self.assertIn('diakitw-0.5.5-macos-arm64.zip', build)
         self.assertIn('Refusing existing output', build)
         self.assertIn('check_rebrand.py', build)
         p = (ROOT / 'package-diagnostics-dmg.py').read_text()
@@ -74,6 +74,6 @@ class ArtifactChecks(unittest.TestCase):
         self.assertIn("'Contents/Resources/server_probe.py'", p)
         self.assertNotIn('copytree', p)
         self.assertNotIn('servers.json', p)
-        self.assertIn('README-diakitw-0.5.4-RU.txt', p)
+        self.assertIn('README-diakitw-0.5.5-RU.txt', p)
 
 if __name__ == '__main__': unittest.main()

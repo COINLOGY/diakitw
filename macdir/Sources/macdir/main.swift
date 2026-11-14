@@ -400,6 +400,9 @@ struct ContentView: View {
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
  var status: ResourceStatusController?
+ @objc func showAbout(_ sender: Any?) {
+  MainActor.assumeIsolated { NSApplication.shared.orderFrontStandardAboutPanel(options: [.applicationVersion: "0.5.5a"]) }
+ }
  func applicationWillTerminate(_ notification: Notification) { MainActor.assumeIsolated { InternetTestWindow.shared.stop(); DiagnosticsWindow.shared.stop(); UpdateMenu.shared.stop(); status?.stop() } }
  func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
 }
@@ -440,7 +443,7 @@ if CommandLine.arguments.contains("--self-check") {
  let appMenu = NSMenu(); appItem.submenu = appMenu
  DesktopActions.shared.addItems(to: appMenu)
  UpdateMenu.shared.addItems(to: appMenu)
- appMenu.addItem(withTitle: "О diakitw", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
+ appMenu.addItem(withTitle: "О diakitw", action: #selector(AppDelegate.showAbout(_:)), keyEquivalent: "").target = delegate
 
  appMenu.addItem(.separator()); appMenu.addItem(withTitle: "Завершить diakitw", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
  app.mainMenu = menu

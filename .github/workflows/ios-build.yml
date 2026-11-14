@@ -1,10 +1,13 @@
-name: iOS 0.5.4 unsigned build and smoke
+name: iOS 0.5.5a unsigned build and smoke
 on:
+  push:
+    branches: [ci/ios-054a]
+    paths: ["ios/**", ".github/workflows/ios-build.yml"]
   workflow_dispatch:
 permissions:
   contents: read
 concurrency:
-  group: ios-054
+  group: ios-055a
   cancel-in-progress: false
 jobs:
   build-test:
@@ -25,7 +28,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: diakitw-ios-0.5.4
+          name: diakitw-ios-0.5.5a
           path: ios/out/
           if-no-files-found: error
           retention-days: 14
