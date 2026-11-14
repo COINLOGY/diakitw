@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "product": "diakitw",
-  "release": "0.5.4",
+  "release": "0.5.5a",
   "repository": "COINLOGY/diakitw",
   "published": true,
   "license": "MIT — собственный код; сторонние лицензии сохранены.",
@@ -13,12 +13,14 @@
       "format": "DMG",
       "requirements": "macOS 14+ · Apple Silicon",
       "signing": "Ad-hoc, без Developer ID/notarization.",
-      "runtime": "Candidate: CI DMG/privacy/signature gates and offline arm64 self-check passed; update click-through not tested.",
-      "filename": "diakitw-0.5.4-macos-arm64.dmg",
-      "size_bytes": 1591789,
-      "sha256": "73c5abedc8e25f3a11663450458785537ac9a2c1112078f8d86d72346ebcf216",
-      "url": "https://github.com/COINLOGY/diakitw/releases/download/v0.5.4/diakitw-0.5.4-macos-arm64.dmg",
-      "version": "0.5.4"
+      "runtime": "CI DMG/privacy/signature gates and offline arm64 self-check passed; update click-through not tested.",
+      "filename": "diakitw-0.5.5-macos-arm64.dmg",
+      "size_bytes": 1593204,
+      "sha256": "cfcffb59c212d041482c52aed58f401847a57d35458a93d4e3aeb1dd875909e0",
+      "url": "https://github.com/COINLOGY/diakitw/releases/download/v0.5.5/diakitw-0.5.5-macos-arm64.dmg",
+      "version": "0.5.5",
+      "displayVersion": "0.5.5a",
+      "build": 55
     },
     {
       "id": "mac-intel",
@@ -27,26 +29,31 @@
       "format": "DMG",
       "requirements": "macOS 14+ · Intel",
       "signing": "Ad-hoc, без Developer ID/notarization.",
-      "runtime": "Candidate: offline Intel self-check under Rosetta passed; physical Intel not tested.",
-      "filename": "diakitw-0.5.4-macos-x86_64.dmg",
-      "size_bytes": 1705315,
-      "sha256": "928b1166caf8374912fbd7ac978a065bb6acdb6a86d9deb2cddcbf1c2e835dc3",
-      "url": "https://github.com/COINLOGY/diakitw/releases/download/v0.5.4/diakitw-0.5.4-macos-x86_64.dmg",
-      "version": "0.5.4"
+      "runtime": "offline Intel self-check under Rosetta passed; physical Intel not tested.",
+      "filename": "diakitw-0.5.5-macos-x86_64.dmg",
+      "size_bytes": 1703956,
+      "sha256": "b3c440c0945a87a1891e2b51c1a9f3a721c52e9c00412f11a12c7191af6bb72c",
+      "url": "https://github.com/COINLOGY/diakitw/releases/download/v0.5.5/diakitw-0.5.5-macos-x86_64.dmg",
+      "version": "0.5.5",
+      "displayVersion": "0.5.5a",
+      "build": 55
     },
     {
       "id": "android",
       "name": "Android",
-      "architecture": "Без native ABI-библиотек (DEX); проверен API30 ARM64",
+      "architecture": "DEX, без native ABI-библиотек",
       "format": "APK",
       "requirements": "Android 8.0+ · API 26+; target SDK 36",
-      "signing": "Debug-подпись; apksigner и zipalign проверены.",
-      "runtime": "Debug candidate: alignment/signature checked; 0.5.4 target GUI and real install not tested.",
-      "filename": "diakitw-android-0.5.4-candidate.apk",
-      "size_bytes": 115471,
-      "sha256": "d777719f0b3805efcbba2cdfe86ab4aa70225944a1d1a163fc92749528a7083a",
-      "url": "https://github.com/COINLOGY/diakitw/releases/download/v0.5.4/diakitw-android-0.5.4-candidate.apk",
-      "version": "0.5.4"
+      "signing": "Новый постоянный release-ключ; v2/v3 и zipalign проверены.",
+      "runtime": "Физическое устройство, GUI и миграция не проверены / physical device, GUI and migration not tested.",
+      "filename": "diakitw-android-0.5.5a-candidate.apk",
+      "size_bytes": 119567,
+      "sha256": "9a1dd47ac3e5d2e4effc9b3d673abc6c43a97dece42c9d4051853f9764af8ccb",
+      "url": "https://github.com/COINLOGY/diakitw/releases/download/v0.5.5/diakitw-android-0.5.5a-candidate.apk",
+      "version": "0.5.5",
+      "displayVersion": "0.5.5a",
+      "build": 55,
+      "warning": "Android: НОВЫЙ ключ. Старое приложение необходимо удалить; данные, настройки и история могут потеряться. Обновление поверх невозможно. Следующие версии используют этот же ключ. NEW signing key: uninstall the old Android app first; data, settings and history may be lost. No in-place upgrade; subsequent versions use this same key."
     },
     {
       "id": "windows",
@@ -56,11 +63,13 @@
       "requirements": "Windows 10/11 x64 · PowerShell / CIM",
       "signing": "Без Authenticode.",
       "runtime": "Archive/runtime parity checked; Windows target GUI/runtime not tested.",
-      "filename": "diakitw-0.5.4-windows-x64.zip",
-      "size_bytes": 158116761,
-      "sha256": "5ca04e2b2070a4f907080e48b4fe8ccf37b0dbb623d52e124cbc9d9d1f86dde4",
-      "url": "https://github.com/COINLOGY/diakitw/releases/download/v0.5.4/diakitw-0.5.4-windows-x64.zip",
-      "version": "0.5.4"
+      "filename": "diakitw-0.5.5a-windows-x64.zip",
+      "size_bytes": 158117257,
+      "sha256": "70deeaf563255a3c6c345315eab103e775f27c1735b3e8d1b668b1515c356d71",
+      "url": "https://github.com/COINLOGY/diakitw/releases/download/v0.5.5/diakitw-0.5.5a-windows-x64.zip",
+      "version": "0.5.5",
+      "displayVersion": "0.5.5a",
+      "build": 55
     },
     {
       "id": "linux",
@@ -70,38 +79,40 @@
       "requirements": "Графическая сессия · glibc · GTK / NSS / ALSA",
       "signing": "Подпись издателя не заявлена.",
       "runtime": "Archive/runtime parity checked; target Linux GUI not tested; do not disable sandbox.",
-      "filename": "diakitw-0.5.4-linux-x64.tar.gz",
-      "size_bytes": 124055177,
-      "sha256": "58f4250480d72ae25a8f53adc6810742b9fb20296581d0e914ba1e66553056ff",
-      "url": "https://github.com/COINLOGY/diakitw/releases/download/v0.5.4/diakitw-0.5.4-linux-x64.tar.gz",
-      "version": "0.5.4"
+      "filename": "diakitw-0.5.5a-linux-x64.tar.gz",
+      "size_bytes": 124055319,
+      "sha256": "76dbdcae5ea77aa62014c396d65bf80983384c34e3a3fdac351e1989d65e00ab",
+      "url": "https://github.com/COINLOGY/diakitw/releases/download/v0.5.5/diakitw-0.5.5a-linux-x64.tar.gz",
+      "version": "0.5.5",
+      "displayVersion": "0.5.5a",
+      "build": 55
     }
   ],
-  "prerelease": true,
-  "distribution_revision": "original-candidates-054",
-  "changes": "Foreground/manual update discovery; preview default; browser-only, no auto-installation.",
-  "packaging": "Original verified candidate bytes; iOS unsigned development archives available separately.",
+  "prerelease": false,
+  "distribution_revision": "055a-final",
+  "changes": "Mobile single Start, HTTP ping RTT (ms), JSON reports; Android signing-key migration.",
+  "packaging": "Five installer/portable packages; three unsigned iOS development archives separately.",
   "ios": [
     {
       "platform": "ios-source",
-      "file": "diakitw-0.5.4-ios-SOURCE.zip",
-      "size": 59958,
-      "sha256": "9f397d60d1679fd7c5354877396246928e4afa28531b32b373c74fef4059f9d6",
-      "url": "https://github.com/COINLOGY/diakitw/releases/download/v0.5.4/diakitw-0.5.4-ios-SOURCE.zip"
+      "file": "diakitw-0.5.5-ios-SOURCE.zip",
+      "size": 64274,
+      "sha256": "4e13be95541cbb5487f7c50734a42f0ddd718f7857256712de44f115da21ab98",
+      "url": "https://github.com/COINLOGY/diakitw/releases/download/v0.5.5/diakitw-0.5.5-ios-SOURCE.zip"
     },
     {
       "platform": "ios-unsigned",
-      "file": "diakitw-0.5.4-ios-UNSIGNED-device.app.zip",
-      "size": 196829,
-      "sha256": "047de67702e91577d7d7f760787f76083431ddbb40e44b18bf4439e64a1a672c",
-      "url": "https://github.com/COINLOGY/diakitw/releases/download/v0.5.4/diakitw-0.5.4-ios-UNSIGNED-device.app.zip"
+      "file": "diakitw-0.5.5-ios-UNSIGNED-device.app.zip",
+      "size": 200620,
+      "sha256": "f40d551c618bd03c5d3e98236793e178fc6bbd486134f614e8194ae6aad0c4af",
+      "url": "https://github.com/COINLOGY/diakitw/releases/download/v0.5.5/diakitw-0.5.5-ios-UNSIGNED-device.app.zip"
     },
     {
       "platform": "ios-simulator",
-      "file": "diakitw-0.5.4-ios-simulator.app.zip",
-      "size": 393199,
-      "sha256": "6e717400c1c08b0f2a42d60b1fad483ba3742bdae5fe80478c9a8ae2533e1cbd",
-      "url": "https://github.com/COINLOGY/diakitw/releases/download/v0.5.4/diakitw-0.5.4-ios-simulator.app.zip"
+      "file": "diakitw-0.5.5-ios-simulator.app.zip",
+      "size": 401046,
+      "sha256": "b83415ec4e04e8da7088c007011f2b5c0ca00e333771bd751878b4013077dc7b",
+      "url": "https://github.com/COINLOGY/diakitw/releases/download/v0.5.5/diakitw-0.5.5-ios-simulator.app.zip"
     }
   ]
 }

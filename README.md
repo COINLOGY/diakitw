@@ -1,23 +1,34 @@
-# diakitw 0.5.4 — preview
+# diakitw0.5.5a — stable (0.5.5 / build 55)
 
-[Скачать / Download](https://github.com/COINLOGY/diakitw/releases/tag/v0.5.4) · [Сайт / Website](https://coinlogy.github.io/diakitw/) · [Release notes / Ограничения](release/0.5.4.md) · [MIT](LICENSE) · [Build](BUILDING.md)
+[Скачать / Download](https://github.com/COINLOGY/diakitw/releases/tag/v0.5.5) · [Сайт / Website](https://coinlogy.github.io/diakitw/) · [RU/EN instructions](release/0.5.5a.md) · [MIT](LICENSE) · [Build](BUILDING.md)
 
-Диагностика и мониторинг: macOS, Windows/Linux, Android и iOS; изолированный proxy геолокации 2ip. Собственный код MIT, сторонние лицензии сохранены: [NOTICE](NOTICE), [THIRD_PARTY.md](THIRD_PARTY.md).
+## ⚠ Android: обязательная миграция / required migration
 
-| Сборка | Установка | Ограничения |
-|---|---|---|
-| macOS arm64 / x86_64 DMG | macOS 14+; скопировать app в Applications | Ad-hoc, без notarization. Offline self-check обеих архитектур, Intel через Rosetta; физический Intel не проверен. |
-| Windows x64 ZIP | Windows 10/11; распаковать целиком | Нет Authenticode; целевой runtime не проверен. |
-| Linux x64 tar.gz | Графическая сессия, glibc, GTK/NSS/ALSA | Целевой runtime не проверен; не отключать sandbox. |
-| Android APK | Android 8+/API26; системный установщик | Прежняя debug-подпись; real install/GUI 0.5.4 не проверены. |
-| iOS device / simulator / source | iOS 16+; разработческая сборка/исходники | Device APP unsigned, не устанавливаемый IPA, не TestFlight/App Store. |
+**Android: НОВЫЙ ключ. Старое приложение необходимо удалить; данные, настройки и история могут потеряться. Обновление поверх невозможно. Следующие версии используют этот же ключ. NEW signing key: uninstall the old Android app first; data, settings and history may be lost. No in-place upgrade; subsequent versions use this same key.**
 
-Обновления: foreground и ручная проверка, preview по умолчанию, stable по выбору. Только открытие браузера; **нет автоустановки, скачивания или проверки скачанного файла приложением**. Клиентам 0.5.3 и ранее нужна однократная ручная установка 0.5.4. Общий [feed](https://coinlogy.github.io/diakitw/updates/v1.json) содержит пять installer platforms; unsigned iOS не предлагается. Отсутствие stable в feed не означает «установлена актуальная stable».
+Save needed reports outside the app first. Release certificate SHA-256: `f911dd1063fb3acb2ca7adb474c6ffdbc1b81e36eb5b4f4854dd25f7620750ab`. APK v2/v3 verified; the retained candidate filename is not debug signing.
 
-SHA256SUMS релиза — для ручной проверки байтов; не независимая подпись. Не отключайте защиту ОС. Общий API: 300 upstream-запросов/сутки, 9000/месяц на всех пользователей, без SLA. См. [PRIVACY.md](PRIVACY.md), [SECURITY.md](SECURITY.md).
+## Сборки / Downloads
 
-## English
+- [diakitw-0.5.5a-windows-x64.zip](https://github.com/COINLOGY/diakitw/releases/download/v0.5.5/diakitw-0.5.5a-windows-x64.zip)
+- [diakitw-0.5.5a-linux-x64.tar.gz](https://github.com/COINLOGY/diakitw/releases/download/v0.5.5/diakitw-0.5.5a-linux-x64.tar.gz)
+- [diakitw-android-0.5.5a-candidate.apk](https://github.com/COINLOGY/diakitw/releases/download/v0.5.5/diakitw-android-0.5.5a-candidate.apk)
+- [diakitw-0.5.5-macos-arm64.dmg](https://github.com/COINLOGY/diakitw/releases/download/v0.5.5/diakitw-0.5.5-macos-arm64.dmg)
+- [diakitw-0.5.5-macos-x86_64.dmg](https://github.com/COINLOGY/diakitw/releases/download/v0.5.5/diakitw-0.5.5-macos-x86_64.dmg)
+- [diakitw-0.5.5-ios-SOURCE.zip](https://github.com/COINLOGY/diakitw/releases/download/v0.5.5/diakitw-0.5.5-ios-SOURCE.zip)
+- [diakitw-0.5.5-ios-UNSIGNED-device.app.zip](https://github.com/COINLOGY/diakitw/releases/download/v0.5.5/diakitw-0.5.5-ios-UNSIGNED-device.app.zip)
+- [diakitw-0.5.5-ios-simulator.app.zip](https://github.com/COINLOGY/diakitw/releases/download/v0.5.5/diakitw-0.5.5-ios-simulator.app.zip)
 
-Five preview installer/portable packages, plus unsigned iOS device/simulator outputs and source. Full source ZIP matches v0.5.4. Own code is MIT; third-party notices remain intact. Update discovery only: no automatic installation or downloaded-file hash/signature verification. Older clients need one manual bootstrap install. No stable release is asserted. iOS is not an installable IPA. See [release notes](release/0.5.4.md) for actual checks and platform limits.
+macOS 14+: ad-hoc, no Developer ID/notarization. Windows x64: no Authenticode. Linux x64: portable, do not disable sandbox. Android: API26+; uninstall migration required.
 
-[Previous releases](https://github.com/COINLOGY/diakitw/releases) · [Changelog](CHANGELOG.md) · [Contributing](CONTRIBUTING.md)
+**iOS device APP is UNSIGNED: не устанавливаемый IPA; нет автоматической установки / not an installable IPA; no automatic installation.** iOS16+; developer signing/provisioning required. Simulator ZIP is for Xcode Simulator; SOURCE ZIP is the project, not a phone installer.
+
+Mobile: одна кнопка «Старт», HTTP ping RTT в миллисекундах (не ICMP), JSON / single Start, HTTP ping RTT in ms (not ICMP), JSON reports.
+
+Обновления: выберите **stable**, затем «Проверить» / select **stable**, then Check updates. Preview remains a separate channel. Browser-only discovery; no automatic installation or in-app downloaded-file verification. Clients 0.5.3 and earlier need a manual bootstrap install. [Shared feed](https://coinlogy.github.io/diakitw/updates/v1.json): five installer platforms, no unsigned iOS offer.
+
+Проверки / Checks: Desktop 62 tests, Android fixtures/signature/alignment, Apple CI builds and offline checks. No physical device migration or target Windows/Linux GUI testing is claimed; Intel self-check used Rosetta. See release notes for limits.
+
+[SHA256SUMS](https://github.com/COINLOGY/diakitw/releases/download/v0.5.5/SHA256SUMS) validates bytes, not independent publisher identity. Do not disable OS protection.
+
+Полные исходники / full source: [tag v0.5.5](https://github.com/COINLOGY/diakitw/tree/v0.5.5), [ZIP](https://github.com/COINLOGY/diakitw/archive/refs/tags/v0.5.5.zip). Own code MIT; [NOTICE](NOTICE) and [THIRD_PARTY.md](THIRD_PARTY.md) remain intact. [Privacy](PRIVACY.md) · [Security](SECURITY.md) · [Previous releases](https://github.com/COINLOGY/diakitw/releases).
