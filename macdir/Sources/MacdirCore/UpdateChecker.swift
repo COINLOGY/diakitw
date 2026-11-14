@@ -1,4 +1,4 @@
-// iOS browser-only updater. Numeric platform version is separate from the UI label 0.5.5a.
+// Browser-only updater. Each platform's numeric version is separate from its UI label.
 import Foundation
 import Combine
 import CoreFoundation
@@ -9,8 +9,13 @@ import Darwin
 public enum UpdateContract {
     public static let endpoint = URL(string: "https://coinlogy.github.io/diakitw/updates/v1.json")!
     public static let cap = 32 * 1024
+    #if os(macOS)
+    public static let version = "0.5.6"
+    public static let build = 56
+    #else
     public static let version = "0.5.5"
     public static let build = 55
+    #endif
     public enum Failure: Error { case invalid, http, oversized }
     public struct Version: Comparable, Equatable {
         let parts: [Int]

@@ -19,6 +19,9 @@ public struct NetworkRate: Sendable, Identifiable {
  public let name: String
  public let received: Double?
  public let sent: Double?
+ public init(name: String, received: Double?, sent: Double?) {
+  self.name = name; self.received = received; self.sent = sent
+ }
 }
 public struct ResourceSnapshot: Sendable {
  public var cpu: Double?

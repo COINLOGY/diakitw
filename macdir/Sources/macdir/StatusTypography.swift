@@ -6,8 +6,8 @@ enum StatusTypography {
  static let prefixFont = NSFont.systemFont(ofSize: 9, weight: .medium)
  static let arrowFont = NSFont.monospacedSystemFont(ofSize: 10, weight: .medium)
  static let templates = [
-  ["000.0%", "000.0%", "000.0G", "000.0%", "↓000.0M", "↑000.0M"],
-  ["+++.+%", "+++.+G", "+++.+G", "+++.+G", "↓+++.+M", "↑+++.+M"]
+  ["000.0%", "000.0%", "000.0G", "000.0%", "000.0M↓", "000.0M↑"],
+  ["+++.+%", "+++.+G", "+++.+G", "+++.+G", "+++.+M↓", "+++.+M↑"]
  ]
  static let fixedWidth = width(indices: Array(0..<6))
  static func width(indices: [Int]) -> CGFloat {
@@ -19,9 +19,9 @@ enum StatusTypography {
   for (index, field) in fields.enumerated() {
    let color = colors.indices.contains(index) ? colors[index] : .labelColor
    if index > 0 { result.append(NSAttributedString(string: " ", attributes: [.font: numericFont])) }
-   let arrow = field.hasPrefix("↓") || field.hasPrefix("↑")
-   if arrow { result.append(NSAttributedString(string: String(field.prefix(1)), attributes: [.font: arrowFont, .foregroundColor: color])) }
-   result.append(NSAttributedString(string: arrow ? String(field.dropFirst()) : field, attributes: [.font: numericFont, .foregroundColor: color]))
+   let arrow = field.hasSuffix("↓") || field.hasSuffix("↑")
+   result.append(NSAttributedString(string: arrow ? String(field.dropLast()) : field, attributes: [.font: numericFont, .foregroundColor: color]))
+   if arrow { result.append(NSAttributedString(string: String(field.suffix(1)), attributes: [.font: arrowFont, .foregroundColor: color])) }
   }
   return result
  }

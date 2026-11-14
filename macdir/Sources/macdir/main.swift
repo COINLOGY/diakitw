@@ -401,7 +401,7 @@ struct ContentView: View {
 final class AppDelegate: NSObject, NSApplicationDelegate {
  var status: ResourceStatusController?
  @objc func showAbout(_ sender: Any?) {
-  MainActor.assumeIsolated { NSApplication.shared.orderFrontStandardAboutPanel(options: [.applicationVersion: "0.5.5a"]) }
+  MainActor.assumeIsolated { NSApplication.shared.orderFrontStandardAboutPanel(options: [.applicationVersion: "0.5.6"]) }
  }
  func applicationWillTerminate(_ notification: Notification) { MainActor.assumeIsolated { InternetTestWindow.shared.stop(); DiagnosticsWindow.shared.stop(); UpdateMenu.shared.stop(); status?.stop() } }
  func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }

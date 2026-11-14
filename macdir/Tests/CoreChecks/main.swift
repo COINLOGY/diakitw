@@ -116,8 +116,13 @@ statusSample.cpu = 20; statusSample.memoryUsed = 8 * 1_073_741_824; statusSample
 statusSample.swap = 1_073_741_824; statusSample.swapTotal = 1_073_741_824
 let segments = StatusPresentation.segments(statusSample, interface: "missing")
 print("STATUS FORMAT: " + segments.map(\.text).joined(separator: "  "))
-check(segments.map(\.text).joined(separator: "  ") == " 20.0%   50.0%    1.0G    0.0%  ↓  0.0K  ↑  0.0K", "fixed width native status title")
+check(segments.map(\.text).joined(separator: "  ") == " 20.0%   50.0%    1.0G    0.0%    0.0K↓    0.0K↑", "network arrows follow K/M units")
 check(segments[0].band == .green && segments[1].band == .blue && segments[2].band == .red, "status shares exact gauge color bands")
+var networkStatus = ResourceSnapshot()
+networkStatus.networks = [NetworkRate(name: "en0", received: 5.2 * 1024, sent: 12.36 * 1_048_576)]
+let networkSegments = StatusPresentation.segments(networkStatus, interface: "en0")
+check(networkSegments[4].text == "  5.2K↓" && networkSegments[5].text == " 12.4M↑", "K/M units precede directional arrows")
+check(networkSegments[4].text.count == 7 && networkSegments[5].text.count == 7, "network menu widths remain fixed")
 for (value, expected) in [(0.0, "  0.0%"), (7.3, "  7.3%"), (100, "100.0%")] {
  var sample = ResourceSnapshot(); sample.cpu = value
  let field = StatusPresentation.segments(sample, interface: "missing")[0].text

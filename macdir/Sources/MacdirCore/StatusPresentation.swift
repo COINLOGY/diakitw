@@ -51,8 +51,8 @@ public enum StatusPresentation {
    Segment(text: ramMode == .percent ? field(ram.map { $0 * 100 }) + "%" : memory(s.memoryUsed), band: GaugeScale.band(ram)),
    Segment(text: memory(s.swap), band: GaugeScale.band(GaugeScale.fraction(s.swap.map(Double.init), maximum: s.swapTotal.map(Double.init)))),
    Segment(text: diskMode == .free ? memory(s.diskFree) : field(disk.map { $0 * 100 }) + "%", band: GaugeScale.band(disk)),
-   Segment(text: "↓" + rate(n?.received), band: validRate(n?.received) ? .green : .unknown),
-   Segment(text: "↑" + rate(n?.sent), band: validRate(n?.sent) ? .blue : .unknown)
+   Segment(text: rate(n?.received) + "↓", band: validRate(n?.received) ? .green : .unknown),
+   Segment(text: rate(n?.sent) + "↑", band: validRate(n?.sent) ? .blue : .unknown)
   ]
  }
 }

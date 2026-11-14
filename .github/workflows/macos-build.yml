@@ -1,4 +1,4 @@
-name: macOS 0.5.5a build-only
+name: macOS 0.5.6 build-only
 
 on:
   workflow_dispatch:
@@ -14,7 +14,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: macos-055a-build-only
+  group: macos-056-build-only
   cancel-in-progress: false
 
 jobs:
@@ -41,16 +41,16 @@ jobs:
         timeout-minutes: 3
 
         run: |
-          mkdir -p "$GITHUB_WORKSPACE/.ci-scratch" evidence/diakitw-0.5.5
+          mkdir -p "$GITHUB_WORKSPACE/.ci-scratch" evidence/diakitw-0.5.6
           export TMPDIR="$(cd "$GITHUB_WORKSPACE/.ci-scratch" && pwd -P)"
-          { xcodebuild -version; swift --version; sysctl -n hw.logicalcpu; python3 Tests/test_server_management_model.py "$TMPDIR"; } 2>&1 | tee evidence/diakitw-0.5.5/server-model.log
+          { xcodebuild -version; swift --version; sysctl -n hw.logicalcpu; python3 Tests/test_server_management_model.py "$TMPDIR"; } 2>&1 | tee evidence/diakitw-0.5.6/server-model.log
       - name: Focused rendered layout check
         if: inputs.scope == 'layout'
         timeout-minutes: 5
         run: |
-          mkdir -p "$GITHUB_WORKSPACE/.ci-scratch" evidence/diakitw-0.5.5
+          mkdir -p "$GITHUB_WORKSPACE/.ci-scratch" evidence/diakitw-0.5.6
           export TMPDIR="$(cd "$GITHUB_WORKSPACE/.ci-scratch" && pwd -P)"
-          { xcodebuild -version; swift --version; python3 Tests/check_layout.py 0.5.5; } 2>&1 | tee evidence/diakitw-0.5.5/layout.log
+          { xcodebuild -version; swift --version; python3 Tests/check_layout.py 0.5.6; } 2>&1 | tee evidence/diakitw-0.5.6/layout.log
       - name: Build both thin architectures and verify installers
         if: inputs.scope == 'full'
         run: bash ci-build.sh
@@ -58,8 +58,8 @@ jobs:
         if: inputs.scope == 'full'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4, verified upstream ref
         with:
-          name: diakitw-0.5.5-macos-arm64
-          path: macdir/dist/diakitw-0.5.5-macos-arm64.dmg
+          name: diakitw-0.5.6-macos-arm64
+          path: macdir/dist/diakitw-0.5.6-macos-arm64.dmg
           if-no-files-found: error
           retention-days: 14
           compression-level: 0
@@ -67,8 +67,8 @@ jobs:
         if: inputs.scope == 'full'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: diakitw-0.5.5-macos-x86_64
-          path: macdir/dist/diakitw-0.5.5-macos-x86_64.dmg
+          name: diakitw-0.5.6-macos-x86_64
+          path: macdir/dist/diakitw-0.5.6-macos-x86_64.dmg
           if-no-files-found: error
           retention-days: 14
           compression-level: 0
@@ -76,7 +76,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: diakitw-0.5.5-macos-evidence
+          name: diakitw-0.5.6-macos-evidence
           path: |
             macdir/evidence/**/*.log
             macdir/evidence/**/*.json

@@ -42,21 +42,21 @@ class MenuSpaces(unittest.TestCase):
             self.assertEqual(new.index('.'),3)
         # Existing promotion, rounding, units and unknown policy are untouched.
         for path in ['Sources/MacdirCore/NetworkPresentation.swift',
-                     'Sources/MacdirCore/MetricPresentation.swift',
-                     'Sources/macdir/StatusTypography.swift']:
+                     'Sources/MacdirCore/MetricPresentation.swift']:
             self.assertEqual((ROOT/path).read_text(),BASELINE['macdir/'+path],path)
 
     def test_monospaced_width_and_visibility_wiring(self):
         typography=(ROOT/'Sources/macdir/StatusTypography.swift').read_text()
         self.assertIn('NSFont.monospacedSystemFont(ofSize: 13',typography)
-        self.assertIn('String(field.dropFirst()) : field',typography)
+        self.assertIn('String(field.dropLast()) : field',typography)
+        self.assertIn('String(field.suffix(1))',typography)
         update=(ROOT/'Sources/macdir/ResourceHUD.swift').read_text().split('private func update(',1)[1]
         self.assertIn('выравнивание пробелами',update)
         self.assertIn('серые нули: нет замера · +: переполнение',update)
         self.assertNotIn('StatusTypography.width',update)
         self.assertNotIn('item?.length',update)
-        variants=[['  7.3%','  0.0%','  1.0G','100.0%','↓  0.0K','↑999.9M'],
-                  ['100.0%','+++.+G','+++.+G','  0.0G','↓+++.+M','↑  1.0K']]
+        variants=[['  7.3%','  0.0%','  1.0G','100.0%','  0.0K↓','999.9M↑'],
+                  ['100.0%','+++.+G','+++.+G','  0.0G','+++.+M↓','  1.0K↑']]
         for visible in itertools.product([False,True],repeat=6):
             widths=[len(' '.join(v[i] for i,show in enumerate(visible) if show)) for v in variants]
             self.assertEqual(widths[0],widths[1])

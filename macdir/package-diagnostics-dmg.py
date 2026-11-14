@@ -11,10 +11,10 @@ from contextlib import contextmanager
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
-VERSION = '0.5.5'
-BUILD = '55'
+VERSION = '0.5.6'
+BUILD = '56'
 NAME = 'diakitw'
-README = 'README-diakitw-0.5.5-RU.txt'
+README = 'README-diakitw-0.5.6-RU.txt'
 
 
 def artifact_paths(root, arch):
@@ -80,8 +80,11 @@ def main():
         if arch == 'x86_64':
             (app / 'Contents/MacOS').mkdir(parents=True)
             (app / 'Contents/Resources').mkdir()
+            intel_bins = ROOT / '.build-diakitw-intel/out/Products/Release'
+            if not (intel_bins / 'macdir').is_file():
+                intel_bins = ROOT / '.build-diakitw-intel/x86_64-apple-macosx/release'
             for name in ('macdir', 'DiagnosticWorker', 'ServerAskpass'):
-                shutil.copy2(ROOT / '.build-diakitw-intel/x86_64-apple-macosx/release' / name,
+                shutil.copy2(intel_bins / name,
                              app / 'Contents/MacOS' / name)
             shutil.copy2(ROOT / 'Info.plist', app / 'Contents/Info.plist')
             for name in ('macdir.icns', 'server_probe.py'):
