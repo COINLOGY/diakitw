@@ -9,5 +9,5 @@ class CpuLayout(unittest.TestCase):
   self.assertNotIn('SWAP, CPU процесса и UID-трафик убраны',s)
  def test_version(self):
   gradle=(R/'app/build.gradle').read_text()
-  self.assertIn("versionName '0.5.4'",gradle)
-  self.assertRegex(gradle,r'\bversionCode\s+54\b')
+  self.assertIn("versionName '0.5.5a'",gradle)
+  self.assertRegex(gradle,r'\bversionCode\s+55\b')

@@ -1,0 +1,38 @@
+{
+  "schema": 1,
+  "releases": [
+    {
+      "version": "0.5.5",
+      "build": 55,
+      "channel": "stable",
+      "notes": "diakitw 0.5.5a. Android: НОВЫЙ ключ. Старое приложение необходимо удалить; данные, настройки и история могут потеряться. Обновление поверх невозможно. Следующие версии используют этот же ключ. NEW signing key: uninstall the old Android app first; data, settings and history may be lost. No in-place upgrade; subsequent versions use this same key. Mobile: одна кнопка Старт / single Start; HTTP ping RTT (ms), JSON reports. Manual installation only. iOS unsigned archives are not offered.",
+      "assets": {
+        "windows-x64": {
+          "url": "https://github.com/COINLOGY/diakitw/releases/download/v0.5.5/diakitw-0.5.5a-windows-x64.zip",
+          "size": 158117257,
+          "sha256": "70deeaf563255a3c6c345315eab103e775f27c1735b3e8d1b668b1515c356d71"
+        },
+        "linux-x64": {
+          "url": "https://github.com/COINLOGY/diakitw/releases/download/v0.5.5/diakitw-0.5.5a-linux-x64.tar.gz",
+          "size": 124055319,
+          "sha256": "76dbdcae5ea77aa62014c396d65bf80983384c34e3a3fdac351e1989d65e00ab"
+        },
+        "android": {
+          "url": "https://github.com/COINLOGY/diakitw/releases/download/v0.5.5/diakitw-android-0.5.5a-candidate.apk",
+          "size": 119567,
+          "sha256": "9a1dd47ac3e5d2e4effc9b3d673abc6c43a97dece42c9d4051853f9764af8ccb"
+        },
+        "macos-arm64": {
+          "url": "https://github.com/COINLOGY/diakitw/releases/download/v0.5.5/diakitw-0.5.5-macos-arm64.dmg",
+          "size": 1593204,
+          "sha256": "cfcffb59c212d041482c52aed58f401847a57d35458a93d4e3aeb1dd875909e0"
+        },
+        "macos-x86_64": {
+          "url": "https://github.com/COINLOGY/diakitw/releases/download/v0.5.5/diakitw-0.5.5-macos-x86_64.dmg",
+          "size": 1703956,
+          "sha256": "b3c440c0945a87a1891e2b51c1a9f3a721c52e9c00412f11a12c7191af6bb72c"
+        }
+      }
+    }
+  ]
+}

@@ -22,7 +22,7 @@ public final class Updates {
   if(body==null||body.getBytes(StandardCharsets.UTF_8).length>32768||!Arrays.asList("stable","preview").contains(channel))throw new IllegalArgumentException("manifest");
   JSONObject root=new JSONObject(body);if(integer(root,"schema",1)!=1)throw new IllegalArgumentException("schema");JSONArray releases=root.getJSONArray("releases");if(releases.length()>64)throw new IllegalArgumentException("releases");Release best=null;
   for(int i=0;i<releases.length();i++){JSONObject r=releases.getJSONObject(i);String v=text(r,"version"),c=text(r,"channel"),notes=text(r,"notes");version(v);int build=(int)integer(r,"build",2147483647L);if(!Arrays.asList("stable","preview").contains(c)||notes.length()>4096)throw new IllegalArgumentException("release");JSONObject assets=r.getJSONObject("assets");Iterator<String> keys=assets.keys();while(keys.hasNext()){String key=keys.next();if(!PLATFORMS.contains(key))throw new IllegalArgumentException("platform");JSONObject a=assets.getJSONObject(key);if(!validURL(text(a,"url"),v)||!text(a,"sha256").matches("[a-f0-9]{64}"))throw new IllegalArgumentException("asset");integer(a,"size",8589934592L);}
-   if(!c.equals(channel)||!assets.has("android")||compare(v,"0.5.4")<=0||build<=54)continue;
+   if(!c.equals(channel)||!assets.has("android")||compare(v,"0.5.5")<=0||build<=55)continue;
    if(best==null||compare(v,best.version)>0)best=new Release(v,build,notes,text(assets.getJSONObject("android"),"url"));
   }return best;
  }catch(JSONException|NullPointerException e){throw new IllegalArgumentException("manifest",e);}}

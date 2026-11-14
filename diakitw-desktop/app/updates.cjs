@@ -5,7 +5,7 @@ const platforms=['macos-arm64','macos-x86_64','windows-x64','linux-x64','android
 function version(v){if(typeof v!=='string'||!/^(0|[1-9]\d{0,5})\.(0|[1-9]\d{0,5})\.(0|[1-9]\d{0,5})$/.test(v))throw Error('version');return v.split('.').map(Number);}
 function compare(a,b){const x=version(a),y=version(b);for(let i=0;i<3;i++)if(x[i]!==y[i])return x[i]-y[i];return 0;}
 function asset(a,v){const prefix=`https://github.com/COINLOGY/diakitw/releases/download/v${v}/`;if(!a||typeof a.url!=='string'||!a.url.startsWith(prefix)||!/^[A-Za-z0-9][A-Za-z0-9._-]{0,199}$/.test(a.url.slice(prefix.length))||a.url.slice(prefix.length).includes('..')||!Number.isSafeInteger(a.size)||a.size<=0||a.size>8589934592||typeof a.sha256!=='string'||!(/^[a-f0-9]{64}$/).test(a.sha256))throw Error('asset');return a;}
-function select(text,platform,channel,current='0.5.4',build=54){
+function select(text,platform,channel,current='0.5.5',build=55){
  if(Buffer.byteLength(text)>32768||!platforms.includes(platform)||!['stable','preview'].includes(channel))throw Error('manifest');
  const m=JSON.parse(text);if(m.schema!==1||!Array.isArray(m.releases)||m.releases.length>64)throw Error('schema');let chosen=null;
  for(const r of m.releases){version(r.version);if(!Number.isSafeInteger(r.build)||r.build<1||r.build>2147483647||!['stable','preview'].includes(r.channel)||typeof r.notes!=='string'||r.notes.length>4096||!r.assets||Array.isArray(r.assets))throw Error('release');

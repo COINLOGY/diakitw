@@ -3,6 +3,6 @@ android {
  namespace 'app.diakitw'
  compileSdk 36
  buildToolsVersion '35.0.0'
- defaultConfig { applicationId 'app.diakitw'; minSdk 26; targetSdk 36; versionCode 54; versionName '0.5.4'; testInstrumentationRunner 'app.diakitw.LayoutProbe' }
+ defaultConfig { applicationId 'app.diakitw'; minSdk 26; targetSdk 36; versionCode 55; versionName '0.5.5a'; testInstrumentationRunner 'app.diakitw.LayoutProbe' }
  compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
 }

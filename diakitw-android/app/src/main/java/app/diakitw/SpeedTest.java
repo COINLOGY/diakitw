@@ -16,7 +16,9 @@ final class SpeedTest {
  // Package-private transport injection: only local JVM tests, never user configuration.
  SpeedTest(Factory f,int down,int up,int ms){if(down<1||down>DOWNLOAD||up<1||up>UPLOAD||ms<1||ms>30000)throw new IllegalArgumentException();factory=f;download=down;upload=up;limitMs=ms;}
  static final class Result {
-  String status="Не запущен"; double down=Double.NaN,up=Double.NaN,latency=Double.NaN; long downBytes,upBytes,elapsedMs;
+  String status="Не запущен",state="not_started"; double down=Double.NaN,up=Double.NaN,latency=Double.NaN; long downBytes,upBytes,elapsedMs,startedAtEpochMs;
+  int downloadBudget,uploadBudget,deadlineMs;
+  final java.util.ArrayList<Double> samplesMs=new java.util.ArrayList<>();
  }
  void cancel(){cancelled=true;abort();}
  void abort(){Thread t=thread;if(t!=null)t.interrupt();HttpURLConnection c=connection;if(c!=null){Thread closer=new Thread(c::disconnect,"speed-disconnect");closer.setDaemon(true);closer.start();}}
@@ -29,15 +31,16 @@ final class SpeedTest {
  void ok(HttpURLConnection c)throws IOException{int status=c.getResponseCode();if(status!=200&&status!=204)throw new IOException("HTTP");check();}
  void close(){HttpURLConnection c=connection;connection=null;if(c!=null)c.disconnect();}
  Result run(Progress progress){
-  Result r=new Result();if(!used.compareAndSet(false,true)){r.status="Ошибка: повторный запуск";return r;}
-  if(!BUSY.compareAndSet(false,true)){r.status="Другой тест ещё завершается";return r;}
-  long start=System.nanoTime();thread=Thread.currentThread();
+  Result r=new Result();r.downloadBudget=download;r.uploadBudget=upload;r.deadlineMs=limitMs;
+  if(!used.compareAndSet(false,true)){r.state="rejected";r.status="Ошибка: повторный запуск";return r;}
+  if(!BUSY.compareAndSet(false,true)){r.state="rejected";r.status="Другой тест ещё завершается";return r;}
+  long start=System.nanoTime();r.startedAtEpochMs=System.currentTimeMillis();thread=Thread.currentThread();
   ScheduledExecutorService timer=Executors.newSingleThreadScheduledExecutor(task->{Thread t=new Thread(task,"speed-deadline");t.setDaemon(true);return t;});
   timer.schedule(()->{timedOut=true;abort();},limitMs,TimeUnit.MILLISECONDS);
   try{
-   check();progress.update("HTTP RTT · 3 пробы");double sum=0;
-   for(int i=0;i<3;i++){long tick=System.nanoTime();HttpURLConnection c=open("/__down?bytes=0");ok(c);try(InputStream in=c.getInputStream()){if(in.read()!=-1)throw new IOException("Unexpected probe payload");}sum+=(System.nanoTime()-tick)/1e6;close();}
-   r.latency=sum/3;check();progress.update("Загрузка · до 8 MiB");
+   check();progress.update("HTTP RTT · 3 пробы");
+   for(int i=0;i<3;i++){long tick=System.nanoTime();HttpURLConnection c=open("/__down?bytes=0");ok(c);try(InputStream in=c.getInputStream()){if(in.read()!=-1)throw new IOException("Unexpected probe payload");}r.samplesMs.add((System.nanoTime()-tick)/1e6);r.latency=SpeedReport.average(r.samplesMs);close();}
+   check();progress.update("Загрузка · до 8 MiB");
    long tick=System.nanoTime();HttpURLConnection c=open("/__down?bytes="+download);ok(c);
    byte[] buffer=new byte[16384];long last=0;
    try(InputStream in=c.getInputStream()){while(r.downBytes<download){check();int n=in.read(buffer,0,(int)Math.min(buffer.length,download-r.downBytes));if(n<0)throw new EOFException();r.downBytes+=n;if(System.nanoTime()-last>200000000){progress.update("Загрузка · "+r.downBytes+" / "+download+" байт");progress.measured(false,r.downBytes,System.nanoTime()-tick);last=System.nanoTime();}}}
@@ -46,8 +49,8 @@ final class SpeedTest {
    // Synthetic zeros only. No files, credentials or application data.
    java.util.Arrays.fill(buffer,(byte)0);
    try(OutputStream out=c.getOutputStream()){while(r.upBytes<upload){check();int n=(int)Math.min(buffer.length,upload-r.upBytes);out.write(buffer,0,n);r.upBytes+=n;if(System.nanoTime()-last>200000000){progress.update("Отправка · "+r.upBytes+" / "+upload+" байт");progress.measured(true,r.upBytes,System.nanoTime()-tick);last=System.nanoTime();}}}
-   ok(c);r.up=mbps(r.upBytes,System.nanoTime()-tick);check();r.status="Готово";
-  }catch(IOException|RuntimeException e){r.status=cancelled?"Отменено":timedOut?"Лимит времени":"Ошибка сети / HTTP · результат неполный";
+   ok(c);r.up=mbps(r.upBytes,System.nanoTime()-tick);check();r.state="completed";r.status="Готово";
+  }catch(IOException|RuntimeException e){r.state=cancelled?"cancelled":timedOut?"timeout":"error";r.status=cancelled?"Отменено":timedOut?"Лимит времени":"Ошибка сети / HTTP · результат неполный";
   }finally{close();timer.shutdownNow();thread=null;Thread.interrupted();r.elapsedMs=(System.nanoTime()-start)/1000000;BUSY.set(false);}
   return r;
  }
