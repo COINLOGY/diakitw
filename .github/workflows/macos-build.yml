@@ -13,13 +13,14 @@ concurrency:
 jobs:
   build:
     # Standard Apple Silicon runner; free for public repositories, NOT -large/-xlarge.
-    runs-on: macos-15
+    runs-on: xcode-27 # Official standard public-preview label, actions/runner-images#14404.
     timeout-minutes: 45
     defaults:
       run:
         shell: bash
         working-directory: macdir
     env:
+      DEVELOPER_DIR: /Applications/Xcode_27.2.app/Contents/Developer
       PYTHONDONTWRITEBYTECODE: '1'
       MACOSX_DEPLOYMENT_TARGET: '14.0'
     steps:

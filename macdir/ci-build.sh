@@ -3,7 +3,8 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 [[ "${GITHUB_ACTIONS:-}" == true && "$(uname -m)" == arm64 ]]
-export DEVELOPER_DIR="$(xcode-select -p)"
+export DEVELOPER_DIR="${DEVELOPER_DIR:?Workflow must pin the reviewed Xcode toolchain}"
+[[ -d "$DEVELOPER_DIR" ]]
 export MACOSX_DEPLOYMENT_TARGET=14.0
 export MACDIR_TEST_SCRATCH="$GITHUB_WORKSPACE/.ci-scratch"
 mkdir -p "$MACDIR_TEST_SCRATCH" evidence/diakitw-0.5.3
