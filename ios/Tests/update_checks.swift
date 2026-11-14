@@ -44,7 +44,7 @@ final class FixtureProtocol: URLProtocol {
         for b in [-1, true, 1.5, "54"] as [Any] { rejects("build") { _ = try select(fixture(build: b)) } }
         for s in [2, true, "1"] as [Any] { rejects("schema") { _ = try select(fixture(schema: s)) } }
         for size in [0, -1, true, 1.5, "100"] as [Any] { rejects("size") { _ = try select(fixture(size: size)) } }
-        for hash in ["", "abc", String(repeating: "z", count: 64)] { rejects("hash") { _ = try select(fixture(hash: hash)) } }
+        for hash in ["", "abc", String(repeating: "z", count: 64), String(repeating: "a", count: 64) + "\n"] { rejects("hash") { _ = try select(fixture(hash: hash)) } }
         for notes in ["<b>html</b>", String(repeating: "a", count: 2001), "bad\u{0001}"] { rejects("notes") { _ = try select(fixture(notes: notes)) } }
         let good = "https://github.com/COINLOGY/diakitw/releases/download/v0.5.4/diakitw-0.5.4-macos-arm64.dmg"
         for u in [good+"?x=1", good+"#a", good.replacingOccurrences(of: "https:", with: "http:"), good.replacingOccurrences(of: "github.com", with: "github.com.evil.invalid"), good.replacingOccurrences(of: "github.com", with: "user@github.com"), good.replacingOccurrences(of: "/diakitw-", with: "/../diakitw-"), good.replacingOccurrences(of: "arm64.dmg", with: "arm64%2edmg"), good.replacingOccurrences(of: "v0.5.4", with: "v0.5.3"), good+"\n"] { rejects("URL") { _ = try select(fixture(url: u)) } }

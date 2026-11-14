@@ -8,6 +8,7 @@ assert a.read_bytes()==b.read_bytes(), 'Apple update contract drift'
 s=a.read_text()
 assert 'https://coinlogy.github.io/diakitw/updates/v1.json' in s
 assert '32 * 1024' in s and 'timeoutIntervalForResource = 10' in s
+assert 'hash.utf8.count == 64' in s, 'Reject a trailing newline after 64 hex digits (regex $ alone is insufficient)'
 assert 'completionHandler(nil)' in s and 'httpCookieStorage = nil' in s
 assert 'UpdateMenu.shared' in (r/'macdir/Sources/macdir/main.swift').read_text()
 assert 'UpdateSection' in (r/'ios/Sources/DiakitwApp.swift').read_text()

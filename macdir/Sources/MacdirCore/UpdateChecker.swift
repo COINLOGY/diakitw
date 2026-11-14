@@ -78,7 +78,7 @@ public enum UpdateContract {
             for (key, raw) in assets {
                 guard ["macos-arm64", "macos-x86_64", "windows-x64", "linux-x64", "android", "ios-unsigned"].contains(key),
                       let a = raw as? [String: Any], let u = a["url"] as? String,
-                      let hash = a["sha256"] as? String,
+                      let hash = a["sha256"] as? String, hash.utf8.count == 64,
                       hash.range(of: "^[a-fA-F0-9]{64}$", options: .regularExpression) != nil else { throw Failure.invalid }
                 let size = try integer(a["size"]), url = try assetURL(u, version: text)
                 guard size > 0 else { throw Failure.invalid }
