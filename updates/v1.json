@@ -2,6 +2,42 @@
   "schema": 1,
   "releases": [
     {
+      "version": "0.5.6",
+      "build": 56,
+      "channel": "stable",
+      "notes": "macOS: стрелки направления передачи перенесены вправо от значения скорости и обозначения K/M в строке меню (например, 5.2K↓ 12.4M↑). Windows, Linux, Android и iOS остаются на прежних версиях. Установка вручную; подпись ad-hoc, без нотариализации.",
+      "assets": {
+        "macos-arm64": {
+          "url": "https://github.com/COINLOGY/diakitw/releases/download/v0.5.6/diakitw-0.5.6-macos-arm64.dmg",
+          "size": 1593991,
+          "sha256": "6dee475414c194d69e3635f22445c4cb027ca8868a7c3e99f01d6b20a6dbc1ba"
+        },
+        "macos-x86_64": {
+          "url": "https://github.com/COINLOGY/diakitw/releases/download/v0.5.6/diakitw-0.5.6-macos-x86_64.dmg",
+          "size": 1723342,
+          "sha256": "c72df7c6de13bc0205e65b2ab8389990e67fffbc967b34a10799e4dd878c0a74"
+        }
+      }
+    },
+    {
+      "version": "0.5.6",
+      "build": 56,
+      "channel": "preview",
+      "notes": "macOS: стрелки направления передачи перенесены вправо от значения скорости и обозначения K/M в строке меню (например, 5.2K↓ 12.4M↑). Windows, Linux, Android и iOS остаются на прежних версиях. Установка вручную; подпись ad-hoc, без нотариализации.",
+      "assets": {
+        "macos-arm64": {
+          "url": "https://github.com/COINLOGY/diakitw/releases/download/v0.5.6/diakitw-0.5.6-macos-arm64.dmg",
+          "size": 1593991,
+          "sha256": "6dee475414c194d69e3635f22445c4cb027ca8868a7c3e99f01d6b20a6dbc1ba"
+        },
+        "macos-x86_64": {
+          "url": "https://github.com/COINLOGY/diakitw/releases/download/v0.5.6/diakitw-0.5.6-macos-x86_64.dmg",
+          "size": 1723342,
+          "sha256": "c72df7c6de13bc0205e65b2ab8389990e67fffbc967b34a10799e4dd878c0a74"
+        }
+      }
+    },
+    {
       "version": "0.5.5",
       "build": 55,
       "channel": "stable",

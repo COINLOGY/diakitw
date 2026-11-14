@@ -20,6 +20,9 @@ jobs:
           mkdir -p .ci-scratch/java-current .ci-scratch/java-old
           swiftc macdir/Sources/MacdirCore/UpdateChecker.swift release/check-feed.swift -o .ci-scratch/feed-check
           .ci-scratch/feed-check release/fixtures/v1-0.5.4.json
+          swiftc macdir/Sources/MacdirCore/UpdateChecker.swift release/check-feed-056.swift -o .ci-scratch/feed-check-056
+          .ci-scratch/feed-check-056 updates/v1.json
+          node release/check-feed-056.cjs updates/v1.json
           curl -fLsS --max-time 60 https://repo.maven.apache.org/maven2/org/json/json/20240303/json-20240303.jar -o .ci-scratch/json.jar
           shasum -a 256 .ci-scratch/json.jar
           javac -cp .ci-scratch/json.jar -d .ci-scratch/java-current diakitw-android/app/src/main/java/app/diakitw/Updates.java release/FeedCheck.java
