@@ -179,7 +179,7 @@ check(NetworkPresentation(5.2 * 1024).displayNumber == "5.2", "main rates unpadd
 check(StatusPresentation.ramMode(defaults: preferences) == .percent, "RAM default percent")
 StatusPresentation.saveRAMMode(.used, defaults: preferences)
 check(StatusPresentation.ramMode(defaults: UserDefaults(suiteName: preferenceSuite)!) == .used, "RAM mode persists")
-check(StatusPresentation.segments(statusSample, interface: "", ramMode: .used)[1].text == "008.0G", "RAM used mode single padded value")
+check(StatusPresentation.segments(statusSample, interface: "", ramMode: .used)[1].text == "  8.0G", "RAM used mode single space-padded value")
 for metric in StatusPresentation.Metric.allCases {
  check(StatusPresentation.visible(metric, defaults: preferences), "visibility defaults on")
  StatusPresentation.saveVisible(false, metric: metric, defaults: preferences)
