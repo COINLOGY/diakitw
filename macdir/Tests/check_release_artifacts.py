@@ -51,6 +51,17 @@ class ArtifactChecks(unittest.TestCase):
             self.assertEqual(sentinel.read_bytes(), b'unchanged')
             self.assertEqual(list(output.iterdir()), [sentinel])
 
+    def test_swiftpm_flags_preserve_argument_boundaries(self):
+        import shlex
+        build = (ROOT / 'build.sh').read_text()
+        command = next(line for line in build.splitlines() if line.startswith('swift build '))
+        tokens = shlex.split(command)
+        forwarded = [tokens[i + 1] for i, token in enumerate(tokens) if token == '-Xswiftc']
+        self.assertEqual(forwarded, ['-file-prefix-map', '$PWD=/diakitw-src',
+                                     '-debug-prefix-map', '$PWD=/diakitw-src'])
+        self.assertIn('--jobs 2', command)
+        self.assertNotIn('-Xswiftc -j', command)
+
     def test_build_names_and_allowlist(self):
         build = (ROOT / 'build.sh').read_text()
         self.assertIn('dist/diakitw-0.5.3-arm64', build)

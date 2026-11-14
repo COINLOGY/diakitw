@@ -30,7 +30,7 @@ import MacdirCore
      let renderer = ImageRenderer(content: content); renderer.scale = 2
      guard let image = renderer.cgImage else { fatalError("render failed") }
      let bitmap = NSBitmapImageRep(cgImage: image)
-     let path = "evidence/diakitw-0.5.2/\(suffix)-\(dark ? "dark" : "light")-\(Int(width)).png"
+     let path = "evidence/diakitw-0.5.3/\(suffix)-\(dark ? "dark" : "light")-\(Int(width)).png"
      try bitmap.representation(using: .png, properties: [:])!.write(to: URL(fileURLWithPath: path))
      print(path)
     }

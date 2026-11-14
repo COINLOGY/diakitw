@@ -25,7 +25,7 @@ python3 Tests/check_final_brand.py
 python3 Tests/check_diagnostic_p0_ui.py
 python3 Tests/check_metric_pairs.py
 python3 Tests/check_release_artifacts.py
-swift build --jobs 2 --build-system native -c release --triple arm64-apple-macosx14.0 --sdk "$(xcrun --sdk macosx --show-sdk-path)" -Xswiftc -j 2 -file-prefix-map -Xswiftc -j 2 "$PWD=/diakitw-src" -Xswiftc -j 2 -debug-prefix-map -Xswiftc -j 2 "$PWD=/diakitw-src"
+swift build --jobs 2 --build-system native -c release --triple arm64-apple-macosx14.0 --sdk "$(xcrun --sdk macosx --show-sdk-path)" -Xswiftc -file-prefix-map -Xswiftc "$PWD=/diakitw-src" -Xswiftc -debug-prefix-map -Xswiftc "$PWD=/diakitw-src"
 .build/release/CoreChecks
 .build/release/CacheChecks
 .build/release/ServerChecks
