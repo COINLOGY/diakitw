@@ -8,7 +8,7 @@ WORKFLOW = ROOT / '.github/workflows/android-layout-candidate.yml'
 class AndroidLayoutWorkflow(unittest.TestCase):
     def test_branch_bound_and_read_only(self):
         text = WORKFLOW.read_text()
-        self.assertIn("github.ref == 'refs/heads/feat/release-057-android'", text)
+        self.assertIn("github.ref == 'refs/heads/feat/release-057-final'", text)
         self.assertIn('contents: read', text)
         self.assertIn('persist-credentials: false', text)
         self.assertIn('api-level: 35', text)
