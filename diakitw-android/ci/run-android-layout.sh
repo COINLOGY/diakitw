@@ -51,9 +51,11 @@ import pathlib,re,sys
 content=pathlib.Path(sys.argv[1]).read_text(errors="replace")
 lines=content.splitlines()
 print("probe diagnostics: report_bytes=", len(content), "line_count=", len(lines))
-for line in lines[:30]:
-    if line.startswith(("INSTRUMENTATION_", "FAIL ", "Exception", "Error")):
-        print("probe diagnostics: " + re.sub(r"\b(?:\d{1,3}\.){3}\d{1,3}\b", "[redacted-ip]", line[:300]))
+for line in lines[:12]:
+    safe=re.sub(r"\b(?:\d{1,3}\.){3}\d{1,3}\b", "[redacted-ip]", line)
+    safe=re.sub(r"(?:[a-f0-9]{1,4}:){2,}[a-f0-9:]*", "[redacted-ip6]", safe, flags=re.I)
+    safe=re.sub(r"[A-Za-z0-9+/]{50,}={0,2}", "[redacted-long-value]", safe)
+    print("probe diagnostics: report line:", safe[:240])
 PYPROBE
     printf 'FAIL: native layout probe, %s; raw report not published\n' "$rotation" >&2
     exit 1
