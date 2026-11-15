@@ -39,6 +39,7 @@ jobs:
           fi
           python3 release/tests/test_android_signing_generation_feeds.py
           python3 release/tests/test_publication_101.py
+          python3 release/tests/test_publication_102.py
           node release/check-feed.cjs
           python3 release/check-publication-surfaces.py
           cmp macdir/Sources/MacdirCore/UpdateChecker.swift ios/Sources/UpdateChecker.swift
@@ -53,3 +54,4 @@ jobs:
           javac -cp .ci-scratch/json.jar -d .ci-scratch/java-current diakitw-android/app/src/main/java/app/diakitw/Updates.java release/FeedCheck.java
           java -cp .ci-scratch/json.jar:.ci-scratch/java-current app.diakitw.FeedCheck release/fixtures/v1-0.5.4.json
           java -cp .ci-scratch/json.jar:.ci-scratch/java-current app.diakitw.FeedCheck release/fixtures/v1-0.5.4.json old-fixture
+          java -cp .ci-scratch/json.jar:.ci-scratch/java-current app.diakitw.FeedCheck updates/v2.json current-feed

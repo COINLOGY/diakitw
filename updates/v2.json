@@ -2,6 +2,19 @@
   "schema": 1,
   "releases": [
     {
+      "version": "1.0.2",
+      "build": 102,
+      "channel": "preview",
+      "notes": "Android 1.0.2 preview: same signing key as 1.0.1. System installer may request confirmation. Android 0.5.x requires uninstall first; data loss possible.",
+      "assets": {
+        "android": {
+          "url": "https://github.com/COINLOGY/diakitw/releases/download/v1.0.2/diakitw-android-1.0.2.apk",
+          "size": 123663,
+          "sha256": "0952d1526845213e1dffc1217e507f758202631cfdd01fb2e687120981f6254e"
+        }
+      }
+    },
+    {
       "version": "1.0.1",
       "build": 101,
       "channel": "preview",
