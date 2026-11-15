@@ -4,7 +4,7 @@ import Foundation
   let data = try Data(contentsOf: URL(fileURLWithPath: CommandLine.arguments[1]))
   let expected: [String: (Int, String)] = [
    "macos-arm64": (1612723, "9a95e993bbee821d638f5851cb1502e5f8f46987a61231feaa36f3d91b0dd1e1"),
-   "macos-x86_64": (1726649, "a83f20a32c01022a1dd6cb87ff88c2e3ea3b254ef4633f05b86eab04e89effab")
+   "macos-x86_64": (1726649, "30e298b80bd52c9c20a6e4ca368a7a4ce275699c9d879310aa79c01956a7058e")
   ]
   for platform in ["macos-arm64", "macos-x86_64"] {
    let stable = try UpdateContract.select(data, channel: "stable", platform: platform, current: "0.5.5", currentBuild: 55)
