@@ -21,6 +21,8 @@ class Unified102Source(unittest.TestCase):
         for path in ('diakitw-desktop/package.json','diakitw-desktop/app/package.json','diakitw-desktop/package-lock.json'):
             data=json.loads((ROOT/path).read_text())
             self.assertEqual(data['version'],'1.0.2',path)
+        self.assertEqual(json.loads((ROOT/'diakitw-desktop/app/package.json').read_text())['build'],102)
+        self.assertIn('diakitw 1.0.2',(ROOT/'diakitw-desktop/app/index.html').read_text())
 
     def test_shared_apple_update_identity(self):
         for path in ('macdir/Sources/MacdirCore/UpdateChecker.swift','ios/Sources/UpdateChecker.swift'):
