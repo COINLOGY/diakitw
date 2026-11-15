@@ -14,6 +14,19 @@ class AutoInstallWiring(unittest.TestCase):
         self.assertIn('Intent.EXTRA_INTENT', (SRC/'UpdateInstallReceiver.java').read_text())
         self.assertNotIn('ACTION_VIEW,Uri.parse(offer.url)', activity)
 
+    def test_api26_27_identity_uses_legacy_fields_only(self):
+        activity = (SRC/'MainActivity.java').read_text()
+        self.assertIn('Build.VERSION.SDK_INT>=28?PackageManager.GET_SIGNING_CERTIFICATES:PackageManager.GET_SIGNATURES', activity)
+        self.assertIn('Build.VERSION.SDK_INT>=28?info.getLongVersionCode():info.versionCode', activity)
+        self.assertIn('Build.VERSION.SDK_INT>=28?info.signingInfo.getApkContentsSigners():info.signatures', activity)
+        self.assertIn('Build.VERSION.SDK_INT>=28&&(info.signingInfo==null||info.signingInfo.hasMultipleSigners())', activity)
+        self.assertIn('archiveVersion(archive)', activity)
+        self.assertIn('archiveVersion(installed)', activity)
+
+    def test_installed_build_is_passed_into_feed_selection(self):
+        activity = (SRC/'MainActivity.java').read_text()
+        self.assertIn('Updates.select(run.run(),channel,BuildConfig.VERSION_NAME,BuildConfig.VERSION_CODE)', activity)
+
     def test_install_permission_and_receiver_are_explicit(self):
         manifest = (ROOT/'app/src/main/AndroidManifest.xml').read_text()
         self.assertIn('android.permission.REQUEST_INSTALL_PACKAGES', manifest)

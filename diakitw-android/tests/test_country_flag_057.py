@@ -25,6 +25,6 @@ class CountryFlag057(unittest.TestCase):
   gradle=(ROOT/"app/build.gradle").read_text()
   updates=(ROOT/"app/src/main/java/app/diakitw/Updates.java").read_text()
   self.assertIn("versionCode 101; versionName '1.0.1'",gradle)
-  self.assertIn('compare(v,"1.0.1")<=0||build<=101',updates)
+  self.assertIn('compare(v,installedVersion)<=0||build<=installedBuild',updates)
 
 if __name__=="__main__": unittest.main()

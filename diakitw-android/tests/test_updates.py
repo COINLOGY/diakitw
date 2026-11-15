@@ -17,7 +17,7 @@ class UpdatesWiring(unittest.TestCase):
   self.assertIn('diakitw 1.0.1 · ',report)
   self.assertIn('Обновления · 1.0.1 (101)',activity)
   self.assertIn('Обзор · diakitw 1.0.1',activity)
-  self.assertIn('compare(v,"1.0.1")<=0||build<=101',updates)
+  self.assertIn('compare(v,installedVersion)<=0||build<=installedBuild',updates)
  def test_debug_only_offline_arrow_probe_guard(self):
   activity=(R/'app/src/main/java/app/diakitw/MainActivity.java').read_text()
   probe=(R/'app/src/androidTest/java/app/diakitw/LayoutProbe.java').read_text()

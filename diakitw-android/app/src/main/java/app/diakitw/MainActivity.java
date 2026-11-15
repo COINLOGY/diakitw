@@ -45,7 +45,7 @@ public final class MainActivity extends Activity {
   if(!updates.begin(manual,System.currentTimeMillis())){if(manual)Toast.makeText(this,"Повторная проверка — не чаще раза в минуту",Toast.LENGTH_LONG).show();return;}
   saveUpdates();final int token=updates.generation;final String channel=updates.channel;final Updates.Fetch run=new Updates.Fetch();updateFetch=run;
   if(manual)Toast.makeText(this,"Проверка обновлений…",Toast.LENGTH_SHORT).show();
-  updateThread=new Thread(()->{Updates.Release result=null;boolean success=false;try{result=Updates.select(run.run(),channel);success=true;}catch(java.io.IOException|RuntimeException ignored){}final Updates.Release offer=result;final boolean ok=success;
+  updateThread=new Thread(()->{Updates.Release result=null;boolean success=false;try{result=Updates.select(run.run(),channel,BuildConfig.VERSION_NAME,BuildConfig.VERSION_CODE);success=true;}catch(java.io.IOException|RuntimeException ignored){}final Updates.Release offer=result;final boolean ok=success;
    updateResults.post(()->{if(updateFetch==run)updateFetch=null;if(!updates.complete(token,ok,System.currentTimeMillis()))return;saveUpdates();if(ok){updateOffer=offer;updateNotice.setVisibility(offer==null?View.GONE:View.VISIBLE);if(offer!=null)updateNotice.setText("Доступна diakitw "+offer.version+" · Подробнее");}if(manual){if(offer!=null)showUpdateOffer();else showText("Обновления",ok?"Новых версий для выбранного канала нет.":"Не удалось проверить обновления. Проверьте сеть и повторите позже.");}});
   },"update-check");updateThread.setDaemon(true);updateThread.start();
  }
@@ -84,13 +84,14 @@ public final class MainActivity extends Activity {
   try{byte[] hash=MessageDigest.getInstance("SHA-256").digest(signature.toByteArray());StringBuilder hex=new StringBuilder(64);for(byte b:hash)hex.append(String.format(Locale.US,"%02x",b&255));return hex.toString();}catch(java.security.NoSuchAlgorithmException e){throw new IOException(e);}
  }
  void verifyApkIdentity(File apk,Updates.Release offer)throws IOException{
-  PackageManager pm=getPackageManager();PackageInfo archive=pm.getPackageArchiveInfo(apk.getAbsolutePath(),PackageManager.GET_SIGNING_CERTIFICATES);
-  PackageInfo installed;try{installed=pm.getPackageInfo(getPackageName(),PackageManager.GET_SIGNING_CERTIFICATES);}catch(PackageManager.NameNotFoundException e){throw new IOException("installed identity",e);}
-  if(archive==null||!getPackageName().equals(archive.packageName)||archive.getLongVersionCode()!=offer.build||archive.getLongVersionCode()<=installed.getLongVersionCode()||!Updates.SIGNER_SHA256.equals(singleSigner(archive))||!Updates.SIGNER_SHA256.equals(singleSigner(installed)))throw new IOException("APK identity mismatch");
+  PackageManager pm=getPackageManager();int flags=Build.VERSION.SDK_INT>=28?PackageManager.GET_SIGNING_CERTIFICATES:PackageManager.GET_SIGNATURES;PackageInfo archive=pm.getPackageArchiveInfo(apk.getAbsolutePath(),flags);
+  PackageInfo installed;try{installed=pm.getPackageInfo(getPackageName(),flags);}catch(PackageManager.NameNotFoundException e){throw new IOException("installed identity",e);}
+  if(archive==null||!getPackageName().equals(archive.packageName)||archiveVersion(archive)!=offer.build||archiveVersion(archive)<=archiveVersion(installed)||!Updates.SIGNER_SHA256.equals(singleSigner(archive))||!Updates.SIGNER_SHA256.equals(singleSigner(installed)))throw new IOException("APK identity mismatch");
  }
+ static long archiveVersion(PackageInfo info){return Build.VERSION.SDK_INT>=28?info.getLongVersionCode():info.versionCode;}
  static String singleSigner(PackageInfo info)throws IOException{
-  if(info.signingInfo==null||info.signingInfo.hasMultipleSigners())throw new IOException("missing/multiple signers");
-  Signature[] signers=info.signingInfo.getApkContentsSigners();if(signers==null||signers.length!=1)throw new IOException("signer count");return signerHash(signers[0]);
+  if(Build.VERSION.SDK_INT>=28&&(info.signingInfo==null||info.signingInfo.hasMultipleSigners()))throw new IOException("missing/multiple signers");
+  Signature[] signers=Build.VERSION.SDK_INT>=28?info.signingInfo.getApkContentsSigners():info.signatures;if(signers==null||signers.length!=1)throw new IOException("signer count");return signerHash(signers[0]);
  }
  void commitApk(File apk,Updates.Release offer)throws IOException{
   PackageInstaller installer=getPackageManager().getPackageInstaller();PackageInstaller.SessionParams params=new PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL);params.setAppPackageName(getPackageName());params.setSize(offer.size);

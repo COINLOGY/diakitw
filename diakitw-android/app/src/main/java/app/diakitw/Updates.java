@@ -28,22 +28,26 @@ public final class Updates {
  static long integer(JSONObject o,String k,long max)throws JSONException{Object v=o.get(k);if(!(v instanceof Integer||v instanceof Long))throw new IllegalArgumentException(k);long n=((Number)v).longValue();if(n<1||n>max)throw new IllegalArgumentException(k);return n;}
  public static boolean validURL(String url,String v){version(v);String prefix="https://github.com/COINLOGY/diakitw/releases/download/v"+v+"/";if(url==null||!url.startsWith(prefix))return false;String file=url.substring(prefix.length());return file.matches("[A-Za-z0-9][A-Za-z0-9._-]{0,199}")&&!file.contains("..");}
  public static final class Release {public final String version,notes,url,sha256;public final int build;public final long size;Release(String v,int b,String n,String u,long s,String hash){version=v;build=b;notes=n;url=u;size=s;sha256=hash;}}
- public static Release select(String body,String channel){try{
+ public static Release select(String body,String channel,String installedVersion,int installedBuild){try{
+  version(installedVersion);if(installedBuild<1)throw new IllegalArgumentException("installed build");
   if(body==null||body.getBytes(StandardCharsets.UTF_8).length>32768||!Arrays.asList("stable","preview").contains(channel))throw new IllegalArgumentException("manifest");
   JSONObject root=new JSONObject(body);if(integer(root,"schema",1)!=1)throw new IllegalArgumentException("schema");JSONArray releases=root.getJSONArray("releases");if(releases.length()>64)throw new IllegalArgumentException("releases");Release best=null;
   for(int i=0;i<releases.length();i++){JSONObject r=releases.getJSONObject(i);String v=text(r,"version"),c=text(r,"channel"),notes=text(r,"notes");version(v);int build=(int)integer(r,"build",2147483647L);if(!Arrays.asList("stable","preview").contains(c)||notes.length()>4096)throw new IllegalArgumentException("release");JSONObject assets=r.getJSONObject("assets");Iterator<String> keys=assets.keys();while(keys.hasNext()){String key=keys.next();if(!PLATFORMS.contains(key))throw new IllegalArgumentException("platform");JSONObject a=assets.getJSONObject(key);if(!validURL(text(a,"url"),v)||!text(a,"sha256").matches("[a-f0-9]{64}"))throw new IllegalArgumentException("asset");integer(a,"size",8589934592L);}
-   if(!c.equals(channel)||!assets.has("android")||compare(v,"1.0.1")<=0||build<=101)continue;
+   if(!c.equals(channel)||!assets.has("android")||compare(v,installedVersion)<=0||build<=installedBuild)continue;
    if(best==null||compare(v,best.version)>0){JSONObject apk=assets.getJSONObject("android");long size=integer(apk,"size",8589934592L);if(size>MAX_APK)continue;best=new Release(v,build,notes,text(apk,"url"),size,text(apk,"sha256"));}
   }return best;
  }catch(JSONException|NullPointerException e){throw new IllegalArgumentException("manifest",e);}}
  /** Reject truncation, overflow and digest mismatch; caller deletes temporary output on failure. */
  public static long verify(InputStream in,long size,String sha256,OutputStream out)throws IOException{
+  return verify(in,size,sha256,out,()->false);
+ }
+ static long verify(InputStream in,long size,String sha256,OutputStream out,java.util.function.BooleanSupplier cancelled)throws IOException{
   if(size<1||size>MAX_APK||sha256==null||!sha256.matches("[a-f0-9]{64}"))throw new IOException("invalid APK metadata");
   MessageDigest digest;try{digest=MessageDigest.getInstance("SHA-256");}catch(NoSuchAlgorithmException e){throw new IOException(e);}
   byte[] buf=new byte[16384];long count=0;int n;
-  while((n=in.read(buf))!=-1){if(Thread.currentThread().isInterrupted()||n>size-count)throw new IOException("APK too large or interrupted");digest.update(buf,0,n);out.write(buf,0,n);count+=n;}
+  while(true){if(cancelled.getAsBoolean()||Thread.currentThread().isInterrupted())throw new IOException("cancelled");n=in.read(buf);if(n==-1)break;if(cancelled.getAsBoolean()||Thread.currentThread().isInterrupted()||n>size-count)throw new IOException("APK too large or interrupted");digest.update(buf,0,n);out.write(buf,0,n);count+=n;}
   StringBuilder hex=new StringBuilder(64);for(byte b:digest.digest())hex.append(String.format(Locale.US,"%02x",b&255));
-  if(count!=size||!sha256.equals(hex.toString()))throw new IOException("APK size or SHA-256 mismatch");return count;
+  if(cancelled.getAsBoolean()||count!=size||!sha256.equals(hex.toString()))throw new IOException("APK size or SHA-256 mismatch");return count;
  }
  public static final class Download {
   volatile boolean cancelled;volatile HttpsURLConnection connection;
@@ -54,10 +58,10 @@ public final class Updates {
    try{
     for(int hop=0;hop<=5;hop++){
      if(cancelled||!trusted(url))throw new IOException("untrusted APK URL");
-     HttpsURLConnection c=(HttpsURLConnection)url.openConnection(Proxy.NO_PROXY);connection=c;c.setInstanceFollowRedirects(false);c.setConnectTimeout(10000);c.setReadTimeout(10000);c.setUseCaches(false);c.setRequestProperty("Accept-Encoding","identity");c.setRequestProperty("Cookie","");
+     HttpsURLConnection c=(HttpsURLConnection)url.openConnection(Proxy.NO_PROXY);connection=c;if(cancelled)throw new IOException("cancelled");c.setInstanceFollowRedirects(false);c.setConnectTimeout(10000);c.setReadTimeout(10000);c.setUseCaches(false);c.setRequestProperty("Accept-Encoding","identity");c.setRequestProperty("Cookie","");
      int code=c.getResponseCode();if(code==302||code==303||code==307||code==308){String location=c.getHeaderField("Location");if(location==null)throw new IOException("missing redirect");URL next=new URL(url,location);c.disconnect();connection=null;url=next;continue;}
      if(code!=200||c.getContentLengthLong()>offer.size)throw new IOException("APK HTTP or size");
-     try(InputStream in=c.getInputStream();OutputStream out=new FileOutputStream(target)){verify(in,offer.size,offer.sha256,out);}
+     try(InputStream in=c.getInputStream();OutputStream out=new FileOutputStream(target)){verify(in,offer.size,offer.sha256,out,()->cancelled);}
      if(cancelled)throw new IOException("cancelled");complete=true;return;
     }throw new IOException("too many redirects");
    }finally{HttpsURLConnection c=connection;if(c!=null)c.disconnect();connection=null;if(!complete)target.delete();}
