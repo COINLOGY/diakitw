@@ -47,7 +47,7 @@ public struct ResourceSnapshot: Sendable {
  public var power = "Н/Д"
  public var batteryPercent: Double?
  public var summary: String {
-  "CPU: \(cpu.map { String(format: "%.1f%%", $0) } ?? "Н/Д"); RAM active+wired+compressed: \(bytes(memoryUsed))/\(bytes(memoryTotal)); compressed: \(bytes(compressed)); swap: \(bytes(swap)); disk free: \(bytes(diskFree))/\(bytes(diskTotal)); power: \(power); network: " + networks.map { "\($0.name) ↓\($0.received.map { String(format: "%.0f B/s", $0) } ?? "Н/Д") ↑\($0.sent.map { String(format: "%.0f B/s", $0) } ?? "Н/Д")" }.joined(separator: ", ")
+  "CPU: \(cpu.map { String(format: "%.1f%%", $0) } ?? "Н/Д"); RAM active+wired+compressed: \(bytes(memoryUsed))/\(bytes(memoryTotal)); compressed: \(bytes(compressed)); swap: \(bytes(swap)); disk free: \(bytes(diskFree))/\(bytes(diskTotal)); power: \(power); network: " + networks.map { "\($0.name) \($0.received.map { String(format: "%.0f B/s", $0) } ?? "Н/Д") ↓ \($0.sent.map { String(format: "%.0f B/s", $0) } ?? "Н/Д") ↑" }.joined(separator: ", ")
  }
  public init() {}
 }

@@ -102,8 +102,8 @@ import MacdirCore
    "RAM: " + MetricPresentation.capacity(s.memoryUsed, total: s.memoryTotal),
    "SWAP: " + MetricPresentation.size(s.swap) + " · выделено сейчас " + MetricPresentation.size(s.swapTotal),
    "DSK · пул APFS: " + MetricPresentation.capacity(s.diskOccupied, total: s.diskTotal) + " · свободно " + MetricPresentation.size(s.diskFree),
-   "↓ RX · \(interface): \(rateDetail(n?.received))",
-   "↑ TX · \(interface): \(rateDetail(n?.sent))",
+   "RX · \(interface): \(rateDetail(n?.received)) ↓",
+   "TX · \(interface): \(rateDetail(n?.sent)) ↑",
    "G = GiB · K = KiB/с · M = MiB/с · выравнивание пробелами · диск GiB: \(diskMode == .free ? "свободно" : "занято") · серые нули: нет замера · +: переполнение",
    "Порядок значков: удерживайте ⌘ и перетащите"
   ]

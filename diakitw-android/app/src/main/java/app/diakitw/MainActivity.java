@@ -11,6 +11,7 @@ import android.graphics.drawable.StateListDrawable;
 import android.os.*;
 import android.net.*;
 import android.util.Log;
+import android.util.TypedValue;
 import android.view.*;
 import android.widget.*;
 import android.text.SpannableString;
@@ -124,7 +125,7 @@ public final class MainActivity extends Activity {
   LinearLayout content=column();content.setPadding(0,dp(4),0,dp(4));
 
   LinearLayout speeds=new LinearLayout(this);boolean stackSpeeds=!landscape;speeds.setOrientation(stackSpeeds?LinearLayout.VERTICAL:LinearLayout.HORIZONTAL);
-  SpeedDial down=new SpeedDial("↓ Загрузка",GREEN),up=new SpeedDial("↑ Отправка",BLUE);
+  SpeedDial down=new SpeedDial("Загрузка","↓",GREEN),up=new SpeedDial("Отправка","↑",BLUE);
   LinearLayout.LayoutParams half=stackSpeeds?new LinearLayout.LayoutParams(-1,-2):new LinearLayout.LayoutParams(0,-2,1);half.setMargins(0,0,stackSpeeds?0:dp(6),stackSpeeds?dp(6):0);speeds.addView(down,half);speeds.addView(up,stackSpeeds?new LinearLayout.LayoutParams(-1,-2):new LinearLayout.LayoutParams(0,-2,1));content.addView(speeds);
   LinearLayout readings=column();readings.setBaselineAligned(false);if(landscape)readings.setOrientation(LinearLayout.HORIZONTAL);content.addView(readings);
   TextView latency=text("HTTP RTT · — мс",16,MUTED);latency.setPadding(0,dp(2),dp(8),0);readings.addView(latency,landscape?new LinearLayout.LayoutParams(0,-2,1):new LinearLayout.LayoutParams(-1,-2));
@@ -215,9 +216,11 @@ public final class MainActivity extends Activity {
   }
  }
  final class SpeedDial extends LinearLayout {
-  final TextView value;final SpeedFace face;final String name;final int tint;
-  SpeedDial(String name,int tint){super(MainActivity.this);this.name=name;this.tint=tint;setOrientation(HORIZONTAL);setGravity(Gravity.CENTER_VERTICAL);setPadding(dp(8),dp(8),dp(8),dp(8));setBackground(panel());LinearLayout copy=column();copy.addView(text(name,16,tint));value=text("Н/Д",24,tint);value.setTypeface(Typeface.create("sans-serif-medium",Typeface.NORMAL));copy.addView(value);copy.addView(text("Мбит/с",14,MUTED));addView(copy,new LinearLayout.LayoutParams(0,-2,1));face=new SpeedFace(tint);LinearLayout.LayoutParams fp=new LinearLayout.LayoutParams(dp(dialWidth()),dp(dialHeight()));fp.setMargins(dp(8),0,0,0);addView(face,fp);update(Double.NaN);}
-  void update(double n){boolean known=Double.isFinite(n)&&n>=0;setTextIfChanged(value,known?SpeedScale.label(n):"Н/Д");value.setTextColor(known?tint:MUTED);face.setValue(known?n:Double.NaN);setContentDescription(name+" "+value.getText()+" Мбит/с. Адаптивная шкала, не ёмкость линии.");}
+  final TextView value;final SpeedFace face;final String name,direction;final int tint;
+  SpeedDial(String name,String direction,int tint){super(MainActivity.this);this.name=name;this.direction=direction;this.tint=tint;setOrientation(HORIZONTAL);setGravity(Gravity.CENTER_VERTICAL);setPadding(dp(8),dp(8),dp(8),dp(8));setBackground(panel());LinearLayout copy=column();copy.addView(text(name,16,tint));value=text("Н/Д",24,tint);value.setTypeface(Typeface.create("sans-serif-medium",Typeface.NORMAL));value.setSingleLine(true);value.setAutoSizeTextTypeUniformWithConfiguration(12,24,1,TypedValue.COMPLEX_UNIT_SP);copy.addView(value);addView(copy,new LinearLayout.LayoutParams(0,-2,1));face=new SpeedFace(tint);LinearLayout.LayoutParams fp=new LinearLayout.LayoutParams(dp(dialWidth()),dp(dialHeight()));fp.setMargins(dp(8),0,0,0);addView(face,fp);update(Double.NaN);}
+  void update(double n){boolean known=Double.isFinite(n)&&n>=0;String label=known?SpeedScale.label(n):"Н/Д";String reading=label+" Мбит/с "+direction;
+   if(!value.getText().toString().equals(reading)){SpannableString styled=new SpannableString(reading);styled.setSpan(new android.text.style.RelativeSizeSpan(.60f),label.length(),reading.length(),Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);styled.setSpan(new ForegroundColorSpan(MUTED),label.length(),reading.length()-direction.length(),Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);value.setText(styled);}
+   value.setTextColor(known?tint:MUTED);face.setValue(known?n:Double.NaN);setContentDescription(name+" "+reading+". Адаптивная шкала, не ёмкость линии.");}
  }
  final class SpeedFace extends DialFace {
   final int tint;double value=Double.NaN,max=10;boolean known;String middle="5",end="10";

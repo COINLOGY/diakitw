@@ -119,7 +119,7 @@ struct GaugeTile: View {
    VStack(alignment: .leading, spacing: 5) {
     Label(title, systemImage: symbol).font(.system(size: 10, weight: .semibold)).foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.75)
     if neutral {
-     NetworkRateValue(value: networkRate, size: 16)
+     NetworkRateValue(value: networkRate, direction: "↓", size: 16)
       .foregroundStyle(network.available ? Color(red: 0.65, green: 0.90, blue: 0.25) : Color.secondary)
     } else {
      Text(value).font(.system(size: 22, weight: .semibold, design: .rounded)).foregroundStyle(gaugeColor(fraction, battery: battery)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.65)

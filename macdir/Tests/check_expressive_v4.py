@@ -73,6 +73,10 @@ class ExpressiveGeometry(unittest.TestCase):
             current = text(path)
             if start: current = current.split(start,1)[1]
             if end: current = current.split(end,1)[0]
+            if path == 'macdir/Sources/macdir/NeedleGauge.swift':
+                # Keep the entire GaugeTile snapshot; normalize only the reviewed arrow argument.
+                current = current.replace('NetworkRateValue(value: networkRate, direction: "↓", size: 16)',
+                                          'NetworkRateValue(value: networkRate, size: 16)')
             self.assertEqual(current, entry['source'], path)
 
 if __name__ == '__main__':

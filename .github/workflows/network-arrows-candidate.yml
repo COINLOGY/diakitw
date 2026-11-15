@@ -1,0 +1,81 @@
+name: Desktop network arrows — unversioned candidate, NOT a release
+
+on:
+  push:
+    branches: [fix/network-arrows-after-units]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  desktop-candidate:
+    if: github.ref == 'refs/heads/fix/network-arrows-after-units'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: diakitw-desktop
+    steps:
+      - name: Checkout candidate
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Pin Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: diakitw-desktop/package-lock.json
+      - name: Install dependencies and run UI tests
+        run: |
+          npm ci --no-audit --no-fund
+          npm test
+      - name: Build both portable candidate bundles and verify their embedded files
+        run: |
+          mkdir -p evidence/v055a
+          node scripts/build-v055a.mjs win32
+          node scripts/build-v055a.mjs linux
+          node scripts/verify-bundles-v055a.mjs
+          python3 scripts/verify-upstream-v055a.py
+          printf '%s\n' "$GITHUB_SHA" > evidence/v055a/source-commit.txt
+      - name: Archive candidates without changing their old embedded version
+        run: |
+          mkdir -p candidate
+          tar -czf candidate/diakitw-network-arrows-linux-x64-UNRELEASED.tar.gz -C bundles-v055a diakitw-linux-x64
+          python3 - <<'PY'
+          import pathlib, zipfile
+          root=pathlib.Path('bundles-v055a/diakitw-win32-x64')
+          with zipfile.ZipFile('candidate/diakitw-network-arrows-windows-x64-UNRELEASED.zip','x',zipfile.ZIP_DEFLATED) as archive:
+              for file in sorted(root.rglob('*')):
+                  if file.is_file(): archive.write(file, pathlib.Path(root.name)/file.relative_to(root))
+          PY
+          python3 -m zipfile -t candidate/diakitw-network-arrows-windows-x64-UNRELEASED.zip
+          tar -tzf candidate/diakitw-network-arrows-linux-x64-UNRELEASED.tar.gz >/dev/null
+          sha256sum candidate/* > evidence/v055a/candidate-sha256.txt
+      - name: Upload Windows x64 bundle (UNRELEASED, version unchanged)
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: diakitw-network-arrows-windows-x64-UNRELEASED-${{ github.sha }}
+          path: diakitw-desktop/candidate/diakitw-network-arrows-windows-x64-UNRELEASED.zip
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
+      - name: Upload Linux x64 tarball (UNRELEASED, permissions preserved)
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: diakitw-network-arrows-linux-x64-UNRELEASED-${{ github.sha }}
+          path: diakitw-desktop/candidate/diakitw-network-arrows-linux-x64-UNRELEASED.tar.gz
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
+      - name: Upload source parity and upstream provenance checks
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: diakitw-network-arrows-desktop-evidence-${{ github.sha }}
+          path: |
+            diakitw-desktop/evidence/v055a/*.json
+            diakitw-desktop/evidence/v055a/source-commit.txt
+            diakitw-desktop/evidence/v055a/candidate-sha256.txt
+          if-no-files-found: error
+          retention-days: 14

@@ -315,7 +315,7 @@ struct ContentView: View {
     }.buttonStyle(.plain)
      .popover(isPresented: $model.showCapacity) { Text(model.snapshot.diskDetail).font(.system(.body, design: .monospaced)).textSelection(.enabled).padding(20) }
     GaugeTile(symbol: "bolt.fill", title: "БАТАРЕЯ · ЗАРЯД", value: MetricPresentation.battery(model.snapshot.batteryPercent), detail: MetricPresentation.powerState(model.snapshot.power), fraction: GaugeScale.fraction(model.snapshot.batteryPercent, maximum: 100), battery: true)
-    GaugeTile(symbol: "network", title: "СЕТЬ · ↓ " + selectedInterface, value: NetworkPresentation(selectedNetwork?.received).text, detail: "Приём · " + selectedInterface + "\nШкала 0–10 MiB/с", fraction: GaugeScale.fraction(selectedNetwork?.received, maximum: 10 * 1024 * 1024), neutral: true, upperLabel: "10 MiB/с", networkRate: selectedNetwork?.received)
+    GaugeTile(symbol: "network", title: "СЕТЬ · " + selectedInterface, value: NetworkPresentation(selectedNetwork?.received).text + " ↓", detail: "Приём · " + selectedInterface + "\nШкала 0–10 MiB/с", fraction: GaugeScale.fraction(selectedNetwork?.received, maximum: 10 * 1024 * 1024), neutral: true, upperLabel: "10 MiB/с", networkRate: selectedNetwork?.received)
    }
    ViewThatFits(in: .horizontal) {
     HStack(alignment: .center, spacing: 16) {

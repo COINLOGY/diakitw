@@ -75,6 +75,7 @@ import MacdirCore
 
 struct InternetSpeedGauge: View {
  let title: String
+ let direction: String
  let value: Double?
  let color: Color
  var body: some View {
@@ -84,7 +85,7 @@ struct InternetSpeedGauge: View {
    Text(title).font(.headline)
    NeedleGauge(fraction: GaugeScale.fraction(valid, maximum: maximum), neutral: true,
     tickLabels: (0...2).map { String(format: "%.0f", maximum * Double($0) / 2) }, directionColor: color).frame(height: 120)
-   Text(valid.map { String(format: "%.2f Mbps", $0) } ?? "Н/Д")
+   Text(valid.map { String(format: "%.2f Mbps %@", $0, direction) } ?? "Н/Д " + direction)
     .font(.system(size: 27, weight: .semibold, design: .rounded)).monospacedDigit().foregroundStyle(valid == nil ? .secondary : color)
    Text("Шкала отображения · 0–\(String(format: "%.0f", maximum)) Mbps").font(.caption).foregroundStyle(.secondary)
   }.padding(16).frame(maxWidth: .infinity, alignment: .leading)
@@ -108,7 +109,7 @@ struct InternetTestView: View {
     Label("Тест интернета", systemImage: "speedometer").font(.title.bold())
     Text("Начать тест: значительный трафик (возможны гигабайты), кратковременная загрузка соединения. Используется текущий маршрут macOS, включая VPN; выбор интерфейса на главном экране тест не ограничивает.")
      .font(.callout).foregroundStyle(.secondary)
-    HStack { InternetSpeedGauge(title: "↓ Скачивание", value: model.quality.downloadMbps, color: InstrumentTheme.lime); InternetSpeedGauge(title: "↑ Отдача", value: model.quality.uploadMbps, color: InstrumentTheme.cyan) }
+    HStack { InternetSpeedGauge(title: "Скачивание", direction: "↓", value: model.quality.downloadMbps, color: InstrumentTheme.lime); InternetSpeedGauge(title: "Отдача", direction: "↑", value: model.quality.uploadMbps, color: InstrumentTheme.cyan) }
     HStack { metric("Ping · средний RTT", model.latency.mean, "мс"); metric("Джиттер", model.latency.jitter, "мс"); metric("Потери ICMP", model.latency.lossPercent, "%") }
     HStack {
      Button("Начать тест") { model.start() }.buttonStyle(.borderedProminent).disabled(model.running)

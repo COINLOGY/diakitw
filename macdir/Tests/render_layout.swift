@@ -185,8 +185,8 @@ MainActor.assumeIsolated {
   let views: [(String, AnyView, Int, Int)] = [
    ("internet-idle", AnyView(InternetTestView(model: InternetTestModel())), 700, 600),
    ("internet-measured", AnyView(HStack {
-    InternetSpeedGauge(title: "↓ Fixture DL", value: 845.23, color: InstrumentTheme.lime)
-    InternetSpeedGauge(title: "↑ Fixture UL", value: 125.67, color: InstrumentTheme.cyan)
+    InternetSpeedGauge(title: "Fixture DL", direction: "↓", value: 845.23, color: InstrumentTheme.lime)
+    InternetSpeedGauge(title: "Fixture UL", direction: "↑", value: 125.67, color: InstrumentTheme.cyan)
    }.padding()), 700, 280),
    ("battery-unknown", AnyView(HStack {
     GaugeTile(symbol: "bolt.fill", title: "FULL", value: "100 %", detail: "Fixture", fraction: 1, battery: true)
