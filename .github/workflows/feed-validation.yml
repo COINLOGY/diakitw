@@ -10,6 +10,8 @@ on:
       - 'updates/v1.json'
       - 'updates/v2.json'
       - 'release/check-publication-surfaces.py'
+      - 'release/check-feed-*'
+      - 'release/FeedCheck.java'
       - '.github/workflows/feed-validation.yml'
       - 'release/tests/**'
       - 'diakitw-android/app/src/main/java/app/diakitw/Updates.java'
