@@ -33,10 +33,12 @@ final class MockGeoProtocol: URLProtocol, @unchecked Sendable {
   let good = await GeoLookup.fetch()
   precondition(good?.ip == "203.0.113.5", "Primary atomic proxy result required")
   precondition(good?.latitude == 51.5 && good?.longitude == -0.1)
+  precondition(good?.summary == "🇬🇧 Fixture · City", "Primary country flag and country render together")
   precondition(MockGeoProtocol.urls == [MockGeoProtocol.proxy], "Success must not send a fallback request")
   MockGeoProtocol.urls = []; MockGeoProtocol.status = 429
   let fallback = await GeoLookup.fetch()
   precondition(fallback?.ip == "198.51.100.7" && fallback?.country == "Fallback" && fallback?.city == nil && fallback?.latitude == nil)
+  precondition(fallback?.summary == "Fallback", "No proxy country code may leak into fallback")
   precondition(MockGeoProtocol.urls == [MockGeoProtocol.proxy, MockGeoProtocol.fallback])
   MockGeoProtocol.fallbackStatus = 503
   let unavailable = await GeoLookup.fetch(); precondition(unavailable == nil)
