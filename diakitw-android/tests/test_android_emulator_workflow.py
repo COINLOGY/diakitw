@@ -12,6 +12,8 @@ class AndroidLayoutWorkflow(unittest.TestCase):
         self.assertIn('contents: read', text)
         self.assertIn('persist-credentials: false', text)
         self.assertIn('api-level: 35', text)
+        self.assertIn('packages: platform-tools', text)
+        self.assertIn('log-accepted-android-sdk-licenses: false', text)
         self.assertIn('gradle/actions/setup-gradle@748248ddd2a24f49513d8f472f81c3a07d4d50e1', text)
         self.assertIn('ReactiveCircus/android-emulator-runner@1dcd0090116d15e7c562f8db72807de5e036a4ed', text)
     def test_native_probe_exit_and_screenshots_are_required(self):
