@@ -13,8 +13,8 @@ public enum UpdateContract {
     public static let version = "0.5.7"
     public static let build = 57
     #else
-    public static let version = "0.5.5"
-    public static let build = 55
+    public static let version = "0.5.7"
+    public static let build = 57
     #endif
     public enum Failure: Error { case invalid, http, oversized }
     public struct Version: Comparable, Equatable {

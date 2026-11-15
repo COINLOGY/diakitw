@@ -19,7 +19,10 @@ if [[ "$(uname -m)" != arm64 ]]; then
   exit 1
 fi
 python3 Tests/check_updates_wiring.py
+python3 Tests/check_update_prompt.py
 mkdir -p evidence/diakitw-0.5.7
+swiftc -j 2 -parse-as-library Sources/macdir/UpdateOfferPromptPolicy.swift Tests/update_prompt_checks.swift -o evidence/diakitw-0.5.7/update-prompt-checks
+evidence/diakitw-0.5.7/update-prompt-checks
 swiftc -j 2 -parse-as-library Sources/MacdirCore/UpdateChecker.swift Tests/update_checks.swift -o evidence/diakitw-0.5.7/update-checks
 evidence/diakitw-0.5.7/update-checks
 python3 Tests/check_expressive_v4.py
