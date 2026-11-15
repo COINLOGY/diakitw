@@ -12,6 +12,14 @@ adb wait-for-device
 adb shell cmd connectivity airplane-mode enable
 adb shell svc wifi disable
 adb shell svc data disable
+# Google APIs AVD can keep an Ethernet default network despite airplane mode.
+# Shut down only interfaces carrying a default route; never start the app if isolation fails.
+routes=$( { adb shell ip -o route show default; adb shell ip -6 -o route show default; } )
+interfaces=$(printf "%s\n" "$routes" | python3 -c "import re,sys;print(chr(32).join(sorted(set(re.findall(r\"dev ([A-Za-z0-9_.-]+)\",sys.stdin.read())))))")
+for iface in $interfaces; do
+  [[ "$iface" =~ ^[A-Za-z0-9_.-]+$ ]] || { printf "Invalid interface name\n" >&2; exit 1; }
+  adb shell ip link set "$iface" down
+done
 adb shell settings put global airplane_mode_on 1
 [ "$(adb shell settings get global airplane_mode_on | tr -d '\r')" = 1 ]
 # Android ConnectivityService reports "none" only when no default network exists.

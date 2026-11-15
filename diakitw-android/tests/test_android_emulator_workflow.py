@@ -30,6 +30,8 @@ class AndroidLayoutWorkflow(unittest.TestCase):
         self.assertIn('probe diagnostics:', script)
         self.assertIn('adb root', script)
         self.assertIn('cmd connectivity airplane-mode enable', script)
+        self.assertIn('ip -o route show default', script)
+        self.assertIn('ip link set \"$iface\" down', script)
         self.assertIn('if-no-files-found: error', text)
         self.assertNotIn('continue-on-error: true', text)
     def test_uploaded_screenshot_contains_only_gauge_views(self):
