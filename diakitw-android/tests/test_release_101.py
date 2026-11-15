@@ -13,7 +13,7 @@ class Release101(unittest.TestCase):
         self.assertIn("versionCode 101; versionName '1.0.1'", gradle)
         self.assertIn("/updates/v2.json", updates)
         self.assertNotIn("/updates/v1.json", updates)
-        self.assertIn('compare(v,"1.0.1")<=0||build<=101', updates)
+        self.assertIn('compare(v,installedVersion)<=0||build<=installedBuild', updates)
         self.assertIn('"appVersion","1.0.1"', report)
         self.assertIn('"build",101', report)
         self.assertIn('Обновления · 1.0.1 (101)', activity)

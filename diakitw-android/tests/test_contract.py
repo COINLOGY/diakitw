@@ -15,6 +15,6 @@ class Wiring(unittest.TestCase):
   for t in ['https://speed.cloudflare.com','setInstanceFollowRedirects(false)','setUseCaches(false)','setFixedLengthStreamingMode','System.nanoTime()','BUSY.compareAndSet']:self.assertIn(t,s)
  def test_only_internet_no_services(self):
   root=ET.parse(ROOT/'app/src/main/AndroidManifest.xml').getroot()
-  self.assertEqual(['android.permission.INTERNET','android.permission.ACCESS_NETWORK_STATE'],[p.get('{http://schemas.android.com/apk/res/android}name') for p in root.findall('uses-permission')])
+  self.assertEqual(['android.permission.INTERNET','android.permission.ACCESS_NETWORK_STATE','android.permission.REQUEST_INSTALL_PACKAGES','android.permission.UPDATE_PACKAGES_WITHOUT_USER_ACTION'],[p.get('{http://schemas.android.com/apk/res/android}name') for p in root.findall('uses-permission')])
   self.assertEqual([],root.findall('.//service'))
 if __name__=='__main__': unittest.main()

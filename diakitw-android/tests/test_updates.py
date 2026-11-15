@@ -1,11 +1,11 @@
 import pathlib,unittest
 R=pathlib.Path(__file__).resolve().parents[1]
 class UpdatesWiring(unittest.TestCase):
- def test_updates_remain_foreground_manual_install_only(self):
+ def test_updates_foreground_verified_package_installer(self):
   s=(R/'app/src/main/java/app/diakitw/MainActivity.java').read_text()
-  for token in ['updates.start(', 'updates.stop()', 'updateFetch.cancel()', 'Updates.validURL(', 'Intent.ACTION_VIEW', 'Проверить обновления', 'Стабильный', 'Тестовый', 'Позже', 'Скачать', 'Установка вручную', 'updateNotice.setVisibility(View.GONE)', 'updates.complete(token']:
+  for token in ['updates.start(', 'updates.stop()', 'updateFetch.cancel()', 'Updates.validURL(', 'new Updates.Download()', 'verifyApkIdentity(', 'PackageInstaller.Session', 'Проверить обновления', 'Стабильный', 'Тестовый', 'Позже', 'Скачать', 'updateNotice.setVisibility(View.GONE)', 'updates.complete(token']:
    self.assertIn(token,s)
-  self.assertNotIn('REQUEST_INSTALL_PACKAGES',(R/'app/src/main/AndroidManifest.xml').read_text())
+  self.assertIn('REQUEST_INSTALL_PACKAGES',(R/'app/src/main/AndroidManifest.xml').read_text())
  def test_057_report_and_update_identity(self):
   gradle=(R/'app/build.gradle').read_text()
   report=(R/'app/src/main/java/app/diakitw/SpeedReport.java').read_text()
@@ -17,7 +17,7 @@ class UpdatesWiring(unittest.TestCase):
   self.assertIn('diakitw 1.0.1 · ',report)
   self.assertIn('Обновления · 1.0.1 (101)',activity)
   self.assertIn('Обзор · diakitw 1.0.1',activity)
-  self.assertIn('compare(v,"1.0.1")<=0||build<=101',updates)
+  self.assertIn('compare(v,installedVersion)<=0||build<=installedBuild',updates)
  def test_debug_only_offline_arrow_probe_guard(self):
   activity=(R/'app/src/main/java/app/diakitw/MainActivity.java').read_text()
   probe=(R/'app/src/androidTest/java/app/diakitw/LayoutProbe.java').read_text()
