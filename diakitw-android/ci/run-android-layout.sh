@@ -34,7 +34,12 @@ for attempt in $(seq 1 15); do
   if adb shell dumpsys connectivity | tr -d '\r' | grep -Eq '^[[:space:]]*Active default network: none[[:space:]]*$'; then offline=1; break; fi
   sleep 2
 done
-if [ "$offline" != 1 ]; then printf 'FAIL: emulator still has a default network; app was not launched\n' >&2; exit 1; fi
+if [ "$offline" != 1 ]; then
+  printf "route-interfaces-before: %s\n" "$interfaces" >&2
+  adb shell dumpsys connectivity | python3 -c "import re,sys;s=sys.stdin.read();m=re.search(r\"Active default network:[^\n]*\",s);print(\"default-network-state:\",re.sub(r\"(?:\d{1,3}\.){3}\d{1,3}\",\"[ip]\",m.group(0)[:100]) if m else \"missing\")" >&2
+  printf "FAIL: emulator still has a default network; app was not launched\n" >&2
+  exit 1
+fi
 adb shell pm clear app.diakitw
 mkdir -p emulator-evidence
 printf '%s\n' "$GITHUB_SHA" > emulator-evidence/source-commit.txt

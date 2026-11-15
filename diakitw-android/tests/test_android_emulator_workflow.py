@@ -30,6 +30,7 @@ class AndroidLayoutWorkflow(unittest.TestCase):
         self.assertIn('probe diagnostics:', script)
         self.assertIn('report_bytes=', script)
         self.assertIn('report line:', script)
+        self.assertIn('default-network-state:', script)
         self.assertIn('adb root', script)
         self.assertIn('adb shell id -u', script)
         self.assertIn('cmd connectivity airplane-mode enable', script)
