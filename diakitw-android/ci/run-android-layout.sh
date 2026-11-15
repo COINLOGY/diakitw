@@ -7,8 +7,14 @@ adb install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
 
 # The emulator needs network for SDK setup, but the app/probe must start offline.
 # Shell cannot send AIRPLANE_MODE on API 35; the disposable google_apis AVD allows adbd root.
-adb root >/dev/null
-adb wait-for-device
+root_ready=0
+for attempt in 1 2 3; do
+  adb root >/dev/null 2>&1 || : # adbd restart can close the client before a reply
+  adb wait-for-device
+  if [ "$(adb shell id -u | tr -d "\r")" = 0 ]; then root_ready=1; break; fi
+  sleep 2
+done
+[ "$root_ready" = 1 ] || { printf "FAIL: emulator root unavailable; app not launched\n" >&2; exit 1; }
 adb shell cmd connectivity airplane-mode enable
 adb shell svc wifi disable
 adb shell svc data disable
