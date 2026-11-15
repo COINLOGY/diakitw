@@ -26,7 +26,7 @@ class Unified101SourceVersion(unittest.TestCase):
 
     def test_android_package_version(self):
         text = (ROOT / 'diakitw-android/app/build.gradle').read_text()
-        self.assertRegex(text, r'\bversionCode\s+57\b')
+        self.assertRegex(text, r'\bversionCode\s+101\b')
         self.assertRegex(text, r"\bversionName\s+['\"]1\.0\.1['\"]")
 
     def test_shared_apple_checker_is_current_for_both_platforms(self):

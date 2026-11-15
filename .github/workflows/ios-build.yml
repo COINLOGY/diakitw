@@ -1,7 +1,7 @@
 name: iOS 1.0.1 unsigned build and smoke
 on:
   push:
-    branches: [feat/release-101-apple]
+    branches: [feat/release-101]
     paths: ["ios/**", ".github/workflows/ios-build.yml"]
   workflow_dispatch:
 permissions:
