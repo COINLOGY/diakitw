@@ -21,7 +21,7 @@ class AndroidLayoutWorkflow(unittest.TestCase):
         self.assertIn('script: bash diakitw-android/ci/run-android-layout.sh', text)
         script = (ROOT / 'diakitw-android/ci/run-android-layout.sh').read_text()
         for value in ('app.diakitw.test/app.diakitw.LayoutProbe', '-e mode arrow',
-                      'INSTRUMENTATION_CODE: -1', 'PASS network arrow native bounds',
+                      'PASS network arrow native bounds, one line, isolated dials, no paid speed worker',
                       'svc wifi disable', 'svc data disable',
                       'dumpsys connectivity', 'Active default network:',
                       'run-as app.diakitw cat cache/047-speed-idle.png'):
@@ -39,6 +39,8 @@ class AndroidLayoutWorkflow(unittest.TestCase):
         self.assertIn('ip link set \"$iface\" down', script)
         self.assertIn('if-no-files-found: error', text)
         self.assertNotIn('continue-on-error: true', text)
+        self.assertIn('adb-am-exit=0', script)
+        self.assertNotIn('INSTRUMENTATION_CODE: -1', script)
     def test_uploaded_screenshot_contains_only_gauge_views(self):
         probe = (ROOT / 'diakitw-android/app/src/androidTest/java/app/diakitw/LayoutProbe.java').read_text()
         self.assertIn('screenshotSpeedDials(decor,"047-speed-idle")', probe)

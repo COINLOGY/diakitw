@@ -50,7 +50,7 @@ for rotation in portrait landscape; do
   sleep 3
   report="${RUNNER_TEMP:-/tmp}/android-layout-$rotation.txt"
   adb shell am instrument -w -e mode arrow -e orientation "$angle" app.diakitw.test/app.diakitw.LayoutProbe > "$report"
-  if ! grep -Fq 'INSTRUMENTATION_CODE: -1' "$report" || ! grep -Fq 'PASS network arrow native bounds' "$report"; then
+  if ! grep -Fq 'PASS network arrow native bounds, one line, isolated dials, no paid speed worker' "$report" || grep -Fq 'FAIL ' "$report" || grep -Fq 'INSTRUMENTATION_FAILED' "$report"; then
     python3 - "$report" <<PYPROBE
 import pathlib,re,sys
 content=pathlib.Path(sys.argv[1]).read_text(errors="replace")
@@ -65,7 +65,7 @@ PYPROBE
     printf 'FAIL: native layout probe, %s; raw report not published\n' "$rotation" >&2
     exit 1
   fi
-  printf 'PASS network arrow native bounds; INSTRUMENTATION_CODE: -1; %s; source %s\n' "$rotation" "$GITHUB_SHA" > "emulator-evidence/layout-$rotation-status.txt"
+  printf 'PASS network arrow native bounds; adb-am-exit=0; %s; source %s\n' "$rotation" "$GITHUB_SHA" > "emulator-evidence/layout-$rotation-status.txt"
   adb exec-out run-as app.diakitw cat cache/047-speed-idle.png > "emulator-evidence/speed-idle-$rotation.png"
   python3 - "emulator-evidence/speed-idle-$rotation.png" <<'PY'
 import pathlib,sys
