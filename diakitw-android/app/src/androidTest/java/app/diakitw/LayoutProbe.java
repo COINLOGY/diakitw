@@ -80,12 +80,27 @@ public final class LayoutProbe extends Instrumentation {
   if(!known)for(int y=(int)(face.cy-4*d);y<face.cy;y++)for(int x=(int)(face.cx-4*d);x<face.cx+4*d;x++)check(b.getPixel(x,y)==0,"Unknown has a hub/needle");
   b.recycle();
  }
+ void arrowLayout(MainActivity a)throws Exception {
+  android.content.res.Configuration cfg=a.getResources().getConfiguration();
+  check(cfg.orientation==("1".equals(requestedOrientation)?2:1),"Actual orientation mismatch: "+cfg);
+  ui(()->{a.autoIp.pause();a.stopIp();a.main.removeCallbacks(a.ipTick);a.unwatchNetwork();a.openTest();});
+  Thread.sleep(300);waitForIdleSync();
+  View decor=a.testDialog.getWindow().getDecorView();
+  for(double n:new double[]{0,125.67,9999.9,Double.MAX_VALUE,Double.NaN}){
+   ui(()->setSpeed(decor,n));waitForIdleSync();
+   ui(()->{expectedRadius=-1;secondary(decor);if(n!=Double.MAX_VALUE)speedScroll(decor);check(a.test==null&&!SpeedTest.BUSY.get(),"Layout probe started speed worker");});
+  }
+  ui(()->setSpeed(decor,125.67));waitForIdleSync();
+  ui(()->{expectedRadius=-1;secondary(decor);});screenshotSpeedDials(decor,"047-speed-idle");
+  ui(()->{a.testDialog.dismiss();a.finish();});
+  report.append("PASS network arrow native bounds, one line, isolated dials, no paid speed worker\n");
+ }
  void compactSpeed(MainActivity a)throws Exception {
   android.content.res.Configuration config=a.getResources().getConfiguration();check(config.orientation==("1".equals(requestedOrientation)?2:1),"Actual orientation mismatch: "+config);report.append(config).append("\n");
   ui(()->{a.autoIp.pause();a.main.removeCallbacks(a.ipTick);a.unwatchNetwork();a.openTest();});Thread.sleep(500);waitForIdleSync();
   View decor=a.testDialog.getWindow().getDecorView();
   ui(()->{expectedRadius=-1;secondary(decor);speedScroll(decor);check(a.test==null,"Open started speed worker");});
-  screenshot("047-speed-idle");
+  screenshotSpeedDials(decor,"047-speed-idle");
   for(double n:new double[]{0,9999.9,Double.MAX_VALUE}){ui(()->setSpeed(decor,n));Thread.sleep(80);waitForIdleSync();ui(()->{expectedRadius=-1;secondary(decor);if(n!=Double.MAX_VALUE)speedScroll(decor);});}ui(()->setSpeed(decor,Double.NaN));
   ui(()->button(decor,"Начать").performClick());Thread.sleep(300);waitForIdleSync();
   check(a.test==null&&!SpeedTest.BUSY.get(),"Consent started traffic");screenshot("047-speed-consent");tapText("ОТМЕНА");Thread.sleep(300);check(a.test==null,"Cancel consent started traffic");
@@ -106,6 +121,22 @@ public final class LayoutProbe extends Instrumentation {
   if(v instanceof ViewGroup){ViewGroup g=(ViewGroup)v;for(int i=0;i<g.getChildCount();i++)speedScroll(g.getChildAt(i));}
  }
  void setSpeed(View v,double n){if(v instanceof MainActivity.SpeedDial)((MainActivity.SpeedDial)v).update(n);if(v instanceof ViewGroup){ViewGroup g=(ViewGroup)v;for(int i=0;i<g.getChildCount();i++)setSpeed(g.getChildAt(i),n);}}
+ void collectSpeedDials(View v,java.util.List<MainActivity.SpeedDial> out){
+  if(v instanceof MainActivity.SpeedDial){out.add((MainActivity.SpeedDial)v);return;}
+  if(v instanceof ViewGroup){ViewGroup g=(ViewGroup)v;for(int i=0;i<g.getChildCount();i++)collectSpeedDials(g.getChildAt(i),out);}
+ }
+ // Export only the two speed controls, never the surrounding IP card or dialog.
+ void screenshotSpeedDials(View root,String name)throws Exception{
+  java.util.List<MainActivity.SpeedDial> dials=new java.util.ArrayList<>();collectSpeedDials(root,dials);check(dials.size()==2,"Expected two speed dials");
+  int width=0,height=0;for(MainActivity.SpeedDial d:dials){width=Math.max(width,d.getWidth());height+=d.getHeight();}
+  check(width>0&&height>0,"Empty speed dials");
+  android.graphics.Bitmap image=android.graphics.Bitmap.createBitmap(width,height,android.graphics.Bitmap.Config.ARGB_8888);
+  android.graphics.Canvas canvas=new android.graphics.Canvas(image);canvas.drawColor(android.graphics.Color.BLACK);
+  // Draw each native SpeedDial in isolation; no full-screen compositor pixels enter this bitmap.
+  ui(()->{int top=0;for(MainActivity.SpeedDial d:dials){canvas.save();canvas.translate(0,top);d.draw(canvas);canvas.restore();top+=d.getHeight();}});
+  try(java.io.FileOutputStream out=new java.io.FileOutputStream(new java.io.File(getTargetContext().getCacheDir(),name+".png"))){check(image.compress(android.graphics.Bitmap.CompressFormat.PNG,100,out),"PNG failure");}
+  image.recycle();
+ }
  void screenshot(String name)throws Exception{android.graphics.Bitmap bitmap=getUiAutomation().takeScreenshot();check(bitmap!=null,"Screenshot unavailable");try(java.io.FileOutputStream out=new java.io.FileOutputStream(new java.io.File(getTargetContext().getCacheDir(),name+".png"))){check(bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG,100,out),"PNG failure");}bitmap.recycle();}
  void live(boolean replay)throws Exception {
   java.io.File record=new java.io.File(getTargetContext().getCacheDir(),"046-map-observed.json");Egress.Result actual;String measured;
@@ -120,14 +151,17 @@ public final class LayoutProbe extends Instrumentation {
   if("live".equals(mode)||"live-replay".equals(mode)){live("live-replay".equals(mode));out.putString("stream",report.toString());finish(Activity.RESULT_OK,out);return;}
   if("proxy".equals(mode)){ProxyProbe.run();out.putString("stream","PASS proxy fixtures\n");finish(Activity.RESULT_OK,out);return;}
   if("ip".equals(mode)){IpProbe.run();out.putString("stream","PASS IP parsing IPv4/IPv6 and malformed schema\n");finish(Activity.RESULT_OK,out);return;}
-  MainActivity a=(MainActivity)startActivitySync(new Intent(getTargetContext(),MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK).putExtra("diakitw.test.offline","arrow".equals(mode)));
-  Thread.sleep(3500);waitForIdleSync();
+  Intent launch=new Intent(getTargetContext(),MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+  if("arrow".equals(mode))launch.putExtra("diakitw.test.offline",true);
+  MainActivity a=(MainActivity)startActivitySync(launch);
+  Thread.sleep("arrow".equals(mode)?300:3500);waitForIdleSync();
   if("cpu".equals(mode)){
    ui(()->{a.autoIp.pause();a.stopIp();a.generation++;a.worker.shutdownNow();a.previousCpu=-1;a.previousWall=-1;check(Double.isNaN(a.sample().cpu),"First CPU must be unknown");a.cpu.update(Double.NaN,"Только diakitw");check(Double.isNaN(a.cpu.gauge.fraction),"Unknown CPU needle");check(a.cpu.information.contains("не всего телефона"),"CPU scope");});
    Thread.sleep(200);ui(()->{double cpu=a.sample().cpu;check(Double.isFinite(cpu)&&cpu>=0&&cpu<=100,"Process CPU sample");a.cpu.update(cpu,"Только diakitw");});Thread.sleep(300);waitForIdleSync();
    ui(()->{View root=a.findViewById(android.R.id.content);int[] p=new int[2];root.getLocationOnScreen(p);inspect(root,new Rect(p[0],p[1],p[0]+root.getWidth(),p[1]+root.getHeight()));int height=a.cpu.getHeight();for(MainActivity.Metric m:new MainActivity.Metric[]{a.cpu,a.ram,a.disk,a.battery})check(Math.abs(m.getHeight()-height)<=1,"Unequal resource cards");});screenshot("051-main");ui(a::finish);out.putString("stream","PASS CPU scope, first sample unknown, actual process sample, four equal cards and bounds\n"+report);finish(Activity.RESULT_OK,out);return;
   }
   if("entry".equals(mode)){EntryProbe.run(this,a);out.putString("stream",report.toString());finish(Activity.RESULT_OK,out);return;}
+  if("arrow".equals(mode)){arrowLayout(a);out.putString("stream",report.toString());finish(Activity.RESULT_OK,out);return;}
   if("compact".equals(mode)){compactSpeed(a);ui(a::finish);out.putString("stream","PASS compact speed native bounds, consent/cancel, details and offline Stop\n"+report);finish(Activity.RESULT_OK,out);return;}
   if("map".equals(mode)){MapProbe.run(this,a);ui(a::finish);out.putString("stream",report.toString());finish(Activity.RESULT_OK,out);return;}
   if("card".equals(mode)){
