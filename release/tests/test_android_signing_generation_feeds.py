@@ -20,4 +20,11 @@ class AndroidSigningGenerationFeeds(unittest.TestCase):
         self.assertIn('updates/v2.json',source)
         self.assertNotIn('updates/v1.json',source)
 
+    def test_android_java_feed_gate_uses_installed_identity(self):
+        source=(ROOT/'release/FeedCheck.java').read_text()
+        workflow=(ROOT/'.github/workflows/feed-validation.yml').read_text()
+        self.assertIn('Updates.select(text,"preview",installedVersion,installedBuild)',source)
+        self.assertIn('old-fixture',workflow)
+        self.assertNotIn('.ci-scratch/Updates.java',workflow)
+
 if __name__=='__main__': unittest.main()

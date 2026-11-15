@@ -35,7 +35,7 @@ jobs:
           node release/check-feed.cjs
           python3 release/check-publication-surfaces.py
           cmp macdir/Sources/MacdirCore/UpdateChecker.swift ios/Sources/UpdateChecker.swift
-          mkdir -p .ci-scratch/java-current .ci-scratch/java-old
+          mkdir -p .ci-scratch/java-current
           swiftc macdir/Sources/MacdirCore/UpdateChecker.swift release/check-feed.swift -o .ci-scratch/feed-check
           .ci-scratch/feed-check release/fixtures/v1-0.5.4.json
           swiftc macdir/Sources/MacdirCore/UpdateChecker.swift release/check-feed-056.swift -o .ci-scratch/feed-check-056
@@ -45,6 +45,4 @@ jobs:
           shasum -a 256 .ci-scratch/json.jar
           javac -cp .ci-scratch/json.jar -d .ci-scratch/java-current diakitw-android/app/src/main/java/app/diakitw/Updates.java release/FeedCheck.java
           java -cp .ci-scratch/json.jar:.ci-scratch/java-current app.diakitw.FeedCheck release/fixtures/v1-0.5.4.json
-          python3 -c 'from pathlib import Path; s=Path("diakitw-android/app/src/main/java/app/diakitw/Updates.java").read_text(); assert s.count("compare(v,\"1.0.1\")<=0||build<=101")==1; Path(".ci-scratch/Updates.java").write_text(s.replace("compare(v,\"1.0.1\")<=0||build<=101","compare(v,\"0.5.3\")<=0||build<=53"))'
-          javac -cp .ci-scratch/json.jar -d .ci-scratch/java-old .ci-scratch/Updates.java release/FeedCheck.java
-          java -cp .ci-scratch/json.jar:.ci-scratch/java-old app.diakitw.FeedCheck release/fixtures/v1-0.5.4.json old-fixture
+          java -cp .ci-scratch/json.jar:.ci-scratch/java-current app.diakitw.FeedCheck release/fixtures/v1-0.5.4.json old-fixture
