@@ -4,7 +4,7 @@ Only a temporary source copy is changed; production source is never mutated.
 from pathlib import Path
 import os, subprocess, tempfile
 r = Path(__file__).resolve().parents[1]
-e = r/'evidence/diakitw-0.5.7'
+e = r/'evidence/diakitw-1.0.1'
 with tempfile.TemporaryDirectory(prefix='gauge-regression-', dir=os.environ['TMPDIR']) as tmp:
     tmp = Path(tmp)
     source = (r/'Sources/macdir/NeedleGauge.swift').read_text()

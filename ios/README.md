@@ -1,6 +1,6 @@
-# diakitw iOS 0.5.7 (57)
+# diakitw iOS 1.0.1 (101)
 
-User-facing version **0.5.7**. Apple platform metadata and updater identity are **0.5.7**, build **57**. The updater only offers a newer, matching iOS asset when the public feed actually contains one; it does not install unsigned archives.
+User-facing version **1.0.1**. Apple platform metadata and updater identity are **1.0.1**, build **101**. The updater only offers a newer, matching iOS asset when the public feed actually contains one; it does not install unsigned archives.
 
 Unsigned build-only candidate, iOS deployment target 16.0. No certificates, Apple account, device installation or GitHub Release publication in this workflow. Device ZIP **cannot be installed directly**. A developer must sign/provision an appropriate device build; the simulator archive is not an iPhone installer.
 
@@ -11,7 +11,7 @@ Unsigned build-only candidate, iOS deployment target 16.0. No certificates, Appl
 - Next: download 8 MiB, synthetic upload 2 MiB (upload response cap 4 KiB). Each of three requests has a 22-second wall-clock deadline: up to 66 seconds. Protocol overhead/network buffers are additional; this is not an exact carrier-traffic quota. No user files are sent. Failed HTTP latency does not prevent the independent throughput test.
 - Cancel/background stops work. Completed partial readings remain valid; cancelled pending readings cannot overwrite them. New Start clears previous readings. Duplicate starts while running are ignored.
 
-The updater remains browser-only. An Android-only release manifest does not produce an iOS installation offer; unsigned iOS archives may be listed separately on the release page by the release owner. No live feed is changed here. Offline version/selection fixtures are not evidence that an actual older installed iOS client received an update notification.
+The updater automatically checks at each active cold launch and later by its foreground schedule; a matching feed offer opens the release page only on user action. No downloaded bytes are verified in-app and there is no automatic download or installation. The updater remains browser-only. An Android-only release manifest does not produce an iOS installation offer; unsigned iOS archives may be listed separately on the release page by the release owner. No live feed is changed here. Offline version/selection fixtures are not evidence that an actual older installed iOS client received an update notification.
 
 ## Reproduction and evidence
 
