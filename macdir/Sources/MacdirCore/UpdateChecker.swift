@@ -10,11 +10,11 @@ public enum UpdateContract {
     public static let endpoint = URL(string: "https://coinlogy.github.io/diakitw/updates/v1.json")!
     public static let cap = 32 * 1024
     #if os(macOS)
-    public static let version = "1.0.1"
-    public static let build = 101
+    public static let version = "1.0.2"
+    public static let build = 102
     #else
-    public static let version = "1.0.1"
-    public static let build = 101
+    public static let version = "1.0.2"
+    public static let build = 102
     #endif
     public enum Failure: Error { case invalid, http, oversized }
     public struct Version: Comparable, Equatable {

@@ -15,7 +15,13 @@ public struct EgressLocation {
         Locale.Region.isoRegions.contains(where: { $0.identifier == value }) else { return nil }
   return value
  }
- public var summary: String {
+ public var flag: String? {
+   guard country != nil, let countryCode, let first = countryCode.unicodeScalars.first,
+         let second = countryCode.unicodeScalars.dropFirst().first,
+         let a = Unicode.Scalar(127397 + first.value), let b = Unicode.Scalar(127397 + second.value) else { return nil }
+   return "\(String(a))\(String(b))"
+  }
+  public var summary: String {
   let labeledCountry = country.map { name -> String in
    guard let countryCode, let first = countryCode.unicodeScalars.first,
          let second = countryCode.unicodeScalars.dropFirst().first,

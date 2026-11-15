@@ -24,7 +24,7 @@ class CountryFlag057(unittest.TestCase):
  def test_updater_matches_installed_057_build(self):
   gradle=(ROOT/"app/build.gradle").read_text()
   updates=(ROOT/"app/src/main/java/app/diakitw/Updates.java").read_text()
-  self.assertIn("versionCode 101; versionName '1.0.1'",gradle)
+  self.assertIn("versionCode 102; versionName '1.0.2'",gradle)
   self.assertIn('compare(v,installedVersion)<=0||build<=installedBuild',updates)
 
 if __name__=="__main__": unittest.main()

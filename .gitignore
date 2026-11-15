@@ -15,3 +15,4 @@
 .env.*
 local.properties
 .DS_Store
+/.ci-scratch/

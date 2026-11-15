@@ -28,7 +28,8 @@ final class Cancellation: @unchecked Sendable {
  private let pathMonitor = NWPathMonitor()
  private var identityRefresh = IdentityRefreshPolicy()
  private var identityGeneration = 0
- var identityVisible = false { didSet { if !identityVisible { identityChanged() } } }
+ var identityVisible = false { didSet { if !identityVisible && !statusVisible { identityChanged() } } }
+ var statusVisible = false { didSet { if !statusVisible && !identityVisible { identityChanged() } } }
  func identityChanged() {
   identityGeneration += 1
   identityRequest?.cancel()
@@ -80,18 +81,17 @@ final class Cancellation: @unchecked Sendable {
    self?.computerName = name
    while !Task.isCancelled {
     guard self != nil else { return }
-    guard self?.identityRefresh.take(now: ProcessInfo.processInfo.systemUptime, foreground: self?.identityVisible == true && NSApp.isActive) == true else {
+    guard self?.identityRefresh.take(now: ProcessInfo.processInfo.systemUptime, foreground: self?.statusVisible == true || (self?.identityVisible == true && NSApp.isActive)) == true else {
      do { try await Task.sleep(for: .seconds(1)) } catch { return }
      continue
     }
     let generation = self?.identityGeneration
-    self?.externalAddress = nil
-    self?.egressLocation = nil
+    // Keep the last valid flag until the refresh completes; route changes clear it immediately.
     let request = Task { await GeoLookup.fetch() }
     self?.identityRequest = request
     let location = await request.value
     guard !Task.isCancelled else { return }
-    guard self?.identityGeneration == generation, self?.identityVisible == true, NSApp.isActive else { continue }
+    guard self?.identityGeneration == generation, (self?.statusVisible == true || (self?.identityVisible == true && NSApp.isActive)) else { continue }
     self?.identityRequest = nil
     self?.egressLocation = location
     self?.externalAddress = location?.ip
@@ -262,10 +262,10 @@ struct ContentView: View {
    .sheet(isPresented: $model.showCaches) { CachePanel(model: model.caches) }
    .onChange(of: model.sort) { _, _ in model.prepareRows() }
    .onChange(of: model.tab) { _, _ in model.prepareRows() }
-   .onAppear { model.identityVisible = true; model.identityChanged() }
-    .onDisappear { model.identityVisible = false; model.identityChanged() }
-    .onReceive(NotificationCenter.default.publisher(for: NSApplication.didResignActiveNotification)) { _ in model.identityChanged() }
-   .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in model.identityChanged() }
+    .onAppear { model.identityVisible = true; if !model.statusVisible { model.identityChanged() } }
+    .onDisappear { model.identityVisible = false; if !model.statusVisible { model.identityChanged() } }
+    .onReceive(NotificationCenter.default.publisher(for: NSApplication.didResignActiveNotification)) { _ in if !model.statusVisible { model.identityChanged() } }
+   .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in if !model.statusVisible { model.identityChanged() } }
    .onReceive(NotificationCenter.default.publisher(for: NSApplication.willTerminateNotification)) { _ in model.stop() }
  }
 
@@ -302,7 +302,7 @@ struct ContentView: View {
       .help("Открыть Apple Maps: передаётся приблизительная координата выхода либо только страна; не GPS. Сервис карт получает сетевой запрос только после нажатия.")
     }
     Text("2ip через EMCx · резерв GeoJS · выход / VPN, не GPS").font(.caption).foregroundStyle(.secondary)
-     .help("HTTPS aia.emcx.pro/diakitw-api/geo: EMCx и 2ip получают IP выхода/VPN; токен 2ip только на сервере. При ошибке — GeoJS/Cloudflare. Приблизительные страна/город, не GPS. Серверные квоты 300/день, 9000/месяц; кэш 1 ч. Только активное окно, debounce 2 с, минимум и период 60 с; до 8 с и 16 KiB на провайдера, без cookies/redirects. Ошибка очищает данные. Карта — только по нажатию.")
+     .help("HTTPS aia.emcx.pro/diakitw-api/geo: EMCx и 2ip получают IP выхода/VPN; токен 2ip только на сервере. При ошибке — GeoJS/Cloudflare. Приблизительные страна/город, не GPS. Серверные квоты 300/день, 9000/месяц; кэш 1 ч. Строка меню работает и в фоне; debounce 2 с, минимум и период 60 с; до 8 с и 16 KiB на провайдера, без cookies/redirects. Ошибка очищает данные. Карта — только по нажатию.")
    }.font(.system(size: 12, design: .monospaced)).textSelection(.enabled)
     .frame(maxWidth: .infinity, alignment: .leading)
    LazyVGrid(columns: Array(repeating: GridItem(.flexible(minimum: 230), spacing: 10),
@@ -401,10 +401,10 @@ struct ContentView: View {
 final class AppDelegate: NSObject, NSApplicationDelegate {
  var status: ResourceStatusController?
  @objc func showAbout(_ sender: Any?) {
-  MainActor.assumeIsolated { NSApplication.shared.orderFrontStandardAboutPanel(options: [.applicationVersion: "1.0.1"]) }
+  MainActor.assumeIsolated { NSApplication.shared.orderFrontStandardAboutPanel(options: [.applicationVersion: "1.0.2"]) }
  }
  func applicationWillTerminate(_ notification: Notification) { MainActor.assumeIsolated { InternetTestWindow.shared.stop(); DiagnosticsWindow.shared.stop(); UpdateMenu.shared.stop(); status?.stop() } }
- func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
+ func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
 }
 if CommandLine.arguments.contains("--self-check") {
  exit(runOfflineSelfCheck())
@@ -434,6 +434,7 @@ if CommandLine.arguments.contains("--self-check") {
  app.setActivationPolicy(.regular)
  let window = NSWindow(contentRect: NSRect(x: 100, y: 100, width: 1180, height: 800), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
  window.title = "diakitw — пространство и ресурсы"
+ window.isReleasedWhenClosed = false
  window.contentMinSize = NSSize(width: 800, height: 540)
  let model = Model()
  window.contentView = NSHostingView(rootView: MacdirRootView(model: model))

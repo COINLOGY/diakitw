@@ -1,13 +1,13 @@
-name: iOS 1.0.1 unsigned compile/tests (no upload)
+name: iOS 1.0.2 unsigned compile/tests (no upload)
 on:
   push:
-    branches: [feat/release-101]
+    branches: [feat/release-102]
     paths: ["ios/**", ".github/workflows/ios-build.yml"]
   workflow_dispatch:
 permissions:
   contents: read
 concurrency:
-  group: ios-101
+  group: ios-102
   cancel-in-progress: false
 jobs:
   build-test:

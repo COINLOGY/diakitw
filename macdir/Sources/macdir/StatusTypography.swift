@@ -10,11 +10,15 @@ enum StatusTypography {
   ["+++.+%", "+++.+G", "+++.+G", "+++.+G", "+++.+M↓", "+++.+M↑"]
  ]
  static let fixedWidth = width(indices: Array(0..<6))
- static func width(indices: [Int]) -> CGFloat {
-  guard !indices.isEmpty else { return 28 }
-  return ceil(templates.map { template in title(indices.map { template[$0] }).size().width }.max()! + 16)
+ static func width(indices: [Int], includingFlag: Bool = false) -> CGFloat {
+  guard !indices.isEmpty || includingFlag else { return 28 }
+  let flags: [String?] = includingFlag ? ["🇩🇪", "🇫🇮", "🌐"] : [nil]
+  let widths = templates.flatMap { template in
+   flags.map { flag in title(indices.map { template[$0] }, flag: flag).size().width }
+  }
+  return ceil((widths.max() ?? 12) + 16)
  }
- static func title(_ fields: [String], colors: [NSColor] = []) -> NSAttributedString {
+ static func title(_ fields: [String], colors: [NSColor] = [], flag: String? = nil) -> NSAttributedString {
   let result = NSMutableAttributedString(string: "")
   for (index, field) in fields.enumerated() {
    let color = colors.indices.contains(index) ? colors[index] : .labelColor
@@ -22,6 +26,10 @@ enum StatusTypography {
    let arrow = field.hasSuffix("↓") || field.hasSuffix("↑")
    result.append(NSAttributedString(string: arrow ? String(field.dropLast()) : field, attributes: [.font: numericFont, .foregroundColor: color]))
    if arrow { result.append(NSAttributedString(string: String(field.suffix(1)), attributes: [.font: arrowFont, .foregroundColor: color])) }
+  }
+  if let flag {
+   if !fields.isEmpty { result.append(NSAttributedString(string: "  ", attributes: [.font: numericFont])) }
+   result.append(NSAttributedString(string: flag, attributes: [.font: NSFont.systemFont(ofSize: 14), .foregroundColor: NSColor.labelColor]))
   }
   return result
  }

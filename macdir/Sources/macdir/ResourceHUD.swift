@@ -19,7 +19,7 @@ import MacdirCore
   self.model = model; self.mainWindow = mainWindow
   super.init()
   // Size once from the same mixed typography used to draw every sample.
-  let statusWidth = StatusTypography.width(indices: visibleIndices)
+  let statusWidth = StatusTypography.width(indices: visibleIndices, includingFlag: true)
   let status = NSStatusBar.system.statusItem(withLength: statusWidth)
   item = status
   let menu = NSMenu(); menu.autoenablesItems = false; menu.delegate = self
@@ -42,36 +42,38 @@ import MacdirCore
   open.target = self
   menu.addItem(withTitle: "Завершить diakitw", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
   status.menu = menu
-  subscription = model.$snapshot.combineLatest(model.$selectedInterface).sink { [weak self] snapshot, interface in
-   self?.update(snapshot, interface: interface)
+  subscription = Publishers.CombineLatest3(model.$snapshot, model.$selectedInterface, model.$egressLocation).sink { [weak self] snapshot, interface, location in
+   self?.update(snapshot, interface: interface, location: location)
   }
+  model.statusVisible = true
  }
  func stop() {
   subscription?.cancel(); subscription = nil
+  model.statusVisible = false
   if let item { NSStatusBar.system.removeStatusItem(item) }; item = nil
  }
  @objc private func openMain() {
   mainWindow?.deminiaturize(nil); mainWindow?.makeKeyAndOrderFront(nil)
   NSApp.activate(ignoringOtherApps: true)
  }
- func menuWillOpen(_ menu: NSMenu) { update(model.snapshot, interface: model.selectedInterface) }
+ func menuWillOpen(_ menu: NSMenu) { update(model.snapshot, interface: model.selectedInterface, location: model.egressLocation) }
  @objc private func toggleDiskMode() {
   diskMode = diskMode == .occupied ? .free : .occupied
   StatusPresentation.saveDiskMode(diskMode)
-  update(model.snapshot, interface: model.selectedInterface)
+  update(model.snapshot, interface: model.selectedInterface, location: model.egressLocation)
  }
  @objc private func toggleRAMMode() {
   ramMode = ramMode == .percent ? .used : .percent
   StatusPresentation.saveRAMMode(ramMode)
-  update(model.snapshot, interface: model.selectedInterface)
+  update(model.snapshot, interface: model.selectedInterface, location: model.egressLocation)
  }
  @objc private func toggleVisibility(_ sender: NSMenuItem) {
   let metric = StatusPresentation.Metric.allCases[sender.tag]
   StatusPresentation.saveVisible(!StatusPresentation.visible(metric), metric: metric)
-  item?.length = StatusTypography.width(indices: visibleIndices)
-  update(model.snapshot, interface: model.selectedInterface)
+  item?.length = StatusTypography.width(indices: visibleIndices, includingFlag: true)
+  update(model.snapshot, interface: model.selectedInterface, location: model.egressLocation)
  }
- private func update(_ s: ResourceSnapshot, interface: String) {
+ private func update(_ s: ResourceSnapshot, interface: String, location: EgressLocation?) {
   var colors: [NSColor] = []
   let segments = StatusPresentation.segments(s, interface: interface, diskMode: diskMode, ramMode: ramMode)
   diskToggle?.state = diskMode == .free ? .on : .off
@@ -91,8 +93,8 @@ import MacdirCore
   }
   // Fixed geometry and font: live values never resize neighboring menu items.
   let indices = visibleIndices
-  item?.button?.image = indices.isEmpty ? NSImage(systemSymbolName: "waveform.path", accessibilityDescription: "diakitw — открыть меню") : nil
-  item?.button?.attributedTitle = StatusTypography.title(indices.map { segments[$0].text }, colors: indices.map { colors[$0] })
+  item?.button?.image = nil
+  item?.button?.attributedTitle = StatusTypography.title(indices.map { segments[$0].text }, colors: indices.map { colors[$0] }, flag: location?.flag ?? "🌐")
   let n = s.networks.first { $0.name == interface }
   func rateDetail(_ value: Double?) -> String {
    return NetworkPresentation(value).text
@@ -108,7 +110,8 @@ import MacdirCore
    "Порядок значков: удерживайте ⌘ и перетащите"
   ]
   for (detail, text) in zip(details, lines) { detail.title = text }
-  item?.button?.toolTip = lines.prefix(6).joined(separator: "\n")
-  item?.button?.setAccessibilityLabel("diakitw: " + lines.prefix(6).joined(separator: "; "))
+  let country = location.flatMap { $0.summary.isEmpty ? nil : $0.summary } ?? "нет данных"
+  item?.button?.toolTip = "Страна выхода (VPN, не GPS): " + country + "\n" + lines.prefix(6).joined(separator: "\n")
+  item?.button?.setAccessibilityLabel("diakitw: страна выхода " + country + "; " + lines.prefix(6).joined(separator: "; "))
  }
 }

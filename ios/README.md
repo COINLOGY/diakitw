@@ -1,6 +1,6 @@
-# diakitw iOS 1.0.1 (101)
+# diakitw iOS 1.0.2 (102)
 
-User-facing version **1.0.1**. Apple platform metadata and updater identity are **1.0.1**, build **101**. The updater only offers a newer, matching iOS asset when the public feed actually contains one; it does not install unsigned archives.
+User-facing version **1.0.2**. Apple platform metadata and updater identity are **1.0.2**, build **101**. The updater only offers a newer, matching iOS asset when the public feed actually contains one; it does not install unsigned archives.
 
 Unsigned build-only candidate, iOS deployment target 16.0. No certificates, Apple account, device installation or GitHub Release publication in this workflow. Device ZIP **cannot be installed directly**. A developer must sign/provision an appropriate device build; the simulator archive is not an iPhone installer.
 
