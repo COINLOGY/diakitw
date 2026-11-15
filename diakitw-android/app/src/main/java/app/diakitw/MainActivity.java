@@ -104,7 +104,7 @@ public final class MainActivity extends Activity {
   String label="IP / карта · "+ipStatusLabel();
   String visible=label+"\n"+(ipSnapshot==null?"Н/Д\nСтрана: Н/Д":ipSnapshot.ip+"\n"+countryLabel()+(ipSnapshot.city.isEmpty()?"":" · ≈ "+ipSnapshot.city));
   SpannableString styled=new SpannableString(visible);styled.setSpan(new ForegroundColorSpan(BLUE),0,label.length(),Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-  styled.setSpan(new android.text.style.RelativeSizeSpan(12f/18f),0,label.length(),Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);summary.setText(styled);summary.setContentDescription("IP / карта");
+  styled.setSpan(new android.text.style.RelativeSizeSpan(12f/18f),0,label.length(),Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);summary.setText(styled);summary.setContentDescription(visible);
  }
  String ipStatusLabel(){return ipBadge.equals("Снимок")?"Обновлено":ipBadge;}
  static String flag(String country){return new String(Character.toChars(0x1f1e6+country.charAt(0)-'A'))+new String(Character.toChars(0x1f1e6+country.charAt(1)-'A'));}
