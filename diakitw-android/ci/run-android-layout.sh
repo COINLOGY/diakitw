@@ -31,7 +31,7 @@ adb shell settings put global airplane_mode_on 1
 # Android ConnectivityService reports "none" only when no default network exists.
 offline=0
 for attempt in $(seq 1 15); do
-  if adb shell dumpsys connectivity | tr -d '\r' | grep -Eq '^[[:space:]]*Active default network: none[[:space:]]*$'; then offline=1; break; fi
+  if adb shell dumpsys connectivity | tr -d '\r' | grep -E '^[[:space:]]*Active default network: none[[:space:]]*$'; then offline=1; break; fi
   sleep 2
 done
 if [ "$offline" != 1 ]; then
