@@ -37,9 +37,12 @@ done
 adb shell pm clear app.diakitw
 report="${RUNNER_TEMP:-/tmp}/android-entry-probe.txt"
 # Debug-only diakitw.test.offline suppresses all app background requests throughout this run.
-adb shell am instrument -w -e mode entry app.diakitw.test/app.diakitw.LayoutProbe > "$report"
+if ! adb shell am instrument -w -e mode entry app.diakitw.test/app.diakitw.LayoutProbe > "$report"; then
+  python3 ci/safe-probe-summary.py "$report" >&2
+  exit 1
+fi
 if ! grep -Fq 'PASS exact visible/accessibility IP / карта; accessibility click directly to IP' "$report" || grep -Fq 'FAIL ' "$report" || grep -Fq 'INSTRUMENTATION_FAILED' "$report"; then
-  echo 'FAIL native entry probe; raw report withheld (may contain IP)' >&2
+  python3 ci/safe-probe-summary.py "$report" >&2
   exit 1
 fi
 check_offline || { echo 'FAIL default network returned during probe' >&2; exit 1; }
