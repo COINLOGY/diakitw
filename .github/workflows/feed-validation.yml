@@ -8,6 +8,7 @@ on:
       - 'manifest.json'
       - 'site.js'
       - 'updates/v1.json'
+      - 'updates/v2.json'
       - 'release/check-publication-surfaces.py'
       - '.github/workflows/feed-validation.yml'
       - 'release/tests/**'
@@ -29,7 +30,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python3 -m unittest discover -s release/tests -p 'test_unified_057_source.py'
+          python3 -m unittest discover -s release/tests -p 'test_unified_101_source.py'
+          python3 release/tests/test_android_signing_generation_feeds.py
           node release/check-feed.cjs
           python3 release/check-publication-surfaces.py
           cmp macdir/Sources/MacdirCore/UpdateChecker.swift ios/Sources/UpdateChecker.swift
@@ -43,6 +45,6 @@ jobs:
           shasum -a 256 .ci-scratch/json.jar
           javac -cp .ci-scratch/json.jar -d .ci-scratch/java-current diakitw-android/app/src/main/java/app/diakitw/Updates.java release/FeedCheck.java
           java -cp .ci-scratch/json.jar:.ci-scratch/java-current app.diakitw.FeedCheck release/fixtures/v1-0.5.4.json
-          python3 -c 'from pathlib import Path; s=Path("diakitw-android/app/src/main/java/app/diakitw/Updates.java").read_text(); assert s.count("compare(v,\"0.5.7\")<=0||build<=57")==1; Path(".ci-scratch/Updates.java").write_text(s.replace("compare(v,\"0.5.7\")<=0||build<=57","compare(v,\"0.5.3\")<=0||build<=53"))'
+          python3 -c 'from pathlib import Path; s=Path("diakitw-android/app/src/main/java/app/diakitw/Updates.java").read_text(); assert s.count("compare(v,\"1.0.1\")<=0||build<=101")==1; Path(".ci-scratch/Updates.java").write_text(s.replace("compare(v,\"1.0.1\")<=0||build<=101","compare(v,\"0.5.3\")<=0||build<=53"))'
           javac -cp .ci-scratch/json.jar -d .ci-scratch/java-old .ci-scratch/Updates.java release/FeedCheck.java
           java -cp .ci-scratch/json.jar:.ci-scratch/java-old app.diakitw.FeedCheck release/fixtures/v1-0.5.4.json old-fixture
