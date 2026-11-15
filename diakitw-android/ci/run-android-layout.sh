@@ -9,7 +9,6 @@ adb install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
 adb shell svc wifi disable
 adb shell svc data disable
 adb shell settings put global airplane_mode_on 1
-adb shell am broadcast -a android.intent.action.AIRPLANE_MODE --ez state true >/dev/null
 [ "$(adb shell settings get global airplane_mode_on | tr -d '\r')" = 1 ]
 # Android ConnectivityService reports "none" only when no default network exists.
 offline=0
