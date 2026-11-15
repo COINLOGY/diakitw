@@ -1,4 +1,4 @@
-"""Unified 0.5.7 (57) source contract; publication feed is gated separately."""
+"""Unified 1.0.1 (57) source contract; publication feed is gated separately."""
 from pathlib import Path
 import json
 import plistlib
@@ -6,10 +6,10 @@ import re
 import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
-VERSION = '0.5.7'
-BUILD = 57
+VERSION = '1.0.1'
+BUILD = 101
 
-class UnifiedSourceVersion(unittest.TestCase):
+class Unified101SourceVersion(unittest.TestCase):
     def test_apple_bundle_versions(self):
         for name in ('macdir', 'ios'):
             with (ROOT / name / 'Info.plist').open('rb') as f:
@@ -27,7 +27,7 @@ class UnifiedSourceVersion(unittest.TestCase):
     def test_android_package_version(self):
         text = (ROOT / 'diakitw-android/app/build.gradle').read_text()
         self.assertRegex(text, r'\bversionCode\s+57\b')
-        self.assertRegex(text, r"\bversionName\s+['\"]0\.5\.7['\"]")
+        self.assertRegex(text, r"\bversionName\s+['\"]1\.0\.1['\"]")
 
     def test_shared_apple_checker_is_current_for_both_platforms(self):
         text = (ROOT / 'macdir/Sources/MacdirCore/UpdateChecker.swift').read_text()
