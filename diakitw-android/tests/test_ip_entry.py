@@ -7,7 +7,7 @@ class IpEntry(unittest.TestCase):
   s=(R/'app/src/main/java/app/diakitw/MainActivity.java').read_text()
   summary=s.split('void updateSummary(){')[1].split('static String flag')[0]
   self.assertIn('"IP / карта · "',summary)
-  self.assertIn('summary.setContentDescription("IP / карта")',summary)
+  self.assertIn("summary.setContentDescription(visible)",summary)
   self.assertIn('summary.setOnClickListener(v->openIpDetails())',s)
   self.assertIn('String ipStatusLabel(){return ipBadge.equals("Снимок")?"Обновлено":ipBadge;}',s)
   self.assertIn('state.setText(ipStatusLabel()',s)
