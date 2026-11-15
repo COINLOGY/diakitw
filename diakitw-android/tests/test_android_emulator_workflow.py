@@ -28,6 +28,8 @@ class AndroidLayoutWorkflow(unittest.TestCase):
             self.assertIn(value, script)
         self.assertNotIn('am broadcast -a android.intent.action.AIRPLANE_MODE', script)
         self.assertIn('probe diagnostics:', script)
+        self.assertIn('adb root', script)
+        self.assertIn('cmd connectivity airplane-mode enable', script)
         self.assertIn('if-no-files-found: error', text)
         self.assertNotIn('continue-on-error: true', text)
     def test_uploaded_screenshot_contains_only_gauge_views(self):
