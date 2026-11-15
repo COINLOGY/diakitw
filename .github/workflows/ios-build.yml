@@ -1,7 +1,7 @@
 name: iOS 0.5.7 unsigned build and smoke
 on:
   push:
-    branches: [feat/release-057-ios, feat/release-057-integration]
+    branches: [feat/release-057-final]
     paths: ["ios/**", ".github/workflows/ios-build.yml"]
   workflow_dispatch:
 permissions:
