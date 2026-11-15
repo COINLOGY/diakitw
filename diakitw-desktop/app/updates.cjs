@@ -28,3 +28,5 @@ class Checker{
  }
 }
 module.exports={ENDPOINT,version,compare,asset,select,fetchManifest,Checker};
+
+module.exports.downloadVerified=(...args)=>require('./portable-update.cjs').downloadVerified(...args);

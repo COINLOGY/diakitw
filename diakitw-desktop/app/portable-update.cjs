@@ -1,0 +1,15 @@
+'use strict';
+const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto'),https=require('node:https');
+const {asset,compare}=require('./updates.cjs');
+function verifiedURL(url,redirect=false){const u=new URL(url);if(u.protocol!=='https:'||u.username||u.password||u.port||u.hash||(!redirect&&u.hostname!=='github.com')||(redirect&&!['github.com','release-assets.githubusercontent.com'].includes(u.hostname)))throw Error('unsafe update URL');return u;}
+function stream(url,get,dest,hash,max,depth=0){return new Promise((resolve,reject)=>{if(depth>3)return reject(Error('redirect limit'));let done=false,req,timer;const finish=(err,value)=>{if(done)return;done=true;clearTimeout(timer);err?reject(err):resolve(value);};try{verifiedURL(url,depth>0);req=get(url,{agent:false,headers:{'Accept-Encoding':'identity',Accept:'application/octet-stream'}},res=>{if([301,302,303,307,308].includes(res.statusCode)){res.resume();try{const next=new URL(res.headers.location,url).href;verifiedURL(next,true);finish(null,stream(next,get,dest,hash,max,depth+1));}catch(e){finish(e);}return;}if(res.statusCode!==200){res.resume();finish(Error('HTTP '+res.statusCode));return;}let count=0;res.on('data',chunk=>{if(done)return;count+=chunk.length;if(count>max){req.destroy();finish(Error('size mismatch'));return;}try{fs.writeSync(dest,chunk);hash.update(chunk);}catch(e){req.destroy();finish(e);}});res.on('end',()=>finish(null,count));res.on('error',finish);});timer=setTimeout(()=>{req.destroy();finish(Error('download timeout'));},120000);req.on('error',finish);}catch(e){finish(e);}});}
+async function downloadVerified(release,platform,current,dir,{get=https.get}={}){
+ if(!['windows-x64','linux-x64'].includes(platform)||!release||compare(release.version,current)<=0)throw Error('incompatible release');
+ const ext=platform==='windows-x64'?'.zip':'.tar.gz',name=`diakitw-${release.version}-${platform}${ext}`;
+ asset(release.asset,release.version);if(new URL(release.asset.url).pathname.split('/').pop()!==name)throw Error('architecture or filename mismatch');
+ fs.mkdirSync(dir,{recursive:true,mode:0o700});if(!fs.lstatSync(dir).isDirectory()||fs.lstatSync(dir).isSymbolicLink())throw Error('unsafe staging directory');
+ const target=path.join(dir,name),temp=path.join(dir,`.${name}.${crypto.randomBytes(16).toString('hex')}.part`);
+ if(fs.existsSync(target)){const existing=fs.readFileSync(target);if(existing.length===release.asset.size&&crypto.createHash('sha256').update(existing).digest('hex')===release.asset.sha256)return target;throw Error('existing archive failed verification');}
+ let fd;try{fd=fs.openSync(temp,'wx',0o600);const hash=crypto.createHash('sha256');const size=await stream(release.asset.url,get,fd,hash,release.asset.size);if(size!==release.asset.size||hash.digest('hex')!==release.asset.sha256)throw Error('download verification failed');fs.fsyncSync(fd);fs.closeSync(fd);fd=null;if(fs.existsSync(target))throw Error('target appeared during download');fs.renameSync(temp,target);return target;}finally{if(fd!==undefined&&fd!==null)fs.closeSync(fd);fs.rmSync(temp,{force:true});}
+}
+module.exports={downloadVerified};
