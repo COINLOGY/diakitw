@@ -42,8 +42,11 @@ for rotation in portrait landscape; do
   if ! grep -Fq 'INSTRUMENTATION_CODE: -1' "$report" || ! grep -Fq 'PASS network arrow native bounds' "$report"; then
     python3 - "$report" <<PYPROBE
 import pathlib,re,sys
-for line in pathlib.Path(sys.argv[1]).read_text(errors="replace").splitlines():
-    if line.startswith(("INSTRUMENTATION_RESULT: stream=FAIL", "INSTRUMENTATION_CODE:", "FAIL ")):
+content=pathlib.Path(sys.argv[1]).read_text(errors="replace")
+lines=content.splitlines()
+print("probe diagnostics: report_bytes=", len(content), "line_count=", len(lines))
+for line in lines[:30]:
+    if line.startswith(("INSTRUMENTATION_", "FAIL ", "Exception", "Error")):
         print("probe diagnostics: " + re.sub(r"\b(?:\d{1,3}\.){3}\d{1,3}\b", "[redacted-ip]", line[:300]))
 PYPROBE
     printf 'FAIL: native layout probe, %s; raw report not published\n' "$rotation" >&2

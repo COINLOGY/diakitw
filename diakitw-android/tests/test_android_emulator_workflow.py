@@ -28,6 +28,7 @@ class AndroidLayoutWorkflow(unittest.TestCase):
             self.assertIn(value, script)
         self.assertNotIn('am broadcast -a android.intent.action.AIRPLANE_MODE', script)
         self.assertIn('probe diagnostics:', script)
+        self.assertIn('report_bytes=', script)
         self.assertIn('adb root', script)
         self.assertIn('cmd connectivity airplane-mode enable', script)
         self.assertIn('ip -o route show default', script)
