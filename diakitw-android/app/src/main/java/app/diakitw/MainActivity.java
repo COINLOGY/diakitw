@@ -3,6 +3,11 @@ package app.diakitw;
 import android.app.*;
 import android.content.*;
 import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageManager;
+import android.content.pm.PackageInstaller;
+import android.content.pm.Signature;
+import android.provider.Settings;
 import android.content.res.Configuration;
 import android.content.res.ColorStateList;
 import android.graphics.*;
@@ -19,6 +24,8 @@ import android.text.SpannableString;
 import android.text.Spanned;
 import android.text.style.ForegroundColorSpan;
 import java.util.Locale;
+import java.io.*;
+import java.security.MessageDigest;
 import java.util.concurrent.*;
 
 public final class MainActivity extends Activity {
@@ -27,10 +34,11 @@ public final class MainActivity extends Activity {
  static final String TEST_OFFLINE="diakitw.test.offline";
  boolean testOffline;
  Updates.Policy updates;Updates.Fetch updateFetch;Thread updateThread;Updates.Release updateOffer;TextView updateNotice;AlertDialog updateDialog;
+ Updates.Download apkDownload;Thread apkThread;volatile int apkGeneration;
  final Handler updateResults=new Handler(Looper.getMainLooper());
  final Runnable updateTick=new Runnable(){public void run(){if(updates==null||!updates.active)return;checkUpdates(false);main.postDelayed(this,3000);}};
  void saveUpdates(){getPreferences(MODE_PRIVATE).edit().putString("updateChannel",updates.channel).putLong("updateSuccess",updates.success).putLong("updateAttempt",updates.attempt).putLong("updateFailure",updates.failure).apply();}
- void stopUpdates(){if(updates!=null)updates.stop();if(updateFetch!=null)updateFetch.cancel();main.removeCallbacks(updateTick);if(updateDialog!=null){updateDialog.dismiss();updateDialog=null;}}
+ void stopUpdates(){if(updates!=null)updates.stop();if(updateFetch!=null)updateFetch.cancel();if(apkDownload!=null)apkDownload.cancel();apkGeneration++;main.removeCallbacks(updateTick);if(updateDialog!=null){updateDialog.dismiss();updateDialog=null;}}
  void checkUpdates(boolean manual){
   if(testOffline)return;
   if(updateThread!=null&&updateThread.isAlive()){if(manual)Toast.makeText(this,"Проверка уже выполняется",Toast.LENGTH_SHORT).show();return;}
@@ -48,9 +56,55 @@ public final class MainActivity extends Activity {
  }
  void showUpdateOffer(){
   final Updates.Release offer=updateOffer;if(offer==null)return;if(updateDialog!=null)updateDialog.dismiss();
-  updateDialog=new AlertDialog.Builder(this).setTitle("Доступна diakitw "+offer.version).setMessage(offer.notes+"\n\nУстановка вручную. Скачать — открыть GitHub в браузере. Автоустановки нет. SHA256 в feed не является независимой подписью.")
-   .setPositiveButton("Скачать",(d,w)->{if(!Updates.validURL(offer.url,offer.version))return;try{Intent browser=new Intent(Intent.ACTION_VIEW,Uri.parse(offer.url));browser.addCategory(Intent.CATEGORY_BROWSABLE);startActivity(browser);}catch(RuntimeException e){showText("Обновления","Не удалось открыть браузер");}})
+  updateDialog=new AlertDialog.Builder(this).setTitle("Доступна diakitw "+offer.version).setMessage(offer.notes+"\n\nAPK загружается из v2 feed, проверяется размер, SHA-256 и сертификат. Установку выполняет Android: для совместимого обновления самой программы ОС может не запросить подтверждение; иначе потребуется подтверждение. SHA-256 feed не является независимой подписью.")
+   .setPositiveButton("Скачать и установить",(d,w)->startApkUpdate(offer))
    .setNegativeButton("Позже",(d,w)->{updateOffer=null;updateNotice.setVisibility(View.GONE);}).show();updateDialog.getWindow().setBackgroundDrawable(panel());
+ }
+ void startApkUpdate(Updates.Release offer){
+  if(testOffline||apkThread!=null&&apkThread.isAlive()||offer!=updateOffer||!Updates.validURL(offer.url,offer.version))return;
+  if(!getPackageManager().canRequestPackageInstalls()){
+   showText("Обновления","Разрешите установку из этого приложения в настройках Android, затем повторите загрузку.");
+   try{startActivity(new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,Uri.parse("package:"+getPackageName())));}catch(RuntimeException ignored){}return;
+  }
+  final Updates.Download run=new Updates.Download();apkDownload=run;final int token=++apkGeneration;updateNotice.setText("Загрузка diakitw "+offer.version+"…");
+  apkThread=new Thread(()->{
+   File apk=new File(getCacheDir(),"verified-update-"+token+"-"+System.nanoTime()+".apk");boolean committed=false;
+   try{run.run(offer,apk);if(run.cancelled||token!=apkGeneration)throw new IOException("cancelled");verifyApkIdentity(apk,offer);if(run.cancelled||token!=apkGeneration)throw new IOException("cancelled");commitApk(apk,offer);committed=true;}
+   catch(IOException|RuntimeException failure){Log.w("diakitw","APK update rejected",failure);}
+   finally{apk.delete();}
+   final boolean submitted=committed;updateResults.post(()->{
+    if(apkDownload==run)apkDownload=null;
+    if(token!=apkGeneration||!updates.active||run.cancelled)return;
+    if(submitted)updateNotice.setText("APK проверен · ожидание установщика Android");
+    else showText("Обновления","Загрузка, проверка или установка APK не удалась.");
+   });
+  },"update-apk");apkThread.setDaemon(true);apkThread.start();
+ }
+ static String signerHash(Signature signature)throws IOException{
+  try{byte[] hash=MessageDigest.getInstance("SHA-256").digest(signature.toByteArray());StringBuilder hex=new StringBuilder(64);for(byte b:hash)hex.append(String.format(Locale.US,"%02x",b&255));return hex.toString();}catch(java.security.NoSuchAlgorithmException e){throw new IOException(e);}
+ }
+ void verifyApkIdentity(File apk,Updates.Release offer)throws IOException{
+  PackageManager pm=getPackageManager();PackageInfo archive=pm.getPackageArchiveInfo(apk.getAbsolutePath(),PackageManager.GET_SIGNING_CERTIFICATES);
+  PackageInfo installed;try{installed=pm.getPackageInfo(getPackageName(),PackageManager.GET_SIGNING_CERTIFICATES);}catch(PackageManager.NameNotFoundException e){throw new IOException("installed identity",e);}
+  if(archive==null||!getPackageName().equals(archive.packageName)||archive.getLongVersionCode()!=offer.build||archive.getLongVersionCode()<=installed.getLongVersionCode()||!Updates.SIGNER_SHA256.equals(singleSigner(archive))||!Updates.SIGNER_SHA256.equals(singleSigner(installed)))throw new IOException("APK identity mismatch");
+ }
+ static String singleSigner(PackageInfo info)throws IOException{
+  if(info.signingInfo==null||info.signingInfo.hasMultipleSigners())throw new IOException("missing/multiple signers");
+  Signature[] signers=info.signingInfo.getApkContentsSigners();if(signers==null||signers.length!=1)throw new IOException("signer count");return signerHash(signers[0]);
+ }
+ void commitApk(File apk,Updates.Release offer)throws IOException{
+  PackageInstaller installer=getPackageManager().getPackageInstaller();PackageInstaller.SessionParams params=new PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL);params.setAppPackageName(getPackageName());params.setSize(offer.size);
+  PackageInfo archive=getPackageManager().getPackageArchiveInfo(apk.getAbsolutePath(),0);
+  if(archive==null||archive.applicationInfo==null||!getPackageName().equals(archive.packageName))throw new IOException("APK identity unavailable");
+  // Self-update only: verified installed package and APK above; OS may still demand confirmation.
+  if(Build.VERSION.SDK_INT>=31&&Updates.mayRequestNoUserAction(Build.VERSION.SDK_INT,archive.applicationInfo.targetSdkVersion))params.setRequireUserAction(PackageInstaller.SessionParams.USER_ACTION_NOT_REQUIRED);
+  int id=installer.createSession(params);boolean committed=false;
+  try(PackageInstaller.Session session=installer.openSession(id)){
+   try(InputStream in=new FileInputStream(apk);OutputStream out=session.openWrite("base.apk",0,offer.size)){byte[] buffer=new byte[16384];int n;while((n=in.read(buffer))!=-1)out.write(buffer,0,n);session.fsync(out);}
+   Intent callback=new Intent(this,UpdateInstallReceiver.class).setAction("app.diakitw.UPDATE_INSTALL");callback.putExtra("session",id);
+   PendingIntent pending=PendingIntent.getBroadcast(this,id,callback,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_MUTABLE);
+   session.commit(pending.getIntentSender());committed=true;
+  }finally{if(!committed)installer.abandonSession(id);}
  }
  final Handler main=new Handler(Looper.getMainLooper());
  final Handler speedResults=new Handler(Looper.getMainLooper());
@@ -98,7 +152,7 @@ public final class MainActivity extends Activity {
  GradientDrawable shape(int color,int stroke,int radius){GradientDrawable d=new GradientDrawable();d.setColor(color);d.setCornerRadius(dp(radius));d.setStroke(dp(1),stroke);return d;}
  GradientDrawable panel(){return shape(CARD,LINE,20);}
  void showText(String title,String message){AlertDialog d=new AlertDialog.Builder(this).setTitle(title).setMessage(message).setPositiveButton("Понятно",null).show();d.getWindow().setBackgroundDrawable(panel());d.getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(BLUE);}
- void showHelp(String title,String message){AlertDialog d=new AlertDialog.Builder(this).setTitle(title).setMessage(message+"\n\nОбновления: HTTPS GitHub Pages, до 32 KiB, 10 с. Автоматически раз в 24 ч при активном приложении, без автоустановки. GitHub видит IP. Канал по умолчанию: тестовый.").setNeutralButton("Обновления",(x,w)->updatesMenu()).setPositiveButton("Понятно",null).show();d.getWindow().setBackgroundDrawable(panel());}
+ void showHelp(String title,String message){AlertDialog d=new AlertDialog.Builder(this).setTitle(title).setMessage(message+"\n\nОбновления: HTTPS GitHub Pages, до 32 KiB, 10 с. Проверка раз в 24 ч при активном приложении. После согласия APK загружается и сверяется с v2 feed и закреплённым сертификатом; установку выполняет Android. Для подходящего обновления самой программы ОС может не запросить подтверждение; иначе запросит. Канал по умолчанию: тестовый.").setNeutralButton("Обновления",(x,w)->updatesMenu()).setPositiveButton("Понятно",null).show();d.getWindow().setBackgroundDrawable(panel());}
  void help(){showHelp("Обзор · diakitw 1.0.1","RAM: (totalMem − availMem) / totalMem. Хранилище: StatFs total − available, том данных приложения; не здоровье накопителя. Батарея: системный заряд. Нажмите карточку для подробностей. Недоступные показания: Н/Д, без стрелки. Шкалы 0–100%: до 20% зелёный, до 80% синий, выше красный; для заряда батареи цвета обращены. RAM и хранилище: занято / всего GiB.\n\nCPU APP: только процесс diakitw, не нагрузка всего телефона. Разность CPU-времени / монотонное время / число доступных логических CPU. Первый, сброшенный и задержанный более 5 с интервал — Н/Д. SWAP и UID-трафик не показываются.\n\nТест интернета запускается только вручную, отдельно от мониторинга. HTTP RTT — не ICMP ping; включает установление соединения, TLS и обработку сервера. Потери пакетов не измеряются. HTTP jitter — среднее абсолютных разностей соседних успешных проб, только при 2–3 пробах. Скорости одного короткого потока включают накладные задержки и не являются максимумом линии.\n\nСбор и тест останавливаются при уходе из приложения, повороте или закрытии теста. Последний отчёт сохраняется локально и доступен через «Последний отчёт / JSON». Payload-файлы не создаются.");}
  void updateSummary(){
   String label="IP / карта · "+ipStatusLabel();
