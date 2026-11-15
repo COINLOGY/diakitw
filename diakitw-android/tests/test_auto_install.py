@@ -27,6 +27,10 @@ class AutoInstallWiring(unittest.TestCase):
         activity = (SRC/'MainActivity.java').read_text()
         self.assertIn('Updates.select(run.run(),channel,BuildConfig.VERSION_NAME,BuildConfig.VERSION_CODE)', activity)
 
+    def test_version_constants_are_generated_by_android_gradle(self):
+        gradle = (ROOT/'app/build.gradle').read_text()
+        self.assertIn('buildFeatures { buildConfig true }', gradle)
+
     def test_install_permission_and_receiver_are_explicit(self):
         manifest = (ROOT/'app/src/main/AndroidManifest.xml').read_text()
         self.assertIn('android.permission.REQUEST_INSTALL_PACKAGES', manifest)
