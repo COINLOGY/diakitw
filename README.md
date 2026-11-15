@@ -1,35 +1,26 @@
-# diakitw — macOS 0.5.6 (build 56); остальные платформы 0.5.5a (build 55)
+# diakitw 1.0.1 (build 101) — предварительный релиз
 
-[Скачать macOS 0.5.6](https://github.com/COINLOGY/diakitw/releases/tag/v0.5.6) · [Скачать остальные 0.5.5a](https://github.com/COINLOGY/diakitw/releases/tag/v0.5.5) · [Сайт / Website](https://coinlogy.github.io/diakitw/) · [Mac instructions](release/0.5.6.md) · [RU/EN 0.5.5a](release/0.5.5a.md) · [MIT](LICENSE) · [Build](BUILDING.md)
-
-## ⚠ Android: обязательная миграция / required migration
-
-**Android: НОВЫЙ ключ. Старое приложение необходимо удалить; данные, настройки и история могут потеряться. Обновление поверх невозможно. Следующие версии используют этот же ключ. NEW signing key: uninstall the old Android app first; data, settings and history may be lost. No in-place upgrade; subsequent versions use this same key.**
-
-Save needed reports outside the app first. Release certificate SHA-256: `f911dd1063fb3acb2ca7adb474c6ffdbc1b81e36eb5b4f4854dd25f7620750ab`. APK v2/v3 verified; the retained candidate filename is not debug signing.
+[Скачать v1.0.1](https://github.com/COINLOGY/diakitw/releases/tag/v1.0.1) · [Сайт / Website](https://coinlogy.github.io/diakitw/) · [Примечания](release/1.0.1.md) · [MIT](LICENSE) · [Build](BUILDING.md)
 
 ## Сборки / Downloads
+- [diakitw-1.0.1-macos-arm64.dmg](https://github.com/COINLOGY/diakitw/releases/download/v1.0.1/diakitw-1.0.1-macos-arm64.dmg) — 1609755 байт; SHA-256 `f72578912576dac5bf579936c99c1b9446a3dcd29f140d51a3557a049fe4631c`
+- [diakitw-1.0.1-macos-x86_64.dmg](https://github.com/COINLOGY/diakitw/releases/download/v1.0.1/diakitw-1.0.1-macos-x86_64.dmg) — 1725258 байт; SHA-256 `a83f20a32c01012a1dd6cb87ff88c2e3ea3b254ef4633f05b86eab04e89effab`
+- [diakitw-android-1.0.1.apk](https://github.com/COINLOGY/diakitw/releases/download/v1.0.1/diakitw-android-1.0.1.apk) — 123663 байт; SHA-256 `9158b679db2f1bfc6c3ce7c1ce5736c74591d8eb85fdeeafb34acabcdf9a3064`
+- [diakitw-1.0.1-windows-x64.zip](https://github.com/COINLOGY/diakitw/releases/download/v1.0.1/diakitw-1.0.1-windows-x64.zip) — 158111800 байт; SHA-256 `c6912be6785d98878c4f9477172e04b64fa690d7e24d7f2495d2d7ccb27bf293`
+- [diakitw-1.0.1-linux-x64.tar.gz](https://github.com/COINLOGY/diakitw/releases/download/v1.0.1/diakitw-1.0.1-linux-x64.tar.gz) — 124049541 байт; SHA-256 `e8913437ea19d7864ebd89e920ebd41ec478db117fd84df9dccc994bcd6e3f8f`
 
-- [diakitw-0.5.6-macos-arm64.dmg](https://github.com/COINLOGY/diakitw/releases/download/v0.5.6/diakitw-0.5.6-macos-arm64.dmg) — Apple Silicon; SHA-256 `6dee475414c194d69e3635f22445c4cb027ca8868a7c3e99f01d6b20a6dbc1ba`
-- [diakitw-0.5.6-macos-x86_64.dmg](https://github.com/COINLOGY/diakitw/releases/download/v0.5.6/diakitw-0.5.6-macos-x86_64.dmg) — Intel; SHA-256 `c72df7c6de13bc0205e65b2ab8389990e67fffbc967b34a10799e4dd878c0a74`
-- [diakitw-0.5.5a-windows-x64.zip](https://github.com/COINLOGY/diakitw/releases/download/v0.5.5/diakitw-0.5.5a-windows-x64.zip)
-- [diakitw-0.5.5a-linux-x64.tar.gz](https://github.com/COINLOGY/diakitw/releases/download/v0.5.5/diakitw-0.5.5a-linux-x64.tar.gz)
-- [diakitw-android-0.5.5a-candidate.apk](https://github.com/COINLOGY/diakitw/releases/download/v0.5.5/diakitw-android-0.5.5a-candidate.apk)
+[SHA256SUMS-1.0.1.txt](https://github.com/COINLOGY/diakitw/releases/download/v1.0.1/SHA256SUMS-1.0.1.txt) — сверьте скачанные байты.
 
-- [diakitw-0.5.5-ios-SOURCE.zip](https://github.com/COINLOGY/diakitw/releases/download/v0.5.5/diakitw-0.5.5-ios-SOURCE.zip)
-- [diakitw-0.5.5-ios-UNSIGNED-device.app.zip](https://github.com/COINLOGY/diakitw/releases/download/v0.5.5/diakitw-0.5.5-ios-UNSIGNED-device.app.zip)
-- [diakitw-0.5.5-ios-simulator.app.zip](https://github.com/COINLOGY/diakitw/releases/download/v0.5.5/diakitw-0.5.5-ios-simulator.app.zip)
+## Подпись и установка
 
-macOS 14+: ad-hoc, no Developer ID/notarization. Windows x64: no Authenticode. Linux x64: portable, do not disable sandbox. Android: API26+; uninstall migration required.
+**Android: новый постоянный ключ. APK 0.5.x нельзя обновить поверх: сохраните нужные данные, удалите старое приложение и установите 1.0.1; данные и настройки могут потеряться.** Сертификат нового APK SHA-256 `d9298271dcb4e32856abdc2111b35ae43b7770b1c9fbfefa66100e899a58abc8`. Старый v1 feed не предлагает несовместимый APK; новый клиент использует v2 feed. Android может требовать разрешения системного установщика.
 
-**iOS device APP is UNSIGNED: не устанавливаемый IPA; нет автоматической установки / not an installable IPA; no automatic installation.** iOS16+; developer signing/provisioning required. Simulator ZIP is for Xcode Simulator; SOURCE ZIP is the project, not a phone installer.
+**macOS:** DMG имеют ad-hoc подпись без Developer ID и нотариализации; Gatekeeper может отклонить установку. Не отключайте защиту ради запуска.
+**Windows:** portable ZIP без Authenticode; SmartScreen может предупредить/заблокировать. Не отключайте защиту.
+**Linux:** portable tar.gz; исполняемый бит сохранён, графическая сессия и GTK/NSS/ALSA требуются.
 
-Mobile: одна кнопка «Старт», HTTP ping RTT в миллисекундах (не ICMP), JSON / single Start, HTTP ping RTT in ms (not ICMP), JSON reports.
+**iOS 1.0.1 только компилируется и тестируется: установочного iOS-файла в v1.0.1 нет.**
 
-Обновления: в diakitw 0.5.5a откройте меню **«Проверить обновления»**, выберите stable **или** preview и нажмите «Проверить обновления». На Mac должно появиться предложение 0.5.6; кнопка «Скачать в браузере» открывает DMG, но не устанавливает его. Повторная ручная проверка доступна через 60 секунд после предыдущей. Для проверки без установки используйте [живой манифест обновлений](https://coinlogy.github.io/diakitw/updates/v1.json). Windows/Linux/Android остаются на 0.5.5a; iOS unsigned не предлагается. Нет автоматической установки и проверки скачанного файла в приложении. Клиентам 0.5.3 и ранее нужна однократная ручная установка.
+Проверка наличия обновления не означает автоматическую установку: Windows/Linux/macOS устанавливаются вручную; Android передаёт проверенный APK системному установщику, который может запросить подтверждение. Реальное обновление 1.0.1→следующая версия не испытано.
 
-Проверки / Checks: Desktop 62 tests, Android fixtures/signature/alignment; macOS 0.5.6 — DMG/privacy/signature gates и автономный arm64 self-check. Исполнение 0.5.6 на Intel/Rosetta не проверялось. Нет проверки установленного GUI, миграции на физическом Android или Windows/Linux GUI. См. ограничения в примечаниях к релизам.
-
-[SHA256SUMS для 0.5.5a](https://github.com/COINLOGY/diakitw/releases/download/v0.5.5/SHA256SUMS); контрольные суммы macOS 0.5.6 приведены выше и в [примечаниях к выпуску](release/0.5.6.md). Совпадение подтверждает байты, не личность издателя. Не отключайте защиту ОС.
-
-Исходники macOS 0.5.6: [tag v0.5.6](https://github.com/COINLOGY/diakitw/tree/v0.5.6), [ZIP](https://github.com/COINLOGY/diakitw/archive/refs/tags/v0.5.6.zip). Исходники текущей страницы загрузок: [ветка main](https://github.com/COINLOGY/diakitw/tree/main). Остальные платформы: [tag v0.5.5](https://github.com/COINLOGY/diakitw/tree/v0.5.5). Own code MIT; [NOTICE](NOTICE) and [THIRD_PARTY.md](THIRD_PARTY.md) remain intact. [Privacy](PRIVACY.md) · [Security](SECURITY.md) · [Previous releases](https://github.com/COINLOGY/diakitw/releases).
+Ранее опубликованные версии остаются в [истории релизов](https://github.com/COINLOGY/diakitw/releases).

@@ -32,6 +32,7 @@ jobs:
           set -euo pipefail
           python3 -m unittest discover -s release/tests -p 'test_unified_101_source.py'
           python3 release/tests/test_android_signing_generation_feeds.py
+          python3 release/tests/test_publication_101.py
           node release/check-feed.cjs
           python3 release/check-publication-surfaces.py
           cmp macdir/Sources/MacdirCore/UpdateChecker.swift ios/Sources/UpdateChecker.swift

@@ -2,6 +2,34 @@
   "schema": 1,
   "releases": [
     {
+      "version": "1.0.1",
+      "build": 101,
+      "channel": "preview",
+      "notes": "diakitw 1.0.1 preview: IP country flags, network indicators. Manual desktop/macOS installation; macOS ad-hoc may be rejected by Gatekeeper. Android new key uses separate v2 feed; iOS no release asset.",
+      "assets": {
+        "macos-arm64": {
+          "url": "https://github.com/COINLOGY/diakitw/releases/download/v1.0.1/diakitw-1.0.1-macos-arm64.dmg",
+          "size": 1609755,
+          "sha256": "f72578912576dac5bf579936c99c1b9446a3dcd29f140d51a3557a049fe4631c"
+        },
+        "macos-x86_64": {
+          "url": "https://github.com/COINLOGY/diakitw/releases/download/v1.0.1/diakitw-1.0.1-macos-x86_64.dmg",
+          "size": 1725258,
+          "sha256": "a83f20a32c01012a1dd6cb87ff88c2e3ea3b254ef4633f05b86eab04e89effab"
+        },
+        "windows-x64": {
+          "url": "https://github.com/COINLOGY/diakitw/releases/download/v1.0.1/diakitw-1.0.1-windows-x64.zip",
+          "size": 158111800,
+          "sha256": "c6912be6785d98878c4f9477172e04b64fa690d7e24d7f2495d2d7ccb27bf293"
+        },
+        "linux-x64": {
+          "url": "https://github.com/COINLOGY/diakitw/releases/download/v1.0.1/diakitw-1.0.1-linux-x64.tar.gz",
+          "size": 124049541,
+          "sha256": "e8913437ea19d7864ebd89e920ebd41ec478db117fd84df9dccc994bcd6e3f8f"
+        }
+      }
+    },
+    {
       "version": "0.5.6",
       "build": 56,
       "channel": "stable",

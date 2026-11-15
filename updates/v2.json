@@ -1,4 +1,18 @@
 {
   "schema": 1,
-  "releases": []
+  "releases": [
+    {
+      "version": "1.0.1",
+      "build": 101,
+      "channel": "preview",
+      "notes": "Android 1.0.1 preview, new signing key. Old APK must be uninstalled first; data loss possible. Android may require installer confirmation.",
+      "assets": {
+        "android": {
+          "url": "https://github.com/COINLOGY/diakitw/releases/download/v1.0.1/diakitw-android-1.0.1.apk",
+          "size": 123663,
+          "sha256": "9158b679db2f1bfc6c3ce7c1ce5736c74591d8eb85fdeeafb34acabcdf9a3064"
+        }
+      }
+    }
+  ]
 }
