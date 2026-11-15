@@ -29,6 +29,7 @@ jobs:
           mkdir -p evidence/v102 dist
           node scripts/build-v102.mjs win32
           node scripts/build-v102.mjs linux
+          node scripts/normalize-pe-v102.mjs
           node scripts/verify-bundles-v102.mjs
           python3 scripts/verify-upstream-v102.py
           python3 scripts/archive-v102.py

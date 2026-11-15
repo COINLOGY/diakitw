@@ -14,7 +14,7 @@ assert 'scalePercent' not in hud
 assert 'toggleVisibility' in hud and 'toggleRAMMode' in hud
 update = hud.split('private func update(', 1)[1]
 assert 'item?.length' not in update and 'StatusTypography.width' not in update
-assert 'indices.isEmpty ? NSImage' in update
+assert 'item?.button?.image = nil' in update and 'flag: location?.flag ?? "🌐"' in update
 assert 'StatusPresentation.saveVisible' in hud and 'StatusPresentation.saveRAMMode' in hud
 gauge = (root / 'Sources/macdir/NeedleGauge.swift').read_text()
 assert 'var upperLabel = "100%"' in gauge and '["0%", "50%", "100%"]' in gauge
