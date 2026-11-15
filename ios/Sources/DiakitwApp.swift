@@ -127,7 +127,7 @@ struct ContentView: View {
                     MetricCard(title: "Батарея", number: number(model.charge.map { $0*100 }, suffix: "%"), detail: model.power, value: model.charge, battery: true)
                 }
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("IP · \(model.country) · \(model.ip)").font(.subheadline.monospaced()).textSelection(.enabled)
+                    Text("IP · \(model.country) \(NetworkPolicy.flag(for: model.country)) · \(model.ip)").font(.subheadline.monospaced()).textSelection(.enabled)
                     if let city = model.geo?.city { Text("≈ " + city).font(.subheadline) }
                     HStack {
                         Text(model.ipStatus)
@@ -156,7 +156,7 @@ struct ContentView: View {
                     .accessibilityIdentifier("speed-start-stop")
                     .id("speed-controls")
                 UpdateSection(checker: updates)
-                Text("0.5.5a · iOS · build 55").font(.caption2).foregroundStyle(Theme.muted)
+                Text("0.5.7 · iOS · build 57").font(.caption2).foregroundStyle(Theme.muted)
             }.padding(16).frame(maxWidth: 1000)
                 .frame(maxWidth: .infinity)
         }

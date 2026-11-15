@@ -1,6 +1,6 @@
-# diakitw iOS 0.5.5a (55)
+# diakitw iOS 0.5.7 (57)
 
-User-facing version **0.5.5a**. Apple platform metadata and updater identity are **0.5.5**, build **55**. The letter is deliberately not placed in `CFBundleShortVersionString`, the numeric update parser or the release tag (`v0.5.5`).
+User-facing version **0.5.7**. Apple platform metadata and updater identity are **0.5.7**, build **57**. The updater only offers a newer, matching iOS asset when the public feed actually contains one; it does not install unsigned archives.
 
 Unsigned build-only candidate, iOS deployment target 16.0. No certificates, Apple account, device installation or GitHub Release publication in this workflow. Device ZIP **cannot be installed directly**. A developer must sign/provision an appropriate device build; the simulator archive is not an iPhone installer.
 

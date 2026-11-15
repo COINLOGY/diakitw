@@ -31,11 +31,11 @@ final class FixtureProtocol: URLProtocol {
             try UpdateContract.select(d, channel: channel, platform: platform, current: current, currentBuild: build)
         }
         #if os(iOS)
-        require(UpdateContract.version == "0.5.5" && UpdateContract.build == 55, "numeric iOS identity")
+        require(UpdateContract.version == "0.5.7" && UpdateContract.build == 57, "numeric iOS identity")
         #else
         require(UpdateContract.version == "0.5.7" && UpdateContract.build == 57, "host checks shared macOS identity")
         #endif
-        // 0.5.5a is a UI label, never a parser version or an invented install offer.
+        // A nonnumeric UI label is never a parser version or an invented install offer.
         rejects("letter version") { _ = try UpdateContract.Version("0.5.5a") }
         let androidOnly = try fixture(version: "0.5.5", build: 55, platform: "android")
         require(try select(androidOnly, platform: "ios-unsigned", current: "0.5.4", build: 54) == nil, "Android-only release must not offer unsigned iOS install")

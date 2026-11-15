@@ -72,6 +72,14 @@ enum NetworkPolicy {
         result.source = "2ip через EMCx"
         return result
     }
+    // Only validated ISO country codes get a flag. Unknown geography remains unknown.
+    static func flag(for code: String) -> String {
+        guard code.unicodeScalars.count == 2,
+              code.unicodeScalars.allSatisfy({ (65...90).contains($0.value) }),
+              Locale.Region.isoRegions.contains(where: { $0.identifier == code }) else { return "" }
+        let scalars = code.unicodeScalars.map { UnicodeScalar(0x1F1E6 + Int($0.value) - 65)! }
+        return String(String.UnicodeScalarView(scalars))
+    }
     static func egress(_ data: Data) throws -> Egress {
         guard data.count <= 4096,
               let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
