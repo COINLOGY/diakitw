@@ -10,7 +10,7 @@ import java.util.concurrent.*;
 
 /** Discovery only. Never downloads or installs an APK. */
 public final class Updates {
- public static final String ENDPOINT="https://coinlogy.github.io/diakitw/updates/v1.json";
+ public static final String ENDPOINT="https://coinlogy.github.io/diakitw/updates/v2.json";
  static final Set<String> PLATFORMS=new HashSet<>(Arrays.asList("macos-arm64","macos-x86_64","windows-x64","linux-x64","android"));
  static int[] version(String s){if(s==null||!s.matches("(0|[1-9][0-9]{0,5})\\.(0|[1-9][0-9]{0,5})\\.(0|[1-9][0-9]{0,5})"))throw new IllegalArgumentException("version");String[] p=s.split("\\.");return new int[]{Integer.parseInt(p[0]),Integer.parseInt(p[1]),Integer.parseInt(p[2])};}
  static int compare(String a,String b){int[] x=version(a),y=version(b);for(int i=0;i<3;i++)if(x[i]!=y[i])return Integer.compare(x[i],y[i]);return 0;}
@@ -22,7 +22,7 @@ public final class Updates {
   if(body==null||body.getBytes(StandardCharsets.UTF_8).length>32768||!Arrays.asList("stable","preview").contains(channel))throw new IllegalArgumentException("manifest");
   JSONObject root=new JSONObject(body);if(integer(root,"schema",1)!=1)throw new IllegalArgumentException("schema");JSONArray releases=root.getJSONArray("releases");if(releases.length()>64)throw new IllegalArgumentException("releases");Release best=null;
   for(int i=0;i<releases.length();i++){JSONObject r=releases.getJSONObject(i);String v=text(r,"version"),c=text(r,"channel"),notes=text(r,"notes");version(v);int build=(int)integer(r,"build",2147483647L);if(!Arrays.asList("stable","preview").contains(c)||notes.length()>4096)throw new IllegalArgumentException("release");JSONObject assets=r.getJSONObject("assets");Iterator<String> keys=assets.keys();while(keys.hasNext()){String key=keys.next();if(!PLATFORMS.contains(key))throw new IllegalArgumentException("platform");JSONObject a=assets.getJSONObject(key);if(!validURL(text(a,"url"),v)||!text(a,"sha256").matches("[a-f0-9]{64}"))throw new IllegalArgumentException("asset");integer(a,"size",8589934592L);}
-   if(!c.equals(channel)||!assets.has("android")||compare(v,"0.5.7")<=0||build<=57)continue;
+   if(!c.equals(channel)||!assets.has("android")||compare(v,"1.0.1")<=0||build<=101)continue;
    if(best==null||compare(v,best.version)>0)best=new Release(v,build,notes,text(assets.getJSONObject("android"),"url"));
   }return best;
  }catch(JSONException|NullPointerException e){throw new IllegalArgumentException("manifest",e);}}

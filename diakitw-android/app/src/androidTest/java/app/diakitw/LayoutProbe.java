@@ -152,7 +152,7 @@ public final class LayoutProbe extends Instrumentation {
   if("proxy".equals(mode)){ProxyProbe.run();out.putString("stream","PASS proxy fixtures\n");finish(Activity.RESULT_OK,out);return;}
   if("ip".equals(mode)){IpProbe.run();out.putString("stream","PASS IP parsing IPv4/IPv6 and malformed schema\n");finish(Activity.RESULT_OK,out);return;}
   Intent launch=new Intent(getTargetContext(),MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-  if("arrow".equals(mode))launch.putExtra("diakitw.test.offline",true);
+  if("arrow".equals(mode)||"entry".equals(mode))launch.putExtra("diakitw.test.offline",true);
   MainActivity a=(MainActivity)startActivitySync(launch);
   Thread.sleep("arrow".equals(mode)?300:3500);waitForIdleSync();
   if("cpu".equals(mode)){
