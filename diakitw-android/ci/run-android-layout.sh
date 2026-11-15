@@ -46,7 +46,7 @@ printf '%s\n' "$GITHUB_SHA" > emulator-evidence/source-commit.txt
 for rotation in portrait landscape; do
   adb shell settings put system accelerometer_rotation 0
   if [ "$rotation" = portrait ]; then angle=0; else angle=1; fi
-  adb shell settings put system user_rotation "$angle"
+  adb shell wm user-rotation lock "$angle"
   sleep 3
   report="${RUNNER_TEMP:-/tmp}/android-layout-$rotation.txt"
   adb shell am instrument -w -e mode arrow -e orientation "$angle" app.diakitw.test/app.diakitw.LayoutProbe > "$report"
