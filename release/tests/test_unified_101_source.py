@@ -1,4 +1,4 @@
-"""Unified 1.0.1 (57) source contract; publication feed is gated separately."""
+"""Unified 1.0.1 (101) source contract; publication feed is gated separately."""
 from pathlib import Path
 import json
 import plistlib
@@ -35,6 +35,12 @@ class Unified101SourceVersion(unittest.TestCase):
         builds = re.findall(r'public static let build = (\d+)', text)
         self.assertEqual(versions, [VERSION, VERSION])
         self.assertEqual(builds, [str(BUILD), str(BUILD)])
+
+    def test_ios_ci_budget_exceeds_observed_full_smoke_runtime(self):
+        workflow = (ROOT / '.github/workflows/ios-build.yml').read_text()
+        timeout = re.search(r'timeout-minutes: (\d+)', workflow)
+        self.assertIsNotNone(timeout)
+        self.assertGreaterEqual(int(timeout.group(1)), 45)
 
 if __name__ == '__main__':
     unittest.main()
