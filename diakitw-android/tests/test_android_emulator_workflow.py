@@ -32,6 +32,7 @@ class AndroidLayoutWorkflow(unittest.TestCase):
         self.assertIn('report line:', script)
         self.assertIn('default-network-state:', script)
         self.assertIn('wm user-rotation lock', script)
+        self.assertIn('wm size \"$size\"', script)
         self.assertNotIn('grep -Eq', script)
         self.assertIn('adb root', script)
         self.assertIn('adb shell id -u', script)
