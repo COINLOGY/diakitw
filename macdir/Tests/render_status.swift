@@ -11,11 +11,11 @@ import AppKit
   alternate[5] = "  0.0M↑"
   let variants = [example] + StatusTypography.templates + [alternate,
    ["  0.0%", "100.0%", "  0.0G", "  7.3G", "  0.0K↓", "100.0M↑"]]
-  let width = StatusTypography.fixedWidth
+  let width = StatusTypography.width(indices: Array(0..<6), includingFlag: true)
   precondition(StatusTypography.numericFont.pointSize == 13)
   precondition(StatusTypography.numericFont.fontName.contains("Semibold"))
-  precondition(width < 380, "Must remain compact, not consume the system menu width")
-  let measured = variants.map { StatusTypography.title($0).size() }
+  precondition(width < 420, "Flag and metrics must remain compact in the system menu")
+  let measured = variants.map { StatusTypography.title($0, flag: "🇩🇪").size() }
   FileHandle.standardError.write(Data("METRICS width=\(width) sizes=\(measured) font=\(StatusTypography.numericFont.fontName)\n".utf8))
   for size in measured {
    precondition(size.height <= 22 && size.width + 16 <= width)
@@ -23,9 +23,9 @@ import AppKit
   }
   for mask in 0..<64 {
    let indices = (0..<6).filter { mask & (1 << $0) != 0 }
-   let reserved = StatusTypography.width(indices: indices)
-   if indices.isEmpty { precondition(reserved == 28); continue }
-   let widths = variants.map { fields in StatusTypography.title(indices.map { fields[$0] }).size().width }
+   let reserved = StatusTypography.width(indices: indices, includingFlag: true)
+   precondition(reserved >= 28, "Flag remains visible even with all metrics hidden")
+   let widths = variants.map { fields in StatusTypography.title(indices.map { fields[$0] }, flag: "🇩🇪").size().width }
    precondition(widths.allSatisfy { abs($0 - widths[0]) < 0.01 && $0 + 16 <= reserved })
   }
   let colors: [NSColor] = [.systemBlue, .systemBlue, .systemBlue, .systemBlue,
@@ -40,7 +40,7 @@ import AppKit
    appearance.performAsCurrentDrawingAppearance {
     (dark ? NSColor(calibratedWhite: 0.12, alpha: 1) : NSColor(calibratedWhite: 0.94, alpha: 1)).setFill()
     NSRect(x: 0, y: 0, width: width, height: 22).fill()
-    let title = StatusTypography.title(example, colors: colors)
+    let title = StatusTypography.title(example, colors: colors, flag: "🇩🇪")
     title.draw(at: NSPoint(x: (width - title.size().width) / 2, y: (22 - title.size().height) / 2))
    }
    NSGraphicsContext.restoreGraphicsState()

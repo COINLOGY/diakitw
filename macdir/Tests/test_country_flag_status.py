@@ -25,6 +25,9 @@ class CountryInStatus(unittest.TestCase):
   self.assertIn('includingFlag: Bool',source)
   self.assertIn('flag: String?',source)
   self.assertIn('🌐',source)
+ def test_active_render_and_transport_evidence_use_102_path(self):
+  for name in ("render_diagnostics.swift","check_geo_transport.py","prove_gauge_raster_regression.py"):
+   self.assertNotIn("evidence/diakitw-1.0.1",(R/"Tests"/name).read_text(),name)
  def test_swift_render_fixture_asserts_flags(self):
   fixture=(R/'Tests/status_country_flag_checks.swift').read_text()
   for marker in ('🇩🇪','🇫🇮','includingFlag: true'):
@@ -32,4 +35,7 @@ class CountryInStatus(unittest.TestCase):
   build=(R/'build.sh').read_text()
   self.assertIn('Tests/test_country_flag_status.py',build)
   self.assertIn('Tests/status_country_flag_checks.swift',build)
+  render=(R/'Tests/render_status.swift').read_text()
+  self.assertIn('StatusTypography.width(indices: Array(0..<6), includingFlag: true)',render)
+  self.assertIn('flag: "🇩🇪"',render)
 if __name__=='__main__':unittest.main()
