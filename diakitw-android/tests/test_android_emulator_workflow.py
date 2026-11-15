@@ -27,6 +27,7 @@ class AndroidLayoutWorkflow(unittest.TestCase):
                       'run-as app.diakitw cat cache/047-speed-idle.png'):
             self.assertIn(value, script)
         self.assertNotIn('am broadcast -a android.intent.action.AIRPLANE_MODE', script)
+        self.assertIn('probe diagnostics:', script)
         self.assertIn('if-no-files-found: error', text)
         self.assertNotIn('continue-on-error: true', text)
     def test_uploaded_screenshot_contains_only_gauge_views(self):

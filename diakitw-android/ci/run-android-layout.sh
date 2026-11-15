@@ -28,6 +28,12 @@ for rotation in portrait landscape; do
   report="${RUNNER_TEMP:-/tmp}/android-layout-$rotation.txt"
   adb shell am instrument -w -e mode arrow -e orientation "$angle" app.diakitw.test/app.diakitw.LayoutProbe > "$report"
   if ! grep -Fq 'INSTRUMENTATION_CODE: -1' "$report" || ! grep -Fq 'PASS network arrow native bounds' "$report"; then
+    python3 - "$report" <<PYPROBE
+import pathlib,re,sys
+for line in pathlib.Path(sys.argv[1]).read_text(errors="replace").splitlines():
+    if line.startswith(("INSTRUMENTATION_RESULT: stream=FAIL", "INSTRUMENTATION_CODE:", "FAIL ")):
+        print("probe diagnostics: " + re.sub(r"\b(?:\d{1,3}\.){3}\d{1,3}\b", "[redacted-ip]", line[:300]))
+PYPROBE
     printf 'FAIL: native layout probe, %s; raw report not published\n' "$rotation" >&2
     exit 1
   fi
