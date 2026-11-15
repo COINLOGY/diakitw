@@ -120,7 +120,7 @@ public final class LayoutProbe extends Instrumentation {
   if("live".equals(mode)||"live-replay".equals(mode)){live("live-replay".equals(mode));out.putString("stream",report.toString());finish(Activity.RESULT_OK,out);return;}
   if("proxy".equals(mode)){ProxyProbe.run();out.putString("stream","PASS proxy fixtures\n");finish(Activity.RESULT_OK,out);return;}
   if("ip".equals(mode)){IpProbe.run();out.putString("stream","PASS IP parsing IPv4/IPv6 and malformed schema\n");finish(Activity.RESULT_OK,out);return;}
-  MainActivity a=(MainActivity)startActivitySync(new Intent(getTargetContext(),MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+  MainActivity a=(MainActivity)startActivitySync(new Intent(getTargetContext(),MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK).putExtra("diakitw.test.offline","arrow".equals(mode)));
   Thread.sleep(3500);waitForIdleSync();
   if("cpu".equals(mode)){
    ui(()->{a.autoIp.pause();a.stopIp();a.generation++;a.worker.shutdownNow();a.previousCpu=-1;a.previousWall=-1;check(Double.isNaN(a.sample().cpu),"First CPU must be unknown");a.cpu.update(Double.NaN,"Только diakitw");check(Double.isNaN(a.cpu.gauge.fraction),"Unknown CPU needle");check(a.cpu.information.contains("не всего телефона"),"CPU scope");});
