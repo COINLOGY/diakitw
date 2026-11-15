@@ -19,6 +19,7 @@ assert '1.0.2 · iOS · build 102' in (ios / 'Sources/DiakitwApp.swift').read_te
 assert (ios / 'diakitw.xcodeproj/project.pbxproj').read_text().count('MARKETING_VERSION = 1.0.2;CURRENT_PROJECT_VERSION = 102;') == 2
 assert "VERSION = '1.0.2'" in (mac / 'package-diagnostics-dmg.py').read_text()
 assert "BUILD = '102'" in (mac / 'package-diagnostics-dmg.py').read_text()
+assert "'build': '102'" in (mac / 'Tests/verify_ci_artifacts.py').read_text()
 for path in ('macdir/build.sh', 'macdir/ci-build.sh', 'ios/Scripts/ci-build.sh', '.github/workflows/macos-build.yml', '.github/workflows/ios-build.yml'):
     text = (r / path).read_text()
     assert '1.0.2' in text and '0.5.7' not in text, path

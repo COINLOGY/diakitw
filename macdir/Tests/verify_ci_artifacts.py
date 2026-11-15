@@ -44,7 +44,7 @@ with zipfile.ZipFile(ROOT / 'dist/diakitw-1.0.2-arm64/diakitw-1.0.2-macos-arm64.
 result = {
     'commit': os.environ['GITHUB_SHA'],
     'run_url': 'https://github.com/' + os.environ['GITHUB_REPOSITORY'] + '/actions/runs/' + os.environ['GITHUB_RUN_ID'],
-    'version': '1.0.2', 'display_version': '1.0.2', 'build': '101', 'compiler_jobs': 2,
+    'version': '1.0.2', 'display_version': '1.0.2', 'build': '102', 'compiler_jobs': 2,
     'rosetta_available': rosetta, 'artifacts': records,
     'not_run': ['hardware stress/GPU worker', 'live external network/SSH/Keychain', 'installed GUI', 'physical Intel / oldest macOS runtime', 'Developer ID / notarization / Gatekeeper acceptance'],
     'release_published': False,
