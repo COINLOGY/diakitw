@@ -1,11 +1,11 @@
 {
   "name": "diakitw",
   "productName": "diakitw",
-  "version": "0.5.7",
+  "version": "1.0.1",
   "main": "main.cjs",
   "description": "Локальный монитор ресурсов",
   "author": "EMCx",
   "license": "UNLICENSED",
-  "displayVersion": "0.5.7",
-  "build": 57
+  "displayVersion": "1.0.1",
+  "build": 101
 }
