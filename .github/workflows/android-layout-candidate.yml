@@ -2,7 +2,7 @@ name: Android native network-arrow layout — unversioned candidate
 
 on:
   push:
-    branches: [feat/release-057-android]
+    branches: [feat/release-057-final]
   workflow_dispatch:
 
 permissions:
@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   android-layout-candidate:
-    if: github.ref == 'refs/heads/feat/release-057-android'
+    if: github.ref == 'refs/heads/feat/release-057-final'
     runs-on: ubuntu-24.04
     timeout-minutes: 40
     steps:
