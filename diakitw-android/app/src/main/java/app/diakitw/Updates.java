@@ -51,10 +51,15 @@ public final class Updates {
  }
  public static final class Download {
   volatile boolean cancelled;volatile HttpsURLConnection connection;
+  final long deadlineMs;
+  public Download(){this(120000);}
+  Download(long deadlineMs){this.deadlineMs=deadlineMs;}
   public void cancel(){cancelled=true;HttpsURLConnection c=connection;if(c!=null)c.disconnect();}
   public void run(Release offer,File target)throws IOException{
    if(offer==null||!validURL(offer.url,offer.version)||offer.size>MAX_APK||cancelled)throw new IOException("invalid offer");
    URL url=new URL(offer.url);boolean complete=false;
+   ScheduledExecutorService timer=Executors.newSingleThreadScheduledExecutor(r->{Thread t=new Thread(r,"apk-deadline");t.setDaemon(true);return t;});
+   ScheduledFuture<?> timeout=timer.schedule(this::cancel,deadlineMs,TimeUnit.MILLISECONDS);
    try{
     for(int hop=0;hop<=5;hop++){
      if(cancelled||!trusted(url))throw new IOException("untrusted APK URL");
@@ -64,19 +69,20 @@ public final class Updates {
      try(InputStream in=c.getInputStream();OutputStream out=new FileOutputStream(target)){verify(in,offer.size,offer.sha256,out,()->cancelled);}
      if(cancelled)throw new IOException("cancelled");complete=true;return;
     }throw new IOException("too many redirects");
-   }finally{HttpsURLConnection c=connection;if(c!=null)c.disconnect();connection=null;if(!complete)target.delete();}
+   }finally{HttpsURLConnection c=connection;if(c!=null)c.disconnect();connection=null;timeout.cancel(false);timer.shutdownNow();if(!complete)target.delete();}
   }
   static boolean trusted(URL url){if(!"https".equals(url.getProtocol())||url.getUserInfo()!=null||url.getPort()!=-1||url.getRef()!=null)return false;String h=url.getHost();return "github.com".equals(h)||"release-assets.githubusercontent.com".equals(h)||"objects.githubusercontent.com".equals(h);}
  }
  /** Main-thread policy; persisted timestamps are bounded on load. */
  public static final class Policy {
-  public String channel;public long success,attempt,failure;public boolean active,busy;public int generation;long ready;
-  public Policy(String c,long s,long a,long f,long now){channel="stable".equals(c)?"stable":"preview";success=bounded(s,now);attempt=bounded(a,now);failure=bounded(f,now);}
+  public String channel;public long success,attempt,failure;public boolean active,busy;public int generation;long ready;private boolean startupPending=true;
+  public Policy(String c,long s,long a,long f,long now){this(c,s,a,f,now,true);}
+  public Policy(String c,long s,long a,long f,long now,boolean freshProcess){startupPending=freshProcess;channel="stable".equals(c)?"stable":"preview";success=bounded(s,now);attempt=bounded(a,now);failure=bounded(f,now);}
   static long bounded(long v,long now){return v>0&&v<=now?v:0;}
   public void start(long now){if(active)return;active=true;ready=now+3000;}
   public void stop(){active=false;busy=false;generation++;}
   public void channel(String c){if(!Arrays.asList("stable","preview").contains(c)||channel.equals(c))return;boolean was=active;stop();channel=c;success=0;if(was)start(System.currentTimeMillis());}
-  public boolean begin(boolean manual,long now){if(!active||busy||(attempt>0&&now-attempt<60000)||(!manual&&(now<ready||(success>0&&now-success<86400000)||(failure>0&&now-failure<3600000))))return false;busy=true;attempt=now;return true;}
+  public boolean begin(boolean manual,long now){if(!active||busy)return false;if(!manual){if(now<ready)return false;if(startupPending)startupPending=false;else if((attempt>0&&now-attempt<60000)||(success>0&&now-success<86400000)||(failure>0&&now-failure<3600000))return false;}else if(attempt>0&&now-attempt<60000)return false;busy=true;startupPending=false;attempt=now;return true;}
   public boolean complete(int token,boolean ok,long now){if(!active||generation!=token)return false;busy=false;if(ok){success=now;failure=0;}else failure=now;return true;}
  }
  public static final class Fetch {

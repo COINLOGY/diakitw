@@ -32,6 +32,7 @@ public final class MainActivity extends Activity {
  static final int BG=0xff141a21,CARD=0xff1d2732,TEXT=0xffedf4fc,MUTED=0xffafbecd,BLUE=0xff4cbfff,GREEN=0xffa6e640,RED=0xffff747e,LINE=0xff354452;
  // Test-only isolation: production/non-debuggable APKs ignore this intent extra.
  static final String TEST_OFFLINE="diakitw.test.offline";
+ static boolean startupCheckUsed;
  boolean testOffline;
  Updates.Policy updates;Updates.Fetch updateFetch;Thread updateThread;Updates.Release updateOffer;TextView updateNotice;AlertDialog updateDialog;
  Updates.Download apkDownload;Thread apkThread;volatile int apkGeneration;
@@ -42,8 +43,8 @@ public final class MainActivity extends Activity {
  void checkUpdates(boolean manual){
   if(testOffline)return;
   if(updateThread!=null&&updateThread.isAlive()){if(manual)Toast.makeText(this,"Проверка уже выполняется",Toast.LENGTH_SHORT).show();return;}
-  if(!updates.begin(manual,System.currentTimeMillis())){if(manual)Toast.makeText(this,"Повторная проверка — не чаще раза в минуту",Toast.LENGTH_LONG).show();return;}
-  saveUpdates();final int token=updates.generation;final String channel=updates.channel;final Updates.Fetch run=new Updates.Fetch();updateFetch=run;
+  if(!updates.begin(manual,System.currentTimeMillis())){if(manual)Toast.makeText(this,updateOffer!=null?"Проверка ограничена минутой · доступное обновление можно скачать":"Повторная проверка — не чаще раза в минуту",Toast.LENGTH_LONG).show();return;}
+  startupCheckUsed=true;saveUpdates();final int token=updates.generation;final String channel=updates.channel;final Updates.Fetch run=new Updates.Fetch();updateFetch=run;
   if(manual)Toast.makeText(this,"Проверка обновлений…",Toast.LENGTH_SHORT).show();
   updateThread=new Thread(()->{Updates.Release result=null;boolean success=false;try{result=Updates.select(run.run(),channel,BuildConfig.VERSION_NAME,BuildConfig.VERSION_CODE);success=true;}catch(java.io.IOException|RuntimeException ignored){}final Updates.Release offer=result;final boolean ok=success;
    updateResults.post(()->{if(updateFetch==run)updateFetch=null;if(!updates.complete(token,ok,System.currentTimeMillis()))return;saveUpdates();if(ok){updateOffer=offer;updateNotice.setVisibility(offer==null?View.GONE:View.VISIBLE);if(offer!=null)updateNotice.setText("Доступна diakitw "+offer.version+" · Подробнее");}if(manual){if(offer!=null)showUpdateOffer();else showText("Обновления",ok?"Новых версий для выбранного канала нет.":"Не удалось проверить обновления. Проверьте сеть и повторите позже.");}});
@@ -51,14 +52,16 @@ public final class MainActivity extends Activity {
  }
  void updatesMenu(){
   if(updateDialog!=null)updateDialog.dismiss();
-  updateDialog=new AlertDialog.Builder(this).setTitle("Обновления · 1.0.2 (102)").setSingleChoiceItems(new String[]{"Стабильный","Тестовый"},updates.channel.equals("stable")?0:1,(d,which)->{if(updateFetch!=null)updateFetch.cancel();updates.channel(which==0?"stable":"preview");updateOffer=null;updateNotice.setVisibility(View.GONE);saveUpdates();})
-   .setPositiveButton("Проверить обновления",(d,w)->checkUpdates(true)).setNegativeButton("Позже",null).show();updateDialog.getWindow().setBackgroundDrawable(panel());
+  AlertDialog.Builder menu=new AlertDialog.Builder(this).setTitle("Обновления · 1.0.3 (103)").setSingleChoiceItems(new String[]{"Стабильный","Тестовый"},updates.channel.equals("stable")?0:1,(d,which)->{if(updateFetch!=null)updateFetch.cancel();updates.channel(which==0?"stable":"preview");updateOffer=null;updateNotice.setVisibility(View.GONE);saveUpdates();})
+   .setPositiveButton("Проверить обновления",(d,w)->checkUpdates(true)).setNegativeButton("Позже",null);
+  if(updateOffer!=null)menu.setNeutralButton("Скачать доступное",(d,w)->showUpdateOffer());
+  updateDialog=menu.show();updateDialog.getWindow().setBackgroundDrawable(panel());
  }
  void showUpdateOffer(){
   final Updates.Release offer=updateOffer;if(offer==null)return;if(updateDialog!=null)updateDialog.dismiss();
   updateDialog=new AlertDialog.Builder(this).setTitle("Доступна diakitw "+offer.version).setMessage(offer.notes+"\n\nAPK загружается из v2 feed, проверяется размер, SHA-256 и сертификат. Установку выполняет Android: для совместимого обновления самой программы ОС может не запросить подтверждение; иначе потребуется подтверждение. SHA-256 feed не является независимой подписью.")
    .setPositiveButton("Скачать и установить",(d,w)->startApkUpdate(offer))
-   .setNegativeButton("Позже",(d,w)->{updateOffer=null;updateNotice.setVisibility(View.GONE);}).show();updateDialog.getWindow().setBackgroundDrawable(panel());
+   .setNegativeButton("Позже",null).show();updateDialog.getWindow().setBackgroundDrawable(panel());
  }
  void startApkUpdate(Updates.Release offer){
   if(testOffline||apkThread!=null&&apkThread.isAlive()||offer!=updateOffer||!Updates.validURL(offer.url,offer.version))return;
@@ -110,7 +113,7 @@ public final class MainActivity extends Activity {
  final Handler main=new Handler(Looper.getMainLooper());
  final Handler speedResults=new Handler(Looper.getMainLooper());
  ScheduledExecutorService worker; int generation,testGeneration; SpeedTest test; AlertDialog testDialog;
- Metric cpu,ram,disk,battery; long previousCpu=-1,previousWall=-1; TextView summary; String last="Ещё не измерено";
+ Metric cpu,ram,disk; long previousCpu=-1,previousWall=-1; TextView summary,geoCountry,geoCity,geoCaption; MapView persistentMap; String last="Ещё не измерено";
  boolean compact,landscape; Egress ipRun; int ipGeneration;
  final AutoEgress autoIp=new AutoEgress();final Handler ipResults=new Handler(Looper.getMainLooper());
  ConnectivityManager connectivity;ConnectivityManager.NetworkCallback networkCallback;
@@ -120,7 +123,7 @@ public final class MainActivity extends Activity {
  final Runnable ipTick=new Runnable(){public void run(){if(!autoIp.foreground)return;startAutoIp();main.postDelayed(this,1000);}};
  @Override public void onCreate(Bundle state){
   super.onCreate(state);testOffline=(getApplicationInfo().flags&ApplicationInfo.FLAG_DEBUGGABLE)!=0&&getIntent().getBooleanExtra(TEST_OFFLINE,false);if(state!=null)last=state.getString("summary",last);
-  SharedPreferences prefs=getPreferences(MODE_PRIVATE);updates=new Updates.Policy(prefs.getString("updateChannel","preview"),prefs.getLong("updateSuccess",0),prefs.getLong("updateAttempt",0),prefs.getLong("updateFailure",0),System.currentTimeMillis());
+  SharedPreferences prefs=getPreferences(MODE_PRIVATE);updates=new Updates.Policy(prefs.getString("updateChannel","preview"),prefs.getLong("updateSuccess",0),prefs.getLong("updateAttempt",0),prefs.getLong("updateFailure",0),System.currentTimeMillis(),!startupCheckUsed);
   getWindow().setStatusBarColor(BG);getWindow().setNavigationBarColor(BG);
   Configuration config=getResources().getConfiguration();
   landscape=config.orientation==Configuration.ORIENTATION_LANDSCAPE&&config.fontScale<=1.5f;compact=landscape||config.fontScale>1.3f;
@@ -131,13 +134,22 @@ public final class MainActivity extends Activity {
   TextView title=text("diakitw",24,TEXT);title.setTypeface(Typeface.create("sans-serif-medium",Typeface.NORMAL));title.setPadding(dp(8),0,0,0);header.addView(title,new LinearLayout.LayoutParams(0,-2,1));
   Button help=button("?",v->help());help.setContentDescription("Обзор — справка");if(!landscape)header.addView(help,new LinearLayout.LayoutParams(dp(48),dp(48)));LinearLayout rail=column();if(landscape){rail.addView(header);LinearLayout.LayoutParams hp=new LinearLayout.LayoutParams(dp(48),dp(48));hp.gravity=Gravity.END;rail.addView(help,hp);LinearLayout.LayoutParams rp=new LinearLayout.LayoutParams(dp(184),-1);rp.setMargins(0,0,dp(10),0);ScrollView railViewport=new ScrollView(this);railViewport.setFillViewport(true);railViewport.addView(rail);root.addView(railViewport,rp);}else root.addView(header);
   LinearLayout metrics=new LinearLayout(this){@Override protected void onMeasure(int w,int h){int equal=0;for(int i=0;i<getChildCount();i++){View child=getChildAt(i);child.getLayoutParams().height=-2;}super.onMeasure(w,View.MeasureSpec.makeMeasureSpec(0,View.MeasureSpec.UNSPECIFIED));for(int i=0;i<getChildCount();i++)equal=Math.max(equal,getChildAt(i).getMeasuredHeight());for(int i=0;i<getChildCount();i++)getChildAt(i).getLayoutParams().height=equal;super.onMeasure(w,h);}};metrics.setOrientation(LinearLayout.VERTICAL);metrics.setPadding(0,dp(2),0,dp(2));
-  cpu=new Metric("CPU APP");ram=new Metric("RAM");disk=new Metric("Хранилище");battery=new Metric("Батарея");
-  for(Metric m:new Metric[]{cpu,ram,disk,battery}){LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,dp(dialHeight()+8),1);p.setMargins(dp(3),dp(1),dp(3),dp(1));metrics.addView(m,p);}
-  ScrollView metricViewport=new ScrollView(this);metricViewport.setFillViewport(true);metricViewport.addView(metrics);root.addView(metricViewport,landscape?new LinearLayout.LayoutParams(0,-1,1):new LinearLayout.LayoutParams(-1,0,1));
+  cpu=new Metric("CPU APP");ram=new Metric("RAM");disk=new Metric("Хранилище");
+  for(Metric m:new Metric[]{cpu,ram,disk}){LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,dp(dialHeight()+8),1);p.setMargins(dp(3),dp(1),dp(3),dp(1));metrics.addView(m,p);}
+  ScrollView metricViewport=new ScrollView(this);metricViewport.setFillViewport(true);metricViewport.addView(metrics);if(landscape)root.addView(metricViewport,new LinearLayout.LayoutParams(0,-1,1));
   LinearLayout footer=new LinearLayout(this);footer.setOrientation(LinearLayout.VERTICAL);footer.setGravity(Gravity.CENTER_VERTICAL);
   updateNotice=text("",14,BLUE);updateNotice.setVisibility(View.GONE);updateNotice.setMinHeight(dp(48));updateNotice.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);updateNotice.setOnClickListener(v->showUpdateOffer());footer.addView(updateNotice,new LinearLayout.LayoutParams(-1,-2));
   summary=text(last,14,TEXT);summary.setPadding(dp(12),dp(6),dp(12),dp(6));summary.setBackground(shape(CARD,LINE,14));summary.setMinHeight(dp(48));summary.setGravity(Gravity.CENTER_VERTICAL);summary.setOnClickListener(v->openIpDetails());updateSummary();
-  summary.setIncludeFontPadding(false);summary.setTextSize(18);footer.addView(summary,new LinearLayout.LayoutParams(-1,-2));
+  summary.setIncludeFontPadding(false);summary.setTextSize(landscape?18:14);if(landscape)footer.addView(summary,new LinearLayout.LayoutParams(-1,-2));
+  LinearLayout geo=column();geo.setPadding(dp(12),dp(10),dp(12),dp(10));geo.setBackground(shape(0xff1a2a34,0xff365a6a,17));
+  if(!landscape)geo.addView(summary,new LinearLayout.LayoutParams(-1,-2));
+  geoCountry=text(countryLabel(),20,TEXT);geoCountry.setTypeface(Typeface.DEFAULT,Typeface.BOLD);geo.addView(geoCountry);
+  geoCity=text("",16,TEXT);geo.addView(geoCity);
+  persistentMap=new MapView(this,true);persistentMap.update(ipSnapshot,true);geo.addView(persistentMap,new LinearLayout.LayoutParams(-1,dp(landscape?140:220)));
+  geoCaption=text(mapPrecision(),12,MUTED);geo.addView(geoCaption);
+  geo.addView(button("Источник и точность",v->showText("IP · источник и точность",IP_NOTICE)));
+  metricViewport.removeView(metrics);LinearLayout dashboard=column();dashboard.addView(metrics);LinearLayout.LayoutParams gp=new LinearLayout.LayoutParams(-1,-2);gp.setMargins(dp(3),dp(8),dp(3),dp(8));dashboard.addView(geo,gp);metricViewport.addView(dashboard);
+  if(!landscape)root.addView(metricViewport,new LinearLayout.LayoutParams(-1,0,1));
   Button internet=button("Тест интернета",v->openTest());styleButton(internet,true);internet.setMinHeight(dp(56));footer.addView(internet,new LinearLayout.LayoutParams(-1,-2));if(landscape){Space spacer=new Space(this);rail.addView(spacer,new LinearLayout.LayoutParams(-1,0,1));rail.addView(footer);}else root.addView(footer);setContentView(root);
  }
  LinearLayout column(){LinearLayout l=new LinearLayout(this);l.setOrientation(LinearLayout.VERTICAL);return l;}
@@ -153,8 +165,8 @@ public final class MainActivity extends Activity {
  GradientDrawable shape(int color,int stroke,int radius){GradientDrawable d=new GradientDrawable();d.setColor(color);d.setCornerRadius(dp(radius));d.setStroke(dp(1),stroke);return d;}
  GradientDrawable panel(){return shape(CARD,LINE,20);}
  void showText(String title,String message){AlertDialog d=new AlertDialog.Builder(this).setTitle(title).setMessage(message).setPositiveButton("Понятно",null).show();d.getWindow().setBackgroundDrawable(panel());d.getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(BLUE);}
- void showHelp(String title,String message){AlertDialog d=new AlertDialog.Builder(this).setTitle(title).setMessage(message+"\n\nОбновления: HTTPS GitHub Pages, до 32 KiB, 10 с. Проверка раз в 24 ч при активном приложении. После согласия APK загружается и сверяется с v2 feed и закреплённым сертификатом; установку выполняет Android. Для подходящего обновления самой программы ОС может не запросить подтверждение; иначе запросит. Канал по умолчанию: тестовый.").setNeutralButton("Обновления",(x,w)->updatesMenu()).setPositiveButton("Понятно",null).show();d.getWindow().setBackgroundDrawable(panel());}
- void help(){showHelp("Обзор · diakitw 1.0.2","RAM: (totalMem − availMem) / totalMem. Хранилище: StatFs total − available, том данных приложения; не здоровье накопителя. Батарея: системный заряд. Нажмите карточку для подробностей. Недоступные показания: Н/Д, без стрелки. Шкалы 0–100%: до 20% зелёный, до 80% синий, выше красный; для заряда батареи цвета обращены. RAM и хранилище: занято / всего GiB.\n\nCPU APP: только процесс diakitw, не нагрузка всего телефона. Разность CPU-времени / монотонное время / число доступных логических CPU. Первый, сброшенный и задержанный более 5 с интервал — Н/Д. SWAP и UID-трафик не показываются.\n\nТест интернета запускается только вручную, отдельно от мониторинга. HTTP RTT — не ICMP ping; включает установление соединения, TLS и обработку сервера. Потери пакетов не измеряются. HTTP jitter — среднее абсолютных разностей соседних успешных проб, только при 2–3 пробах. Скорости одного короткого потока включают накладные задержки и не являются максимумом линии.\n\nСбор и тест останавливаются при уходе из приложения, повороте или закрытии теста. Последний отчёт сохраняется локально и доступен через «Последний отчёт / JSON». Payload-файлы не создаются.");}
+ void showHelp(String title,String message){AlertDialog d=new AlertDialog.Builder(this).setTitle(title).setMessage(message+"\n\nОбновления: HTTPS GitHub Pages, до 32 KiB, 10 с. Новая проверка при первом выходе на передний план после запуска процесса; затем до суток после успеха, час после ошибки, ручная повторная проверка не чаще минуты. После согласия APK загружается и сверяется с v2 feed и закреплённым сертификатом; установку выполняет Android. Для подходящего обновления самой программы ОС может не запросить подтверждение; иначе запросит. Канал по умолчанию: тестовый.").setNeutralButton("Обновления",(x,w)->updatesMenu()).setPositiveButton("Понятно",null).show();d.getWindow().setBackgroundDrawable(panel());}
+ void help(){showHelp("Обзор · diakitw 1.0.3","RAM: (totalMem − availMem) / totalMem. Хранилище: StatFs total − available, том данных приложения; не здоровье накопителя. Нажмите карточку для подробностей. Недоступные показания: Н/Д, без стрелки. Шкалы 0–100%: до 20% зелёный, до 80% синий, выше красный; RAM и хранилище: занято / всего GiB.\n\nCPU APP: только процесс diakitw, не нагрузка всего телефона. Разность CPU-времени / монотонное время / число доступных логических CPU. Первый, сброшенный и задержанный более 5 с интервал — Н/Д. SWAP и UID-трафик не показываются.\n\nТест интернета запускается только вручную, отдельно от мониторинга. HTTP RTT — не ICMP ping; включает установление соединения, TLS и обработку сервера. Потери пакетов не измеряются. HTTP jitter — среднее абсолютных разностей соседних успешных проб, только при 2–3 пробах. Скорости одного короткого потока включают накладные задержки и не являются максимумом линии.\n\nСбор и тест останавливаются при уходе из приложения, повороте или закрытии теста. Последний отчёт сохраняется локально и доступен через «Последний отчёт / JSON». Payload-файлы не создаются.");}
  void updateSummary(){
   String label="IP / карта · "+ipStatusLabel();
   String visible=label+"\n"+(ipSnapshot==null?"Н/Д\nСтрана: Н/Д":ipSnapshot.ip+"\n"+countryLabel()+(ipSnapshot.city.isEmpty()?"":" · ≈ "+ipSnapshot.city));
@@ -164,7 +176,7 @@ public final class MainActivity extends Activity {
  String ipStatusLabel(){return ipBadge.equals("Снимок")?"Обновлено":ipBadge;}
  static String flag(String country){return new String(Character.toChars(0x1f1e6+country.charAt(0)-'A'))+new String(Character.toChars(0x1f1e6+country.charAt(1)-'A'));}
  String countryLabel(){return ipSnapshot==null||ipSnapshot.country.isEmpty()?"Страна не определена":flag(ipSnapshot.country)+" "+new Locale("",ipSnapshot.country).getDisplayCountry(new Locale("ru"));}
- @Override protected void onResume(){super.onResume();if(!testOffline){updates.start(System.currentTimeMillis());main.post(updateTick);}long remaining=Math.max(0,Math.min(86400000L,getPreferences(MODE_PRIVATE).getLong("ipQuotaUntil",0)-System.currentTimeMillis()));autoIp.blockUntil(SystemClock.elapsedRealtime()+remaining);if(remaining>0){ipBadge="Лимит";ipState="Лимит IPwho.is · проверка отложена до 24 ч";renderIp();}if(!testOffline){autoIp.resume(SystemClock.elapsedRealtime());watchNetwork();main.post(ipTick);}synchronized(this){previousCpu=-1;previousWall=-1;}cpu.update(Double.NaN,"Только diakitw");int token=++generation;worker=Executors.newSingleThreadScheduledExecutor();worker.scheduleWithFixedDelay(()->{Sample s;synchronized(this){if(token!=generation)return;s=sample();}main.post(()->{if(token==generation){cpu.update(s.cpu,"Только diakitw");ram.update(s.ram,s.ramDetail);disk.update(s.disk,s.diskDetail);battery.update(s.battery,s.power);Log.d("diakitw","sample published");}});},0,3,TimeUnit.SECONDS);}
+ @Override protected void onResume(){super.onResume();if(!testOffline){updates.start(System.currentTimeMillis());main.post(updateTick);}long remaining=Math.max(0,Math.min(86400000L,getPreferences(MODE_PRIVATE).getLong("ipQuotaUntil",0)-System.currentTimeMillis()));autoIp.blockUntil(SystemClock.elapsedRealtime()+remaining);if(remaining>0){ipBadge="Лимит";ipState="Лимит IPwho.is · проверка отложена до 24 ч";renderIp();}if(!testOffline){autoIp.resume(SystemClock.elapsedRealtime());watchNetwork();main.post(ipTick);}synchronized(this){previousCpu=-1;previousWall=-1;}cpu.update(Double.NaN,"Только diakitw");int token=++generation;worker=Executors.newSingleThreadScheduledExecutor();worker.scheduleWithFixedDelay(()->{Sample s;synchronized(this){if(token!=generation)return;s=sample();}main.post(()->{if(token==generation){cpu.update(s.cpu,"Только diakitw");ram.update(s.ram,s.ramDetail);disk.update(s.disk,s.diskDetail);Log.d("diakitw","sample published");}});},0,3,TimeUnit.SECONDS);}
  @Override protected void onPause(){stopUpdates();generation++;autoIp.pause();if(ipSnapshot!=null){ipBadge="Устарел";ipState="Приложение было скрыто · снимок не текущий";renderIp();}unwatchNetwork();stopIp();stopTest();if(mapDialog!=null){mapDialog.dismiss();mapDialog=null;expandedMap=null;expandedMapCaption=null;}if(ipDialog!=null){ipDialog.dismiss();ipDialog=null;}if(testDialog!=null){testDialog.dismiss();testDialog=null;}if(worker!=null){worker.shutdownNow();worker=null;}main.removeCallbacksAndMessages(null);Log.i("diakitw","sampler paused; callbacks cancelled");super.onPause();}
  @Override public void onSaveInstanceState(Bundle out){out.putString("summary",test!=null?"Отменено при смене экрана":last);super.onSaveInstanceState(out);}
  void stopTest(){if(test!=null){test.cancel();Log.i("diakitw","speed cancellation requested");}}
@@ -233,7 +245,7 @@ public final class MainActivity extends Activity {
    });},"ip-lookup");t.setDaemon(true);t.start();
  }
  String ipDetails(){return (ipSnapshot==null?"IP / страна: Н/Д":ipSnapshot.ip+"\n"+countryLabel()+" ("+ipSnapshot.country+")"+(ipSnapshot.city.isEmpty()?"":"\n≈ "+ipSnapshot.city)+(ipSnapshot.isp.isEmpty()?"":"\nISP · "+ipSnapshot.isp)+(ipSnapshot.asn.isEmpty()?"":"\n"+ipSnapshot.asn)+"\n"+ipSnapshot.source+" · обновлено "+ipTime)+"\n"+ipState;}
- void renderIp(){updateSummary();for(IpCard card:ipCards)card.refresh();if(expandedMap!=null){expandedMap.update(ipSnapshot,!ipBadge.equals("Снимок"));expandedMapCaption.setText(expandedPrecision());}}
+ void renderIp(){updateSummary();if(persistentMap!=null){persistentMap.update(ipSnapshot,!ipBadge.equals("Снимок"));geoCountry.setText(countryLabel());geoCity.setText(ipSnapshot!=null&&!ipSnapshot.city.isEmpty()?"≈ "+ipSnapshot.city:"");geoCity.setVisibility(ipSnapshot!=null&&!ipSnapshot.city.isEmpty()?View.VISIBLE:View.GONE);geoCaption.setText(mapPrecision());}for(IpCard card:ipCards)card.refresh();if(expandedMap!=null){expandedMap.update(ipSnapshot,!ipBadge.equals("Снимок"));expandedMapCaption.setText(expandedPrecision());}}
  String mapPrecision(){return (ipSnapshot==null?"Карта мира · локация неизвестна":(ipSnapshot.hasPoint()?"≈ Точка по IP, не GPS":"Страна по IP · без точки")+(!ipBadge.equals("Снимок")?" · старый снимок":""))+"\nNatural Earth · обобщённые границы";}
  String expandedPrecision(){return countryLabel()+(ipSnapshot!=null&&!ipSnapshot.city.isEmpty()?" · ≈ "+ipSnapshot.city:"")+"\n"+mapPrecision();}
  void openMap(){
@@ -299,7 +311,7 @@ public final class MainActivity extends Activity {
   s.cpu=Core.cpu(previousCpu,process,previousWall<0?0:wall-previousWall,Runtime.getRuntime().availableProcessors());previousCpu=process;previousWall=wall;
   try{ActivityManager am=(ActivityManager)getSystemService(ACTIVITY_SERVICE);ActivityManager.MemoryInfo m=new ActivityManager.MemoryInfo();if(am!=null){am.getMemoryInfo(m);s.ram=Core.percent(m.totalMem,m.availMem);s.ramDetail=pair(m.totalMem,m.availMem);}}catch(RuntimeException ignored){}
   try{StatFs f=new StatFs(getFilesDir().getAbsolutePath());s.disk=Core.percent(f.getTotalBytes(),f.getAvailableBytes());s.diskDetail=pair(f.getTotalBytes(),f.getAvailableBytes());}catch(RuntimeException ignored){}
-  try{Intent i=registerReceiver(null,new IntentFilter(Intent.ACTION_BATTERY_CHANGED));if(i!=null&&i.getBooleanExtra(BatteryManager.EXTRA_PRESENT,false)){int level=i.getIntExtra(BatteryManager.EXTRA_LEVEL,-1),scale=i.getIntExtra(BatteryManager.EXTRA_SCALE,-1);if(level>=0&&scale>0&&level<=scale)s.battery=Math.round(100.0*level/scale);s.power=i.getIntExtra(BatteryManager.EXTRA_PLUGGED,0)==0?"От батареи":"Питание подключено";}}catch(RuntimeException ignored){}return s;
+  return s;
  }
  static String pair(long total,long available){return number((total-available)/1073741824.0)+" / "+number(total/1073741824.0)+" GiB";}
  final class Metric extends LinearLayout {
@@ -310,15 +322,15 @@ public final class MainActivity extends Activity {
    value=text("Н/Д",22,MUTED);value.setTypeface(Typeface.create("sans-serif-medium",Typeface.NORMAL));
    if(compact&&getResources().getConfiguration().fontScale<=1.5f){LinearLayout line=new LinearLayout(MainActivity.this);line.setGravity(Gravity.CENTER_VERTICAL);line.addView(label,new LinearLayout.LayoutParams(0,-2,1));line.addView(value);copy.addView(line);}else{copy.addView(label);copy.addView(value);}
    detail=text("Н/Д",12,MUTED);label.setIncludeFontPadding(false);value.setIncludeFontPadding(false);detail.setIncludeFontPadding(false);copy.addView(detail);addView(copy,new LinearLayout.LayoutParams(0,-2,1));
-   gauge=new ResourceGauge(name.equals("Батарея"));LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(dp(dialWidth()),dp(dialHeight()));p.setMargins(dp(8),0,0,0);addView(gauge,p);
+   gauge=new ResourceGauge();LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(dp(dialWidth()),dp(dialHeight()));p.setMargins(dp(8),0,0,0);addView(gauge,p);
    if(getResources().getConfiguration().fontScale>1.5f){setOrientation(VERTICAL);copy.setLayoutParams(new LinearLayout.LayoutParams(-1,-2));p.gravity=Gravity.RIGHT;}
    setOnClickListener(v->showText(name,information));setContentDescription(name);update(Double.NaN,"Н/Д");
   }
   void update(double n,String desc){
    if(Double.compare(n,previous)==0&&desc.equals(previousDetail))return;previous=n;previousDetail=desc;
-   double fraction=Gauge.fraction(n);boolean known=Double.isFinite(fraction);setTextIfChanged(value,known?(name.equals("Батарея")?String.format(Locale.US,"%.0f",n):number(n))+"%":"Н/Д");
-   int color=resourceColor(n,name.equals("Батарея"));if(value.getCurrentTextColor()!=color)value.setTextColor(color);if(Double.compare(gauge.fraction,fraction)!=0||gauge.color!=color){gauge.fraction=fraction;gauge.color=color;gauge.invalidate();}
-   setTextIfChanged(detail,desc.replace("Питание подключено","Подключено"));information=value.getText()+"\n"+desc+(name.equals("CPU APP")?"\nТолько процесс diakitw; доля доступных логических CPU, не всего телефона.":name.equals("Батарея")?"":"\nЗанято / всего GiB");setContentDescription(name+" "+information);
+   double fraction=Gauge.fraction(n);boolean known=Double.isFinite(fraction);setTextIfChanged(value,known?number(n)+"%":"Н/Д");
+   int color=resourceColor(n,false);if(value.getCurrentTextColor()!=color)value.setTextColor(color);if(Double.compare(gauge.fraction,fraction)!=0||gauge.color!=color){gauge.fraction=fraction;gauge.color=color;gauge.invalidate();}
+   setTextIfChanged(detail,desc);information=value.getText()+"\n"+desc+(name.equals("CPU APP")?"\nТолько процесс diakitw; доля доступных логических CPU, не всего телефона.":"\nЗанято / всего GiB");setContentDescription(name+" "+information);
   }
  }
  static int resourceColor(double percent,boolean battery){int band=Core.band(percent,battery);return band==0?GREEN:band==1?BLUE:band==2?RED:MUTED;}
@@ -345,12 +357,12 @@ public final class MainActivity extends Activity {
   void labels(Canvas c,String middle,String left,String right){paint.setStyle(Paint.Style.FILL);paint.setColor(TEXT);paint.setFakeBoldText(true);paint.setTextAlign(Paint.Align.CENTER);c.drawText(middle,cx,labelTop,paint);paint.setTextAlign(Paint.Align.LEFT);c.drawText(left,dp(1),labelBottom,paint);paint.setTextAlign(Paint.Align.RIGHT);c.drawText(right,getWidth()-dp(1),labelBottom,paint);paint.setFakeBoldText(false);}
  }
  final class ResourceGauge extends DialFace {
-  final boolean battery;double fraction=Double.NaN;int color=MUTED;
-  ResourceGauge(boolean battery){super();this.battery=battery;}
+  double fraction=Double.NaN;int color=MUTED;
+  ResourceGauge(){super();}
   @Override protected void onDraw(Canvas c){super.onDraw(c);paint.setStyle(Paint.Style.STROKE);paint.setStrokeCap(Paint.Cap.BUTT);paint.setStrokeWidth(dp(3)*7f/9f);boolean known=Double.isFinite(fraction);
-   for(int i=0;i<40;i++){paint.setColor(known?resourceColor((i+.5)*2.5,battery):LINE);c.drawArc(arc,180+i*4.5f,3.6f,false,paint);}
+   for(int i=0;i<40;i++){paint.setColor(known?resourceColor((i+.5)*2.5,false):LINE);c.drawArc(arc,180+i*4.5f,3.6f,false,paint);}
    ticks(c);if(known)needle(c,fraction,color);labels(c,"50%","0%","100%");
   }
  }
- static final class Sample{double cpu=Double.NaN,ram=Double.NaN,disk=Double.NaN,battery=Double.NaN;String ramDetail="Н/Д",diskDetail="Н/Д",power="Н/Д";}
+ static final class Sample{double cpu=Double.NaN,ram=Double.NaN,disk=Double.NaN;String ramDetail="Н/Д",diskDetail="Н/Д";}
 }

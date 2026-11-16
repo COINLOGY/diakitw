@@ -9,7 +9,7 @@ class Wiring(unittest.TestCase):
   self.assertNotIn('TrafficStats',s)
   self.assertNotIn('new History()',s)
   self.assertIn('Обзор',s)
-  self.assertIn('new Metric[]{cpu,ram,disk,battery}',s)
+  self.assertIn('new Metric[]{cpu,ram,disk}',s)
  def test_speed_security(self):
   s=(ROOT/'app/src/main/java/app/diakitw/SpeedTest.java').read_text()
   for t in ['https://speed.cloudflare.com','setInstanceFollowRedirects(false)','setUseCaches(false)','setFixedLengthStreamingMode','System.nanoTime()','BUSY.compareAndSet']:self.assertIn(t,s)

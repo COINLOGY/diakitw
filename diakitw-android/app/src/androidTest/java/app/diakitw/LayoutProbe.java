@@ -10,8 +10,8 @@ import android.text.Layout;
 
 /** Test APK only: actual Android layout measurements, never shipped in main APK. */
 public final class LayoutProbe extends Instrumentation {
- String requestedOrientation;StringBuilder report=new StringBuilder();boolean interactions,idleOnly; String mode;float expectedRadius=-1;
- @Override public void onCreate(Bundle args){super.onCreate(args);requestedOrientation=args.getString("orientation");mode=args.getString("mode");idleOnly="idle".equals(args.getString("mode"));interactions=idleOnly||"interactions".equals(args.getString("mode"));start();}
+ String requestedOrientation,argsFontScale;StringBuilder report=new StringBuilder();boolean interactions,idleOnly; String mode;float expectedRadius=-1;
+ @Override public void onCreate(Bundle args){super.onCreate(args);requestedOrientation=args.getString("orientation");argsFontScale=args.getString("minFontScale");mode=args.getString("mode");idleOnly="idle".equals(args.getString("mode"));interactions=idleOnly||"interactions".equals(args.getString("mode"));start();}
  Button button(View v,String label){if(v instanceof Button&&(((Button)v).getText().toString().equals(label)||label.equals(v.getContentDescription())))return (Button)v;if(v instanceof ViewGroup){ViewGroup g=(ViewGroup)v;for(int i=0;i<g.getChildCount();i++){Button b=button(g.getChildAt(i),label);if(b!=null)return b;}}return null;}
  void ui(Runnable action){final Throwable[] error={null};runOnMainSync(()->{try{action.run();}catch(Throwable t){error[0]=t;}});if(error[0]!=null)throw new AssertionError(error[0]);}
  void interactions(MainActivity a)throws Exception{
@@ -152,13 +152,21 @@ public final class LayoutProbe extends Instrumentation {
   if("proxy".equals(mode)){ProxyProbe.run();out.putString("stream","PASS proxy fixtures\n");finish(Activity.RESULT_OK,out);return;}
   if("ip".equals(mode)){IpProbe.run();out.putString("stream","PASS IP parsing IPv4/IPv6 and malformed schema\n");finish(Activity.RESULT_OK,out);return;}
   Intent launch=new Intent(getTargetContext(),MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-  if("arrow".equals(mode)||"entry".equals(mode))launch.putExtra("diakitw.test.offline",true);
+  if("arrow".equals(mode)||"entry".equals(mode)||"release103".equals(mode))launch.putExtra("diakitw.test.offline",true);
   MainActivity a=(MainActivity)startActivitySync(launch);
   Thread.sleep("arrow".equals(mode)?300:3500);waitForIdleSync();
+  if("release103".equals(mode)){
+   if(requestedOrientation!=null)check(a.getResources().getConfiguration().orientation==Integer.parseInt(requestedOrientation),"Orientation not applied");
+   if(argsFontScale!=null)check(a.getResources().getConfiguration().fontScale>=Float.parseFloat(argsFontScale),"Font scale not applied");
+   ui(()->{check(a.persistentMap!=null&&a.persistentMap.getParent()!=null,"Embedded map missing");check(a.cpu.getParent()==a.ram.getParent()&&a.ram.getParent()==a.disk.getParent(),"Three resources missing");check(a.geoCountry.getText().toString().contains("Страна не определена"),"Unknown country invented");check(!a.persistentMap.hasPin(),"Unknown GPS point invented");check(button(a.findViewById(android.R.id.content),"Тест интернета")!=null&&button(a.findViewById(android.R.id.content),"Тест интернета").isShown(),"Internet Test hidden");});
+   MapProbe.ready(this,a.persistentMap);
+   ui(()->{a.ipSnapshot=new Egress.Result("192.0.2.1","FI");a.ipBadge="Снимок";a.renderIp();check(!a.persistentMap.hasPin(),"Country-only invented point");check(a.geoCountry.getText().toString().contains("Финляндия"),"Country missing");a.ipSnapshot=new Egress.Result("192.0.2.1","FI","Helsinki","","",60,25);a.renderIp();check(a.persistentMap.hasPin(),"Trusted point missing");check(a.geoCity.getText().toString().contains("Helsinki"),"City missing");});
+   ui(a::finish);out.putString("stream","PASS release103 embedded map; 3 resources; no synthetic GPS; trusted city; Internet Test visible\n");finish(Activity.RESULT_OK,out);return;
+  }
   if("cpu".equals(mode)){
    ui(()->{a.autoIp.pause();a.stopIp();a.generation++;a.worker.shutdownNow();a.previousCpu=-1;a.previousWall=-1;check(Double.isNaN(a.sample().cpu),"First CPU must be unknown");a.cpu.update(Double.NaN,"Только diakitw");check(Double.isNaN(a.cpu.gauge.fraction),"Unknown CPU needle");check(a.cpu.information.contains("не всего телефона"),"CPU scope");});
    Thread.sleep(200);ui(()->{double cpu=a.sample().cpu;check(Double.isFinite(cpu)&&cpu>=0&&cpu<=100,"Process CPU sample");a.cpu.update(cpu,"Только diakitw");});Thread.sleep(300);waitForIdleSync();
-   ui(()->{View root=a.findViewById(android.R.id.content);int[] p=new int[2];root.getLocationOnScreen(p);inspect(root,new Rect(p[0],p[1],p[0]+root.getWidth(),p[1]+root.getHeight()));int height=a.cpu.getHeight();for(MainActivity.Metric m:new MainActivity.Metric[]{a.cpu,a.ram,a.disk,a.battery})check(Math.abs(m.getHeight()-height)<=1,"Unequal resource cards");});screenshot("051-main");ui(a::finish);out.putString("stream","PASS CPU scope, first sample unknown, actual process sample, four equal cards and bounds\n"+report);finish(Activity.RESULT_OK,out);return;
+   ui(()->{View root=a.findViewById(android.R.id.content);int[] p=new int[2];root.getLocationOnScreen(p);inspect(root,new Rect(p[0],p[1],p[0]+root.getWidth(),p[1]+root.getHeight()));int height=a.cpu.getHeight();for(MainActivity.Metric m:new MainActivity.Metric[]{a.cpu,a.ram,a.disk})check(Math.abs(m.getHeight()-height)<=1,"Unequal resource cards");});screenshot("051-main");ui(a::finish);out.putString("stream","PASS CPU scope, first sample unknown, actual process sample, three equal cards and bounds\n"+report);finish(Activity.RESULT_OK,out);return;
   }
   if("entry".equals(mode)){EntryProbe.run(this,a);out.putString("stream",report.toString());finish(Activity.RESULT_OK,out);return;}
   if("arrow".equals(mode)){arrowLayout(a);out.putString("stream",report.toString());finish(Activity.RESULT_OK,out);return;}
@@ -174,7 +182,7 @@ public final class LayoutProbe extends Instrumentation {
   if("auto".equals(mode)){autoLifecycle(a);ui(a::finish);out.putString("stream","PASS auto initial, fake route callback, dated error snapshot, pause cancellation, stale generations, no speed auto-start\n"+report);finish(Activity.RESULT_OK,out);return;}
   if("ip-life".equals(mode)){ipLife(a);ui(()->a.finish());out.putString("stream","PASS IP Start/Cancel/close/pause stale callbacks and no overlap\n"+report);finish(Activity.RESULT_OK,out);return;}
   if(interactions){interactions(a);ui(()->a.finish());out.putString("stream","PASS native button/lifecycle checks\n"+report);finish(Activity.RESULT_OK,out);return;}
-  ui(()->{for(MainActivity.Metric m:new MainActivity.Metric[]{a.ram,a.disk,a.battery}){check(m.detail.getParent()!=null,"Resource details must remain visible");View gauge=m.getChildAt(m.getChildCount()-1);check(gauge.getLeft()>=m.getChildAt(0).getRight(),"Gauge must be RIGHT of text");}a.ram.update(Double.NaN,"Недоступно");check(a.ram.getVisibility()==View.VISIBLE&&a.ram.value.getText().toString().equals("Н/Д"),"Unknown must stay visible N/A");});
+  ui(()->{for(MainActivity.Metric m:new MainActivity.Metric[]{a.ram,a.disk}){check(m.detail.getParent()!=null,"Resource details must remain visible");View gauge=m.getChildAt(m.getChildCount()-1);check(gauge.getLeft()>=m.getChildAt(0).getRight(),"Gauge must be RIGHT of text");}a.ram.update(Double.NaN,"Недоступно");check(a.ram.getVisibility()==View.VISIBLE&&a.ram.value.getText().toString().equals("Н/Д"),"Unknown must stay visible N/A");});
   ui(()->{a.ipSnapshot=new Egress.Result("2001:db8:abcd:1234:5678:90ab:cdef:1234","FI","Helsinki","Example ISP","AS64496");a.ipTime="23:59:59";a.renderIp();});
   for(String status:new String[]{null,"Готово\n9999.9 Мбит/с ↓   9999.9 Мбит/с ↑\nHTTP RTT 9999.9 мс","Ошибка сети / HTTP · результат неполный\nН/Д Мбит/с ↓   Н/Д Мбит/с ↑\nHTTP RTT Н/Д мс"}){
    runOnMainSync(()->{if(status!=null){a.last=status;a.updateSummary();}});Thread.sleep(300);waitForIdleSync();
@@ -182,7 +190,7 @@ public final class LayoutProbe extends Instrumentation {
   }
   ui(()->{a.generation++;a.worker.shutdownNow();});
   for(double reading:new double[]{0,20,20.0001,80,80.0001,100,Double.NaN,-1,101,Double.POSITIVE_INFINITY}){
-   ui(()->{for(MainActivity.Metric m:new MainActivity.Metric[]{a.ram,a.disk,a.battery}){m.update(reading,m==a.battery?"Питание подключено":"0.7 / 1.9 GiB");boolean known=Double.isFinite(Gauge.fraction(reading));check(known==Double.isFinite(m.gauge.fraction),"Needle availability");check(m.value.getCurrentTextColor()==MainActivity.resourceColor(reading,m==a.battery),"Number color");check(known||m.value.getText().toString().equals("Н/Д"),"Unknown number");}});
+   ui(()->{for(MainActivity.Metric m:new MainActivity.Metric[]{a.ram,a.disk}){m.update(reading,"0.7 / 1.9 GiB");boolean known=Double.isFinite(Gauge.fraction(reading));check(known==Double.isFinite(m.gauge.fraction),"Needle availability");check(m.value.getCurrentTextColor()==MainActivity.resourceColor(reading,false),"Number color");check(known||m.value.getText().toString().equals("Н/Д"),"Unknown number");}});
    Thread.sleep(80);waitForIdleSync();ui(()->{View root=a.findViewById(android.R.id.content);int[] pos=new int[2];root.getLocationOnScreen(pos);inspect(root,new Rect(pos[0],pos[1],pos[0]+root.getWidth(),pos[1]+root.getHeight()));});
   }
   ui(a::openTest);Thread.sleep(300);waitForIdleSync();
