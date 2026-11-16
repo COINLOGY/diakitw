@@ -12,6 +12,10 @@ class MapVisibility104(unittest.TestCase):
         self.assertIn('if(!landscape)gauge.setVisibility(GONE)', SRC)
         self.assertIn('dp(landscape?140:220)', SRC)
 
+    def test_country_and_map_precede_redundant_ip_summary(self):
+        self.assertGreater(SRC.index('geo.addView(summary', SRC.index('LinearLayout geo=column()')), SRC.index('geo.addView(persistentMap', SRC.index('LinearLayout geo=column()')))
+        self.assertIn('(compact||!landscape)&&getResources().getConfiguration().fontScale<=1.5f', SRC)
+
     def test_native_probe_asserts_actual_visible_map_not_only_parent(self):
         self.assertIn('getGlobalVisibleRect', PROBE)
         self.assertIn('Map hidden below initial viewport', PROBE)

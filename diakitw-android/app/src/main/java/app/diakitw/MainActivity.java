@@ -142,11 +142,10 @@ public final class MainActivity extends Activity {
   summary=text(last,14,TEXT);summary.setPadding(dp(12),dp(6),dp(12),dp(6));summary.setBackground(shape(CARD,LINE,14));summary.setMinHeight(dp(48));summary.setGravity(Gravity.CENTER_VERTICAL);summary.setOnClickListener(v->openIpDetails());updateSummary();
   summary.setIncludeFontPadding(false);summary.setTextSize(landscape?18:14);if(landscape)footer.addView(summary,new LinearLayout.LayoutParams(-1,-2));
   LinearLayout geo=column();geo.setPadding(dp(12),dp(10),dp(12),dp(10));geo.setBackground(shape(0xff1a2a34,0xff365a6a,17));
-  if(!landscape)geo.addView(summary,new LinearLayout.LayoutParams(-1,-2));
   geoCountry=text(countryLabel(),20,TEXT);geoCountry.setTypeface(Typeface.DEFAULT,Typeface.BOLD);geo.addView(geoCountry);
   geoCity=text("",16,TEXT);geo.addView(geoCity);
   persistentMap=new MapView(this,true);persistentMap.update(ipSnapshot,true);geo.addView(persistentMap,new LinearLayout.LayoutParams(-1,dp(landscape?140:220)));
-  geoCaption=text(mapPrecision(),12,MUTED);geo.addView(geoCaption);
+  geoCaption=text(mapPrecision(),12,MUTED);geo.addView(geoCaption);if(!landscape)geo.addView(summary,new LinearLayout.LayoutParams(-1,-2));
   geo.addView(button("Источник и точность",v->showText("IP · источник и точность",IP_NOTICE)));
   metricViewport.removeView(metrics);LinearLayout dashboard=column();dashboard.addView(metrics);LinearLayout.LayoutParams gp=new LinearLayout.LayoutParams(-1,-2);gp.setMargins(dp(3),dp(8),dp(3),dp(8));dashboard.addView(geo,gp);metricViewport.addView(dashboard);
   if(!landscape)root.addView(metricViewport,new LinearLayout.LayoutParams(-1,0,1));
@@ -320,7 +319,7 @@ public final class MainActivity extends Activity {
    super(MainActivity.this);this.name=name;setOrientation(HORIZONTAL);setGravity(Gravity.CENTER_VERTICAL);setPadding(dp(12),dp(3),dp(12),dp(3));setBackground(new RippleDrawable(ColorStateList.valueOf(0x224cbfff),panel(),null));setElevation(dp(2));
    LinearLayout copy=column();copy.setGravity(Gravity.CENTER_VERTICAL);TextView label=text(name,12,TEXT);label.setPadding(0,0,dp(6),0);
    value=text("Н/Д",22,MUTED);value.setTypeface(Typeface.create("sans-serif-medium",Typeface.NORMAL));
-   if(compact&&getResources().getConfiguration().fontScale<=1.5f){LinearLayout line=new LinearLayout(MainActivity.this);line.setGravity(Gravity.CENTER_VERTICAL);line.addView(label,new LinearLayout.LayoutParams(0,-2,1));line.addView(value);copy.addView(line);}else{copy.addView(label);copy.addView(value);}
+   if((compact||!landscape)&&getResources().getConfiguration().fontScale<=1.5f){LinearLayout line=new LinearLayout(MainActivity.this);line.setGravity(Gravity.CENTER_VERTICAL);line.addView(label,new LinearLayout.LayoutParams(0,-2,1));line.addView(value);copy.addView(line);}else{copy.addView(label);copy.addView(value);}
    detail=text("Н/Д",12,MUTED);label.setIncludeFontPadding(false);value.setIncludeFontPadding(false);detail.setIncludeFontPadding(false);copy.addView(detail);addView(copy,new LinearLayout.LayoutParams(0,-2,1));
    gauge=new ResourceGauge();LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(dp(dialWidth()),dp(dialHeight()));p.setMargins(dp(8),0,0,0);addView(gauge,p);if(!landscape)gauge.setVisibility(GONE);
    if(getResources().getConfiguration().fontScale>1.5f){setOrientation(VERTICAL);copy.setLayoutParams(new LinearLayout.LayoutParams(-1,-2));p.gravity=Gravity.RIGHT;}
