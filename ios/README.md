@@ -1,6 +1,6 @@
-# diakitw iOS 1.0.2 (102)
+# diakitw iOS 1.0.3 (103)
 
-User-facing version **1.0.2**. Apple platform metadata and updater identity are **1.0.2**, build **101**. The updater only offers a newer, matching iOS asset when the public feed actually contains one; it does not install unsigned archives.
+User-facing version **1.0.3**. Apple platform metadata and iOS updater identity are **1.0.3**, build **103**. The updater only offers a newer, matching iOS asset when the public feed actually contains one; it does not install unsigned archives.
 
 Unsigned build-only candidate, iOS deployment target 16.0. No certificates, Apple account, device installation or GitHub Release publication in this workflow. Device ZIP **cannot be installed directly**. A developer must sign/provision an appropriate device build; the simulator archive is not an iPhone installer.
 
@@ -15,7 +15,7 @@ The updater automatically checks at each active cold launch and later by its for
 
 ## Reproduction and evidence
 
-GitHub standard `macos-15-intel`, installed Xcode 16.4/runtime, `bash ios/Scripts/ci-build.sh`. Sequential operations, two compiler workers, no expanded device matrix or paid larger runner. Official checkout/upload actions pinned by SHA. CI uploads toolchain logs, unsigned device/simulator archives, source with MIT LICENSE and NOTICE, SHA256SUMS, simulator XCTest result bundle and screenshots.
+GitHub standard `macos-15-intel`, installed Xcode 16.4/runtime, `bash ios/Scripts/ci-build.sh`. Sequential operations, two compiler workers, no expanded device matrix or paid larger runner. Checkout action pinned by SHA. CI produces unsigned device/simulator archives, source, SHA256SUMS, logs, simulator XCTest result bundle and screenshots within the runner for build-only verification; the workflow has no upload-artifact step and publishes no iOS binary.
 
 All original gates remain: host tests, bounded transport tests, update-parser/transport/lifecycle tests, project/plist/presentation validation, device and simulator compilation, simulator XCTest, two cold launches of an unshipped fixture app (present/unknown). New XCTest covers HTTP latency formatting, normal/failure/cancellation/background cases, no auto-start, single invocation and resetting previous latency. Static regression gate checks direct Start, prior notice and absence of modal confirmation.
 
