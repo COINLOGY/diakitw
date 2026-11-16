@@ -2,6 +2,19 @@
   "schema": 1,
   "releases": [
     {
+      "version": "1.0.3",
+      "build": 103,
+      "channel": "preview",
+      "notes": "diakitw 1.0.3 preview. Android same signing key as 1.0.1/1.0.2; from 0.5.x reinstall may lose data. Windows/macOS lack publisher signing; manual installation may be blocked.",
+      "assets": {
+        "android": {
+          "url": "https://github.com/COINLOGY/diakitw/releases/download/v1.0.3/diakitw-android-1.0.3.apk",
+          "size": 127759,
+          "sha256": "5a8b72b229ef0769639eef112ec303bb585bc87963a53f4807d358d157808aa2"
+        }
+      }
+    },
+    {
       "version": "1.0.2",
       "build": 102,
       "channel": "preview",

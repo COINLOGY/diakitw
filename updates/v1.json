@@ -2,6 +2,34 @@
   "schema": 1,
   "releases": [
     {
+      "version": "1.0.3",
+      "build": 103,
+      "channel": "preview",
+      "notes": "diakitw 1.0.3 preview. Android same signing key as 1.0.1/1.0.2; from 0.5.x reinstall may lose data. Windows/macOS lack publisher signing; manual installation may be blocked.",
+      "assets": {
+        "macos-arm64": {
+          "url": "https://github.com/COINLOGY/diakitw/releases/download/v1.0.3/diakitw-1.0.3-macos-unsigned-arm64.dmg",
+          "size": 1616066,
+          "sha256": "ab22fb5534ca5d8b4ea91c625c9668aba70406903be496da713425efcb2e8ba0"
+        },
+        "macos-x86_64": {
+          "url": "https://github.com/COINLOGY/diakitw/releases/download/v1.0.3/diakitw-1.0.3-macos-unsigned-x86_64.dmg",
+          "size": 1732620,
+          "sha256": "744b17a8bed4c5ab93cf38382783668a2bc06e0f78a9a63daca82094c790bf92"
+        },
+        "windows-x64": {
+          "url": "https://github.com/COINLOGY/diakitw/releases/download/v1.0.3/diakitw-1.0.3-windows-x64.zip",
+          "size": 158114064,
+          "sha256": "de993edf285cd4478bf27893a3b0a8922be975f811006c0db19727eed23fd396"
+        },
+        "linux-x64": {
+          "url": "https://github.com/COINLOGY/diakitw/releases/download/v1.0.3/diakitw-1.0.3-linux-x64.tar.gz",
+          "size": 124051641,
+          "sha256": "b23ddc03ad60ae8bac80fcd778f5cffdbd652389a9b9a4079fc6de90a89da404"
+        }
+      }
+    },
+    {
       "version": "1.0.2",
       "build": 102,
       "channel": "preview",
