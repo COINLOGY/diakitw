@@ -32,12 +32,16 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if python3 -c "import plistlib; assert plistlib.load(open('macdir/Info.plist', 'rb'))['CFBundleShortVersionString'] == '1.0.2'"; then
-            python3 release/tests/test_unified_102_source.py
+          if python3 -c "import plistlib; assert plistlib.load(open('macdir/Info.plist', 'rb'))['CFBundleShortVersionString'] == '1.0.3'"; then
+            python3 release/tests/test_unified_103_source.py
+            python3 release/tests/test_packaging_103.py
+            python3 macdir/Tests/test_country_flag_status.py
+          elif python3 -c "import plistlib; assert plistlib.load(open('macdir/Info.plist', 'rb'))['CFBundleShortVersionString'] == '1.0.2'"; then
+            python3 release/tests/historical_unified_102_source.py
             python3 release/tests/test_packaging_102.py
             python3 macdir/Tests/test_country_flag_status.py
           else
-            python3 -m unittest discover -s release/tests -p 'test_unified_101_source.py'
+            python3 release/tests/historical_unified_101_source.py
           fi
           python3 release/tests/test_android_signing_generation_feeds.py
           python3 release/tests/test_publication_101.py
