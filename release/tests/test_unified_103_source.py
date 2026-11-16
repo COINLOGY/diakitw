@@ -15,7 +15,7 @@ class Unified103Source(unittest.TestCase):
     def test_android_package_version(self):
         text=(ROOT/'diakitw-android/app/build.gradle').read_text()
         self.assertRegex(text,r'\bversionCode\s+103\b')
-        self.assertRegex(text,r'''\bversionName\s+['"]1\.0\.2['"]''')
+        self.assertRegex(text,r'''\bversionName\s+['"]1\.0\.3['"]''')
 
     def test_desktop_package_versions(self):
         for path in ('diakitw-desktop/package.json','diakitw-desktop/app/package.json','diakitw-desktop/package-lock.json'):

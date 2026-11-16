@@ -15,7 +15,7 @@ assert "updates.setForeground(phase == .active)" in app
 checker = (root / "Sources/UpdateChecker.swift").read_text()
 assert re.search(r"#else\s+public static let version = \"1.0.3\"\s+public static let build = 103\s+#endif", checker)
 assert "performCheck(manual: false, forceAtLaunch: isStartup)" in checker
-assert 'public static let version = "1.0.2"\n    public static let build = 102\n    #else' in checker, "macOS identity must stay unchanged"
+assert 'public static let version = "1.0.3"\n    public static let build = 103\n    #else' in checker, "macOS identity must stay unchanged"
 checks = (root / "Tests/update_checks.swift").read_text()
 assert 'fixture(version: "1.0.3", build: 103, platform: "ios-unsigned")' in checks
 assert 'current: "1.0.2", currentBuild: 102)?.build == 103' in checks
@@ -32,7 +32,7 @@ readme = (root / "README.md").read_text()
 assert "iOS 1.0.3 (103)" in readme
 assert "0.5.5a" not in readme
 workflow = (root.parent / ".github/workflows/ios-build.yml").read_text()
-assert "branches: [feat/release-103-ios]" in workflow
+assert "branches: [feat/release-103]" in workflow
 assert "group: ios-103" in workflow
 assert "1.0.3 unsigned compile/tests (no upload)" in workflow
 assert "actions/upload-artifact" not in workflow

@@ -4,10 +4,8 @@ r=Path(__file__).resolve().parents[2]
 a=r/'macdir/Sources/MacdirCore/UpdateChecker.swift'
 b=r/'ios/Sources/UpdateChecker.swift'
 assert a.exists(), 'Missing native update checker'
-# macOS 103 and iOS 102 intentionally differ only in their numeric identity.
-mac = a.read_text()
-ios = b.read_text()
-assert mac.replace('public static let version = "1.0.3"', 'public static let version = "1.0.2"', 1).replace('public static let build = 103', 'public static let build = 102', 1) == ios, 'Apple update logic drift beyond version/build'
+# Both 1.0.3 targets share exactly the same parser, transport and build identity.
+assert a.read_text() == b.read_text(), 'Apple update logic drift'
 s=a.read_text()
 assert 'https://coinlogy.github.io/diakitw/updates/v1.json' in s
 assert '32 * 1024' in s and 'timeoutIntervalForResource = 10' in s

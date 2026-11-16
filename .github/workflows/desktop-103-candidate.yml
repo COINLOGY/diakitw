@@ -1,13 +1,13 @@
 name: Desktop 1.0.3 portable candidates (not a release)
 on:
   push:
-    branches: [feat/release-103-desktop]
+    branches: [feat/release-103]
   workflow_dispatch:
 permissions:
   contents: read
 jobs:
   desktop-candidate:
-    if: github.ref == 'refs/heads/feat/release-103-desktop'
+    if: github.ref == 'refs/heads/feat/release-103'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     defaults:

@@ -14,7 +14,7 @@ class Release103(unittest.TestCase):
  def test_version_and_candidate(self):
   self.assertIn("versionCode 103; versionName '1.0.3'",(ROOT/'diakitw-android/app/build.gradle').read_text())
   workflow=(ROOT/'.github/workflows/android-release-103.yml').read_text()
-  self.assertIn('feat/release-103-android',workflow)
+  self.assertIn('feat/release-103',workflow)
   self.assertIn('build-signed-103.sh',workflow)
   self.assertIn('run-android-103.sh',workflow)
   self.assertIn('d9298271', (ROOT/'diakitw-android/ci/build-signed-103.sh').read_text())
