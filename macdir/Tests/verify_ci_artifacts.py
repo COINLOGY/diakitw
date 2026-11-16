@@ -14,6 +14,7 @@ source = (ROOT / 'Sources/macdir/main.swift').read_text()
 assert source.index('if CommandLine.arguments.contains("--self-check") {') < source.index('CommandLine.arguments.contains("--server-snapshot")')
 assert 'exit(runOfflineSelfCheck())' in source
 rosetta = subprocess.run(['arch', '-x86_64', '/usr/bin/true'], capture_output=True, timeout=10).returncode == 0
+mode = p.signing_mode()
 records = json.loads((EVIDENCE / 'distribution-manifest.json').read_text())
 assert {r['arch'] for r in records} == {'arm64', 'x86_64'} and len(records) == 2
 for rec in records:
@@ -22,8 +23,13 @@ for rec in records:
     with p.read_only_mount(dmg) as mount:
         app = mount / 'diakitw.app'
         p.run('codesign', '--verify', '--deep', '--strict', app)
-        p.run('xcrun', 'stapler', 'validate', dmg)
-        assert rec['developer_id_signature_verified'] and rec['notarized_and_stapled']
+        if mode == 'signed':
+            p.run('xcrun', 'stapler', 'validate', dmg)
+        assert rec['signing'] == p.signature_evidence(mode)['signing']
+        assert rec['developer_id_signature_verified'] == (mode == 'signed')
+        assert rec['notarized_and_stapled'] == (mode == 'signed')
+        assert rec['gatekeeper_accepted'] is False
+        p.verify_signature(mode, app)
         p.run('python3', ROOT / 'Tests/check_binary_privacy.py', app)
         for name in ('macdir', 'DiagnosticWorker', 'ServerAskpass'):
             binary = app / 'Contents/MacOS' / name
@@ -46,7 +52,8 @@ result = {
     'version': '1.0.3', 'display_version': '1.0.3', 'build': '103', 'compiler_jobs': 2,
     'rosetta_available': rosetta, 'artifacts': records,
     'not_run': ['hardware stress/GPU worker', 'live external network/SSH/Keychain', 'installed GUI', 'physical Intel / oldest macOS runtime', 'downloaded DMG installation / Gatekeeper on another Mac'],
-    'release_published': False,
+    'release_published': False, 'gatekeeper_accepted': False,
+    'signing_mode': mode, 'warning': 'Ad-hoc DMGs are not notarized and may be rejected by Gatekeeper' if mode == 'adhoc' else None,
 }
 with (EVIDENCE / 'ci-manifest.json').open('x') as f:
     json.dump(result, f, indent=2)

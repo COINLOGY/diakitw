@@ -18,9 +18,18 @@ if [[ "$(uname -m)" != arm64 ]]; then
   printf '%s\n' "This entry point builds arm64; use the documented Intel cross-build." >&2
   exit 1
 fi
-bash sign-and-notarize.sh preflight
+if [[ "${MACDIR_SIGNING_MODE:-signed}" == adhoc ]]; then
+  [[ "${GITHUB_ACTIONS:-}" == true ]] || { echo 'Ad-hoc build restricted to CI' >&2; exit 2; }
+  SIGN_COMMAND=adhoc-sign
+  bash sign-and-notarize.sh adhoc-preflight
+else
+  [[ "${MACDIR_SIGNING_MODE:-signed}" == signed ]] || exit 2
+  SIGN_COMMAND=sign
+  bash sign-and-notarize.sh preflight
+fi
 python3 Tests/check_updates_wiring.py
 python3 Tests/test_release_103_mac.py
+python3 Tests/test_macos_adhoc_route.py
 python3 Tests/check_update_prompt.py
 mkdir -p evidence/diakitw-1.0.3
 swiftc -j 2 -parse-as-library Sources/macdir/UpdateOfferPromptPolicy.swift Tests/update_prompt_checks.swift -o evidence/diakitw-1.0.3/update-prompt-checks
@@ -99,7 +108,7 @@ cp assets/server_probe.py "$APP/Contents/Resources/server_probe.py"
 # Strip only release copies; remove Mach-O OSO debug-map build paths.
 strip -S "$APP/Contents/MacOS/macdir" "$APP/Contents/MacOS/DiagnosticWorker" "$APP/Contents/MacOS/ServerAskpass"
 python3 Tests/check_binary_privacy.py "$APP"
-bash sign-and-notarize.sh sign "$APP/Contents/MacOS/DiagnosticWorker"
-bash sign-and-notarize.sh sign "$APP/Contents/MacOS/ServerAskpass"
-bash sign-and-notarize.sh sign "$APP"
+bash sign-and-notarize.sh "$SIGN_COMMAND" "$APP/Contents/MacOS/DiagnosticWorker"
+bash sign-and-notarize.sh "$SIGN_COMMAND" "$APP/Contents/MacOS/ServerAskpass"
+bash sign-and-notarize.sh "$SIGN_COMMAND" "$APP"
 codesign --verify --deep --strict "$APP"

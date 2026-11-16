@@ -17,13 +17,14 @@ NAME = 'diakitw'
 README = 'README-diakitw-1.0.3-RU.txt'
 
 
-def artifact_paths(root, arch):
+def artifact_paths(root, arch, mode="signed"):
     if arch not in ('arm64', 'x86_64'):
         raise ValueError('Unsupported architecture')
-    output = root / f'dist/{NAME}-{VERSION}-{arch}'
+    suffix = '-unsigned' if mode == 'adhoc' else ''
+    output = root / f'dist/{NAME}-{VERSION}{suffix}-{arch}'
     return {'output': output, 'app': output / 'diakitw.app',
             'stage': output / 'dmg-content',
-            'dmg': root / f'dist/{NAME}-{VERSION}-macos-{arch}.dmg'}
+            'dmg': root / f'dist/{NAME}-{VERSION}-macos{suffix}-{arch}.dmg'}
 
 
 def require_absent(path):
@@ -47,6 +48,44 @@ def verify_developer_id(path):
     flags = next((line for line in details.splitlines() if line.startswith('CodeDirectory ') or line.startswith('flags=')), '')
     if result.returncode or 'Authority=Developer ID Application:' not in details or 'runtime' not in flags:
         raise RuntimeError(f'Not a hardened Developer ID signature: {path}')
+
+
+def signing_mode():
+    mode = os.environ.get('MACDIR_SIGNING_MODE', 'signed')
+    if mode not in ('signed', 'adhoc') or (mode == 'adhoc' and os.environ.get('GITHUB_ACTIONS') != 'true'):
+        raise RuntimeError('Invalid signing mode; ad-hoc candidates require GitHub Actions')
+    return mode
+
+
+def preflight(mode):
+    run('bash', ROOT / 'sign-and-notarize.sh', 'adhoc-preflight' if mode == 'adhoc' else 'preflight')
+
+
+def sign_target(mode, target):
+    run('bash', ROOT / 'sign-and-notarize.sh', 'adhoc-sign' if mode == 'adhoc' else 'sign', target)
+
+
+def finish_dmg(mode, dmg):
+    if mode == 'signed':
+        run('bash', ROOT / 'sign-and-notarize.sh', 'notarize', dmg)
+
+
+def signature_evidence(mode):
+    return {'signing': 'ad-hoc' if mode == 'adhoc' else 'Developer ID',
+            'developer_id_signature_verified': mode == 'signed',
+            'notarized_and_stapled': mode == 'signed',
+            'gatekeeper_accepted': False}
+
+
+def verify_signature(mode, path):
+    run('codesign', '--verify', '--strict', path)
+    if mode == 'signed':
+        verify_developer_id(path)
+    else:
+        result = subprocess.run(['codesign', '-dv', '--verbose=4', str(path)],
+                                capture_output=True, text=True)
+        if result.returncode or 'Signature=adhoc' not in result.stdout + result.stderr:
+            raise RuntimeError(f'Expected ad-hoc signature: {path}')
 
 
 def sha(path):
@@ -73,19 +112,20 @@ def read_only_mount(dmg):
 
 def main():
     os.environ.setdefault('TMPDIR', str(Path.home() / '.cache/diakitw/scratch'))
+    mode = signing_mode()
     evidence = ROOT / f'evidence/diakitw-{VERSION}'
     # Preflight BOTH architectures before writing anything; old releases remain untouched.
     for arch in ('arm64', 'x86_64'):
-        paths = artifact_paths(ROOT, arch)
+        paths = artifact_paths(ROOT, arch, mode)
         require_absent(paths['dmg'])
         require_absent(paths['stage'])
         if arch == 'x86_64':
             require_absent(paths['output'])
     require_absent(evidence / 'distribution-manifest.json')
-    run('bash', ROOT / 'sign-and-notarize.sh', 'preflight')
+    preflight(mode)
     records = []
     for arch in ('arm64', 'x86_64'):
-        paths = artifact_paths(ROOT, arch)
+        paths = artifact_paths(ROOT, arch, mode)
         app, stage, dmg = paths['app'], paths['stage'], paths['dmg']
         if arch == 'x86_64':
             (app / 'Contents/MacOS').mkdir(parents=True)
@@ -101,12 +141,12 @@ def main():
                 shutil.copy2(ROOT / 'assets' / name, app / 'Contents/Resources' / name)
             run('strip', '-S', *[app / 'Contents/MacOS' / n for n in ('macdir', 'DiagnosticWorker', 'ServerAskpass')])
             run('python3', ROOT / 'Tests/check_binary_privacy.py', app)
-            run('bash', ROOT / 'sign-and-notarize.sh', 'sign', app / 'Contents/MacOS/DiagnosticWorker')
+            sign_target(mode, app / 'Contents/MacOS/DiagnosticWorker')
             (app / 'Contents/MacOS/ServerAskpass').chmod(0o755)
-            run('bash', ROOT / 'sign-and-notarize.sh', 'sign', app / 'Contents/MacOS/ServerAskpass')
-            run('bash', ROOT / 'sign-and-notarize.sh', 'sign', app)
+            sign_target(mode, app / 'Contents/MacOS/ServerAskpass')
+            sign_target(mode, app)
         run('codesign', '--verify', '--deep', '--strict', app)
-        verify_developer_id(app)
+        verify_signature(mode, app)
         run('python3', ROOT / 'Tests/check_binary_privacy.py', app)
         stage.mkdir()
         run('ditto', app, stage / 'diakitw.app')
@@ -115,21 +155,21 @@ def main():
         run('hdiutil', 'create', '-volname', f'{NAME} {VERSION} {arch}',
             '-srcfolder', stage, '-format', 'UDZO', '-fs', 'HFS+', dmg)
         run('hdiutil', 'verify', dmg)
-        run('bash', ROOT / 'sign-and-notarize.sh', 'notarize', dmg)
+        finish_dmg(mode, dmg)
         with read_only_mount(dmg) as mount:
             mounted = mount / 'diakitw.app'
             assert {p.name for p in mount.iterdir()} >= {'diakitw.app', README, 'Applications'}
             assert (mount / 'Applications').is_symlink() and os.readlink(mount / 'Applications') == '/Applications'
             assert sha(mount / README) == sha(ROOT / 'assets' / README)
             run('codesign', '--verify', '--deep', '--strict', mounted)
-            verify_developer_id(mounted)
+            verify_signature(mode, mounted)
             for name in ('macdir', 'DiagnosticWorker', 'ServerAskpass'):
                 binary = mounted / 'Contents/MacOS' / name
                 assert run('lipo', '-archs', binary).decode().strip() == arch
                 run('file', binary)
                 run('xcrun', 'vtool', '-show-build', binary)
                 run('codesign', '--verify', '--strict', binary)
-                verify_developer_id(binary)
+                verify_signature(mode, binary)
                 assert sha(binary) == sha(app / 'Contents/MacOS' / name)
             for name in ('macdir.icns', 'server_probe.py'):
                 assert sha(mounted / 'Contents/Resources' / name) == sha(ROOT / 'assets' / name)
@@ -148,7 +188,7 @@ def main():
                             'app_sha256': sha(mounted / 'Contents/MacOS/macdir'),
                             'worker_sha256': sha(mounted / 'Contents/MacOS/DiagnosticWorker'),
                             'askpass_sha256': sha(mounted / 'Contents/MacOS/ServerAskpass'),
-                            'read_only_mount_verified': True, 'developer_id_signature_verified': True, 'notarized_and_stapled': True})
+                            'read_only_mount_verified': True, **signature_evidence(mode)})
     evidence.mkdir(parents=True, exist_ok=True)
     with (evidence / 'distribution-manifest.json').open('x') as f:
         f.write(json.dumps(records, indent=2) + '\n')

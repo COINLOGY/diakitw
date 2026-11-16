@@ -6,7 +6,7 @@ on:
       scope:
         description: Full installers or focused server model/layout check
         type: choice
-        options: [full, server-model, layout]
+        options: [full, unsigned, server-model, layout]
         default: full
 
 
@@ -30,7 +30,6 @@ jobs:
       DEVELOPER_DIR: /Applications/Xcode_27.2.app/Contents/Developer
       PYTHONDONTWRITEBYTECODE: '1'
       MACOSX_DEPLOYMENT_TARGET: '14.0'
-      MACDIR_DEVELOPER_ID: ${{ secrets.MACDIR_DEVELOPER_ID }}
     steps:
       - name: Checkout reviewed source
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4, verified upstream ref
@@ -55,6 +54,7 @@ jobs:
       - name: Prepare ephemeral Developer ID and notary credentials
         if: inputs.scope == 'full'
         env:
+          MACDIR_DEVELOPER_ID: ${{ secrets.MACDIR_DEVELOPER_ID }}
           MACDIR_SIGNING_P12_BASE64: ${{ secrets.MACDIR_SIGNING_P12_BASE64 }}
           MACDIR_SIGNING_P12_PASSWORD: ${{ secrets.MACDIR_SIGNING_P12_PASSWORD }}
           MACDIR_NOTARY_KEY_BASE64: ${{ secrets.MACDIR_NOTARY_KEY_BASE64 }}
@@ -62,7 +62,10 @@ jobs:
           MACDIR_NOTARY_ISSUER: ${{ secrets.MACDIR_NOTARY_ISSUER }}
         run: bash setup-signing-ci.sh
       - name: Build both thin architectures and verify installers
-        if: inputs.scope == 'full'
+        if: inputs.scope == 'full' || inputs.scope == 'unsigned'
+        env:
+          MACDIR_SIGNING_MODE: ${{ inputs.scope == 'unsigned' && 'adhoc' || 'signed' }}
+          MACDIR_DEVELOPER_ID: ${{ inputs.scope == 'full' && secrets.MACDIR_DEVELOPER_ID || '' }}
         run: bash ci-build.sh
       - name: Upload Apple Silicon DMG (not a Release)
         if: inputs.scope == 'full'
@@ -79,6 +82,24 @@ jobs:
         with:
           name: diakitw-1.0.3-macos-x86_64
           path: macdir/dist/diakitw-1.0.3-macos-x86_64.dmg
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
+      - name: Upload unsigned Apple Silicon DMG (not a Release)
+        if: inputs.scope == 'unsigned'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: diakitw-1.0.3-macos-unsigned-arm64
+          path: macdir/dist/diakitw-1.0.3-macos-unsigned-arm64.dmg
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
+      - name: Upload unsigned Intel DMG (not a Release)
+        if: inputs.scope == 'unsigned'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: diakitw-1.0.3-macos-unsigned-x86_64
+          path: macdir/dist/diakitw-1.0.3-macos-unsigned-x86_64.dmg
           if-no-files-found: error
           retention-days: 14
           compression-level: 0
