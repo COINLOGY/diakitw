@@ -19,7 +19,7 @@ import Foundation
    precondition(stable?.url.lastPathComponent == "diakitw-0.5.6-\(platform).dmg")
    let preview = try UpdateContract.select(data, channel: "preview", platform: platform, current: "0.5.5", currentBuild: 55)
    precondition(preview?.version == "1.0.3" && preview?.build == 103)
-   precondition(preview?.url.lastPathComponent == "diakitw-1.0.3-\(platform.replacingOccurrences(of: "macos-", with: "macos-unsigned-")).dmg")
+   precondition(preview?.url.lastPathComponent == "diakitw-1.0.3-\(platform).dmg")
    precondition(preview?.size == expected[platform]!.0 && preview?.sha256 == expected[platform]!.1)
    let currentStable = try UpdateContract.select(data, channel: "stable", platform: platform, current: "0.5.6", currentBuild: 56)
    let oldPreview = try UpdateContract.select(data, channel: "preview", platform: platform, current: "1.0.2", currentBuild: 102)

@@ -9,7 +9,8 @@ for (const [platform, id] of Object.entries({'macos-arm64':'mac-silicon','macos-
   const preview = select(feed, platform, 'preview', '0.5.5', 55);
   assert.equal(preview?.version, '1.0.3');
   assert.equal(preview?.build, 103);
-  assert.equal(preview?.asset.url, p.url);
+  const expectedURL = p.url.replace('-macos-unsigned-', '-macos-');
+  assert.equal(preview?.asset.url, expectedURL);
   assert.equal(preview?.asset.size, p.size_bytes);
   assert.equal(preview?.asset.sha256, p.sha256);
   assert.equal(select(feed, platform, 'preview', '1.0.2', 102)?.version, '1.0.3');

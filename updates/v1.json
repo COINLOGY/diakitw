@@ -8,12 +8,12 @@
       "notes": "diakitw 1.0.3 preview. Android same signing key as 1.0.1/1.0.2; from 0.5.x reinstall may lose data. Windows/macOS lack publisher signing; manual installation may be blocked.",
       "assets": {
         "macos-arm64": {
-          "url": "https://github.com/COINLOGY/diakitw/releases/download/v1.0.3/diakitw-1.0.3-macos-unsigned-arm64.dmg",
+          "url": "https://github.com/COINLOGY/diakitw/releases/download/v1.0.3/diakitw-1.0.3-macos-arm64.dmg",
           "size": 1616066,
           "sha256": "ab22fb5534ca5d8b4ea91c625c9668aba70406903be496da713425efcb2e8ba0"
         },
         "macos-x86_64": {
-          "url": "https://github.com/COINLOGY/diakitw/releases/download/v1.0.3/diakitw-1.0.3-macos-unsigned-x86_64.dmg",
+          "url": "https://github.com/COINLOGY/diakitw/releases/download/v1.0.3/diakitw-1.0.3-macos-x86_64.dmg",
           "size": 1732620,
           "sha256": "744b17a8bed4c5ab93cf38382783668a2bc06e0f78a9a63daca82094c790bf92"
         },

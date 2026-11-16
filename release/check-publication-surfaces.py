@@ -24,7 +24,8 @@ mapping={'macos-arm64':'mac-silicon','macos-x86_64':'mac-intel','windows-x64':'w
 assert set(preview1[0]['assets'])==set(mapping) and set(preview2[0]['assets'])=={'android'}
 for platform,pid in mapping.items():
  p=by_id[pid];a=preview1[0]['assets'][platform]
- assert (a['url'],a['size'],a['sha256'])==(p['url'],p['size_bytes'],p['sha256'])
+ expected_url=p['url'].replace('-macos-unsigned-', '-macos-')
+ assert (a['url'],a['size'],a['sha256'])==(expected_url,p['size_bytes'],p['sha256'])
 p=by_id['android'];a=preview2[0]['assets']['android']
 assert (a['url'],a['size'],a['sha256'])==(p['url'],p['size_bytes'],p['sha256'])
 assert [(r['version'],r['build']) for r in v1['releases'] if 'android' in r['assets']]==[('0.5.5',55)]

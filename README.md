@@ -9,6 +9,10 @@
 - [diakitw-1.0.3-windows-x64.zip](https://github.com/COINLOGY/diakitw/releases/download/v1.0.3/diakitw-1.0.3-windows-x64.zip) — 158114064 байт; SHA-256 `de993edf285cd4478bf27893a3b0a8922be975f811006c0db19727eed23fd396`
 - [diakitw-1.0.3-linux-x64.tar.gz](https://github.com/COINLOGY/diakitw/releases/download/v1.0.3/diakitw-1.0.3-linux-x64.tar.gz) — 124051641 байт; SHA-256 `b23ddc03ad60ae8bac80fcd778f5cffdbd652389a9b9a4079fc6de90a89da404`
 
+Совместимость обновлятора macOS 1.0.2: дополнительные имена ведут на **те же байты ad-hoc DMG**, без Developer ID/нотариализации:
+- [diakitw-1.0.3-macos-arm64.dmg](https://github.com/COINLOGY/diakitw/releases/download/v1.0.3/diakitw-1.0.3-macos-arm64.dmg) — 1616066 байт; SHA-256 `ab22fb5534ca5d8b4ea91c625c9668aba70406903be496da713425efcb2e8ba0`
+- [diakitw-1.0.3-macos-x86_64.dmg](https://github.com/COINLOGY/diakitw/releases/download/v1.0.3/diakitw-1.0.3-macos-x86_64.dmg) — 1732620 байт; SHA-256 `744b17a8bed4c5ab93cf38382783668a2bc06e0f78a9a63daca82094c790bf92`
+
 [SHA256SUMS-1.0.3.txt](https://github.com/COINLOGY/diakitw/releases/download/v1.0.3/SHA256SUMS-1.0.3.txt) — сверьте скачанные байты.
 
 ## Подпись и установка

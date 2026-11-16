@@ -43,8 +43,9 @@ class Publication103(unittest.TestCase):
                                 for line in readme.splitlines()), pid)
             feed = v2 if pid == 'android' else v1
             a = feed['releases'][0]['assets'][KEYS[pid]]
+            expected_url = p['url'].replace('-macos-unsigned-', '-macos-')
             self.assertEqual((a['url'], a['size'], a['sha256']),
-                             (p['url'], p['size_bytes'], p['sha256']), pid)
+                             (expected_url, p['size_bytes'], p['sha256']), pid)
         combined = readme.lower() + page.lower() + json.dumps(manifest).lower()
         self.assertNotIn('1.0.3-ios-', combined)
         self.assertNotIn('actions/upload-artifact@', (ROOT / '.github/workflows/ios-build.yml').read_text())
