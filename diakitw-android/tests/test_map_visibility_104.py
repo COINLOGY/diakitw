@@ -8,13 +8,19 @@ PROBE = (ROOT / 'diakitw-android/app/src/androidTest/java/app/diakitw/LayoutProb
 class MapVisibility104(unittest.TestCase):
     def test_embedded_map_follows_compact_resources_in_initial_viewport(self):
         dashboard = SRC.split('LinearLayout dashboard=column();', 1)[1].split('metricViewport.addView(dashboard)', 1)[0]
-        self.assertLess(dashboard.index('dashboard.addView(metrics)'), dashboard.index('dashboard.addView(geo,gp)'))
+        self.assertLess(dashboard.index('dashboard.addView(metrics,landscape?'), dashboard.index('dashboard.addView(geo,gp)'))
         self.assertIn('if(!landscape)gauge.setVisibility(GONE)', SRC)
         self.assertIn('dp(landscape?140:220)', SRC)
 
     def test_country_and_map_precede_redundant_ip_summary(self):
         self.assertGreater(SRC.index('geo.addView(summary', SRC.index('LinearLayout geo=column()')), SRC.index('geo.addView(persistentMap', SRC.index('LinearLayout geo=column()')))
         self.assertIn('(compact||!landscape)&&getResources().getConfiguration().fontScale<=1.5f', SRC)
+
+    def test_landscape_uses_two_columns_instead_of_burying_map_below_gauges(self):
+        dashboard = SRC.split('LinearLayout dashboard=column();', 1)[1].split('metricViewport.addView(dashboard)', 1)[0]
+        self.assertIn('dashboard.setOrientation(landscape?LinearLayout.HORIZONTAL:LinearLayout.VERTICAL)', dashboard)
+        self.assertIn('new LinearLayout.LayoutParams(0,-2,1.25f)', dashboard)
+        self.assertIn('new LinearLayout.LayoutParams(0,-2,1f)', dashboard)
 
     def test_native_probe_asserts_actual_visible_map_not_only_parent(self):
         self.assertIn('getGlobalVisibleRect', PROBE)

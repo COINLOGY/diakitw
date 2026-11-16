@@ -147,7 +147,7 @@ public final class MainActivity extends Activity {
   persistentMap=new MapView(this,true);persistentMap.update(ipSnapshot,true);geo.addView(persistentMap,new LinearLayout.LayoutParams(-1,dp(landscape?140:220)));
   geoCaption=text(mapPrecision(),12,MUTED);geo.addView(geoCaption);if(!landscape)geo.addView(summary,new LinearLayout.LayoutParams(-1,-2));
   geo.addView(button("Источник и точность",v->showText("IP · источник и точность",IP_NOTICE)));
-  metricViewport.removeView(metrics);LinearLayout dashboard=column();dashboard.addView(metrics);LinearLayout.LayoutParams gp=new LinearLayout.LayoutParams(-1,-2);gp.setMargins(dp(3),dp(8),dp(3),dp(8));dashboard.addView(geo,gp);metricViewport.addView(dashboard);
+  metricViewport.removeView(metrics);LinearLayout dashboard=column();dashboard.setOrientation(landscape?LinearLayout.HORIZONTAL:LinearLayout.VERTICAL);dashboard.addView(metrics,landscape?new LinearLayout.LayoutParams(0,-2,1.25f):new LinearLayout.LayoutParams(-1,-2));LinearLayout.LayoutParams gp=landscape?new LinearLayout.LayoutParams(0,-2,1f):new LinearLayout.LayoutParams(-1,-2);gp.setMargins(dp(3),dp(8),dp(3),dp(8));dashboard.addView(geo,gp);metricViewport.addView(dashboard);
   if(!landscape)root.addView(metricViewport,new LinearLayout.LayoutParams(-1,0,1));
   Button internet=button("Тест интернета",v->openTest());styleButton(internet,true);internet.setMinHeight(dp(56));footer.addView(internet,new LinearLayout.LayoutParams(-1,-2));if(landscape){Space spacer=new Space(this);rail.addView(spacer,new LinearLayout.LayoutParams(-1,0,1));rail.addView(footer);}else root.addView(footer);setContentView(root);
  }
