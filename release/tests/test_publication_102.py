@@ -14,29 +14,21 @@ EXPECTED = {
 }
 
 class Publication102(unittest.TestCase):
-    def test_surfaces_and_feed_match_assets(self):
-        manifest = json.loads((ROOT/'manifest.json').read_text())
-        readme = (ROOT/'README.md').read_text()
-        page = (ROOT/'index.html').read_text()
-        self.assertTrue(manifest['published'] and manifest['prerelease'])
-        self.assertIn('1.0.2', manifest['release'])
-        self.assertEqual([p['id'] for p in manifest['platforms']], list(EXPECTED))
+    def test_historical_102_assets_remain_unchanged_in_feeds(self):
         v1 = json.loads((ROOT/'updates/v1.json').read_text())
         v2 = json.loads((ROOT/'updates/v2.json').read_text())
-        self.assertEqual((v1['releases'][0]['version'], v1['releases'][0]['build'], v1['releases'][0]['channel']), ('1.0.2', 102, 'preview'))
-        self.assertEqual((v2['releases'][0]['version'], v2['releases'][0]['build'], v2['releases'][0]['channel']), ('1.0.2', 102, 'preview'))
-        for p in manifest['platforms']:
-            key, name, size, digest = EXPECTED[p['id']]
-            self.assertEqual((p['version'], p['displayVersion'], p['build'], p['filename'], p['size_bytes'], p['sha256'], p['url']), ('1.0.2','1.0.2',102,name,size,digest,BASE+name))
-            self.assertTrue(any(f'[{name}]({BASE+name})' in line and digest in line for line in readme.splitlines()))
-            feed = v2 if p['id']=='android' else v1
-            self.assertEqual((feed['releases'][0]['assets'][key]['url'],feed['releases'][0]['assets'][key]['size'],feed['releases'][0]['assets'][key]['sha256']), (BASE+name,size,digest))
-        self.assertEqual(set(v1['releases'][0]['assets']),{'macos-arm64','macos-x86_64','windows-x64','linux-x64'})
-        self.assertEqual(set(v2['releases'][0]['assets']),{'android'})
-        self.assertEqual([(r['version'],r['build']) for r in v1['releases'] if 'android' in r['assets']],[('0.5.5',55)])
-        self.assertIn('1.0.2',page)
-        self.assertNotIn('v1.0.1',page)
-        self.assertNotIn('1.0.2-ios-',readme.lower()+json.dumps(manifest).lower())
-        self.assertNotIn('actions/upload-artifact@',(ROOT/'.github/workflows/ios-build.yml').read_text())
+        desktop = [r for r in v1['releases'] if r['version']=='1.0.2' and r['channel']=='preview']
+        android = [r for r in v2['releases'] if r['version']=='1.0.2' and r['channel']=='preview']
+        self.assertEqual(len(desktop), 1)
+        self.assertEqual(len(android), 1)
+        self.assertEqual((desktop[0]['build'], android[0]['build']), (102, 102))
+        self.assertEqual(set(desktop[0]['assets']), {'macos-arm64','macos-x86_64','windows-x64','linux-x64'})
+        self.assertEqual(set(android[0]['assets']), {'android'})
+        for pid, (key, name, size, digest) in EXPECTED.items():
+            feed = android[0] if pid=='android' else desktop[0]
+            a = feed['assets'][key]
+            self.assertEqual((a['url'], a['size'], a['sha256']), (BASE+name, size, digest))
+        self.assertEqual([(r['version'],r['build']) for r in v1['releases'] if 'android' in r['assets']], [('0.5.5',55)])
+        self.assertNotIn('actions/upload-artifact@', (ROOT/'.github/workflows/ios-build.yml').read_text())
 
 if __name__=='__main__': unittest.main()
