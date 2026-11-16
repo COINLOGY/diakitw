@@ -322,7 +322,7 @@ public final class MainActivity extends Activity {
    value=text("Н/Д",22,MUTED);value.setTypeface(Typeface.create("sans-serif-medium",Typeface.NORMAL));
    if(compact&&getResources().getConfiguration().fontScale<=1.5f){LinearLayout line=new LinearLayout(MainActivity.this);line.setGravity(Gravity.CENTER_VERTICAL);line.addView(label,new LinearLayout.LayoutParams(0,-2,1));line.addView(value);copy.addView(line);}else{copy.addView(label);copy.addView(value);}
    detail=text("Н/Д",12,MUTED);label.setIncludeFontPadding(false);value.setIncludeFontPadding(false);detail.setIncludeFontPadding(false);copy.addView(detail);addView(copy,new LinearLayout.LayoutParams(0,-2,1));
-   gauge=new ResourceGauge();LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(dp(dialWidth()),dp(dialHeight()));p.setMargins(dp(8),0,0,0);addView(gauge,p);
+   gauge=new ResourceGauge();LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(dp(dialWidth()),dp(dialHeight()));p.setMargins(dp(8),0,0,0);addView(gauge,p);if(!landscape)gauge.setVisibility(GONE);
    if(getResources().getConfiguration().fontScale>1.5f){setOrientation(VERTICAL);copy.setLayoutParams(new LinearLayout.LayoutParams(-1,-2));p.gravity=Gravity.RIGHT;}
    setOnClickListener(v->showText(name,information));setContentDescription(name);update(Double.NaN,"Н/Д");
   }

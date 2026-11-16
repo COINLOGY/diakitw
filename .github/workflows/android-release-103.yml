@@ -2,7 +2,7 @@ name: Android 1.0.3 signed candidate and native map
 
 on:
   push:
-    branches: [feat/release-103]
+    branches: [feat/release-103, fix/android-map-visible-104]
   workflow_dispatch:
 
 permissions:
@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   android-signed-candidate:
-    if: github.ref == 'refs/heads/feat/release-103'
+    if: github.ref == 'refs/heads/feat/release-103' || github.ref == 'refs/heads/fix/android-map-visible-104'
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
