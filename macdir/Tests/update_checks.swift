@@ -30,12 +30,12 @@ final class FixtureProtocol: URLProtocol {
         func select(_ d: Data, channel: String = "preview", platform: String = "macos-arm64", current: String = "0.5.3", build: Int = 53) throws -> UpdateContract.Offer? {
             try UpdateContract.select(d, channel: channel, platform: platform, current: current, currentBuild: build)
         }
-        require(UpdateContract.version == "1.0.2" && UpdateContract.build == 102, "numeric Mac identity")
-        let nextRelease = try fixture(version: "1.0.2", build: 102)
-        require(try UpdateContract.select(nextRelease, channel: "preview", platform: "macos-arm64", current: "1.0.0", currentBuild: 100)?.version == "1.0.2", "1.0.0 sees 1.0.2")
-        require(try UpdateContract.select(nextRelease, channel: "preview", platform: "macos-arm64", current: "1.0.1", currentBuild: 101)?.build == 102, "1.0.1 updates to 1.0.2")
-        require(try UpdateContract.select(nextRelease, channel: "preview", platform: "macos-arm64") == nil, "1.0.2 does not self-offer")
-        require(try UpdateContract.select(try fixture(version: "1.0.2", build: 103), channel: "preview", platform: "macos-arm64")?.build == 103, "newer build of same version offered")
+        require(UpdateContract.version == "1.0.3" && UpdateContract.build == 103, "numeric Mac identity")
+        let nextRelease = try fixture(version: "1.0.3", build: 103)
+        require(try UpdateContract.select(nextRelease, channel: "preview", platform: "macos-arm64", current: "1.0.0", currentBuild: 100)?.version == "1.0.3", "1.0.0 sees 1.0.3")
+        require(try UpdateContract.select(nextRelease, channel: "preview", platform: "macos-arm64", current: "1.0.1", currentBuild: 101)?.build == 103, "1.0.1 updates to 1.0.3")
+        require(try UpdateContract.select(nextRelease, channel: "preview", platform: "macos-arm64") == nil, "1.0.3 does not self-offer")
+        require(try UpdateContract.select(try fixture(version: "1.0.3", build: 104), channel: "preview", platform: "macos-arm64")?.build == 104, "newer build of same version offered")
         let nextIOS = try fixture(version: "1.0.2", build: 102, platform: "ios-unsigned")
         require(try UpdateContract.select(nextIOS, channel: "preview", platform: "ios-unsigned", current: "1.0.0", currentBuild: 100)?.version == "1.0.2", "older iOS sees matching asset")
         require(try UpdateContract.select(nextIOS, channel: "preview", platform: "ios-unsigned") == nil, "1.0.2 iOS does not self-offer")

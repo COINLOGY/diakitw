@@ -112,9 +112,19 @@ MainActor.assumeIsolated {
    if width <= 800 && chart.minY < numbers.maxY { failures.append(size+": narrow chart must be below numbers") }
    if width >= 1180 && chart.minX < numbers.maxX { failures.append(size+": wide chart must follow numbers") }
    let gauges = layoutFrames.filter { $0.key.hasPrefix("gauge-") }.map(\.value)
-   if gauges.count != 6 || gauges.contains(where: { $0.width < 230 || abs($0.height - 112) > 1 || $0.maxY > min(numbers.minY, chart.minY) }) { failures.append(size+": gauges compressed or overlapping traffic") }
+   if gauges.count != (width <= 800 && height <= 540 ? 3 : 6) || gauges.contains(where: { $0.width < 230 || abs($0.height - 112) > 1 || $0.maxY > min(numbers.minY, chart.minY) }) { failures.append(size+": gauges compressed or overlapping traffic") }
 
   } else { failures.append(size+": missing geometry probes") }
+  // Native offscreen geometry: row-major order and no horizontal clipping at 800px.
+  let buttons = (0..<7).compactMap { layoutFrames["toolbar-\($0)"] }
+  if buttons.count != 7 { failures.append(size+": toolbar buttons missing") }
+  else {
+   for (i, rect) in buttons.enumerated() {
+    if rect.minX < 0 || rect.maxX > CGFloat(width) || rect.minY < 0 || rect.width < 70 || rect.height < 15 { failures.append(size+": toolbar button \(i) clipped") }
+    if i > 0 && !(rect.minY > buttons[i-1].minY + 2 || (abs(rect.minY - buttons[i-1].minY) <= 2 && rect.minX > buttons[i-1].minX)) { failures.append(size+": toolbar order changed at \(i)") }
+   }
+   if width == 800 && !buttons.contains(where: { $0.minY > buttons[0].minY + 2 }) { failures.append(size+": narrow toolbar did not wrap") }
+  }
   if let table = descendants(host).compactMap({ $0 as? NSTableView }).first, let tableScroll = table.enclosingScrollView {
    table.scrollRowToVisible(39)
    if tableScroll.contentView.bounds.minY <= 0 { failures.append(size+": table cannot scroll to last row") }
