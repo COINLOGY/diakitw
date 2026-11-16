@@ -12,6 +12,6 @@ class IpEntry(unittest.TestCase):
   self.assertIn('String ipStatusLabel(){return ipBadge.equals("Снимок")?"Обновлено":ipBadge;}',s)
   self.assertIn('state.setText(ipStatusLabel()',s)
   self.assertIn('ipBadge="Снимок";',s)
-  self.assertEqual(s.count('!ipBadge.equals("Снимок")'),4)
+  self.assertEqual(s.count('!ipBadge.equals("Снимок")'),5)
   self.assertIn('state.setTextColor(ipBadge.equals("Снимок")?GREEN:MUTED)',s)
 if __name__=='__main__': unittest.main()

@@ -4,10 +4,10 @@ R=pathlib.Path(__file__).resolve().parents[1]
 class CpuLayout(unittest.TestCase):
  def test_app_cpu_sampler_and_four_cards(self):
   s=(R/'app/src/main/java/app/diakitw/MainActivity.java').read_text()
-  for token in ['new Metric("CPU APP")','new Metric[]{cpu,ram,disk,battery}','Process.getElapsedCpuTime()','Core.cpu(','cpu.update(s.cpu','previousCpu=-1','Только diakitw','countryLabel()','summary.setTextSize(18)']:
+  for token in ['new Metric("CPU APP")','new Metric[]{cpu,ram,disk}','Process.getElapsedCpuTime()','Core.cpu(','cpu.update(s.cpu','previousCpu=-1','Только diakitw','countryLabel()','summary.setTextSize(landscape?18:14)']:
    self.assertIn(token,s)
   self.assertNotIn('SWAP, CPU процесса и UID-трафик убраны',s)
  def test_version(self):
   gradle=(R/'app/build.gradle').read_text()
-  self.assertIn("versionName '1.0.2'",gradle)
-  self.assertRegex(gradle,r'\bversionCode\s+102\b')
+  self.assertIn("versionName '1.0.3'",gradle)
+  self.assertRegex(gradle,r'\bversionCode\s+103\b')
