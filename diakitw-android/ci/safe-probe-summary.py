@@ -15,4 +15,6 @@ name = match.group(1).split('.')[-1] if match else ''
 reason = ('java.lang.' + name) if name in classes and match and match.group(1).startswith('java.lang.') else 'reason unavailable'
 frame = re.search(r'\bapp\.diakitw\.[A-Za-z0-9.$]+\(([A-Za-z0-9_]+\.java):([0-9]{1,5})\)', report)
 location = f' at {frame.group(1)}:{frame.group(2)}' if frame else ''
-print(f'FAIL native entry probe; {reason}{location}; raw report withheld')
+bounds = re.search(r'Map hidden below initial viewport visible=([0-9]{1,6}) total=([0-9]{1,6})', report)
+map_visibility = f'; map visible={bounds.group(1)}/{bounds.group(2)}' if bounds else ''
+print(f'FAIL native entry probe; {reason}{location}{map_visibility}; raw report withheld')

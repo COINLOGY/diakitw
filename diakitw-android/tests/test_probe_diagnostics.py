@@ -31,6 +31,18 @@ class ProbeDiagnostics(unittest.TestCase):
         self.assertIn('reason unavailable',result.stdout)
         self.assertNotIn('198.51.100.4',result.stdout+result.stderr)
 
+    def test_map_visibility_failure_reports_only_safe_numeric_bounds(self):
+        raw=('INSTRUMENTATION_RESULT: stream=FAIL java.lang.AssertionError: '
+             'Map hidden below initial viewport visible=0 total=660 '
+             'IP=203.0.113.42 https://example.org user@example.org\n')
+        with tempfile.TemporaryDirectory() as temp:
+            report=Path(temp)/'report.txt'
+            report.write_text(raw)
+            result=subprocess.run(['python3',str(SCRIPT),str(report)],capture_output=True,text=True)
+        self.assertIn('map visible=0/660',result.stdout)
+        for secret in ('203.0.113.42','example.org','user@example.org'):
+            self.assertNotIn(secret,result.stdout+result.stderr)
+
     def test_runner_uses_sanitized_diagnostic(self):
         runner=(SCRIPT.parent/'run-android-entry.sh').read_text()
         self.assertIn('ci/safe-probe-summary.py "$report"', runner)
