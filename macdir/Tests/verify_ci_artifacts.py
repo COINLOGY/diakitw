@@ -4,10 +4,9 @@ import json
 import os
 from pathlib import Path
 import subprocess
-import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
-EVIDENCE = ROOT / 'evidence/diakitw-1.0.2'
+EVIDENCE = ROOT / 'evidence/diakitw-1.0.3'
 spec = importlib.util.spec_from_file_location('packager', ROOT / 'package-diagnostics-dmg.py')
 p = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(p)
@@ -23,6 +22,8 @@ for rec in records:
     with p.read_only_mount(dmg) as mount:
         app = mount / 'diakitw.app'
         p.run('codesign', '--verify', '--deep', '--strict', app)
+        p.run('xcrun', 'stapler', 'validate', dmg)
+        assert rec['developer_id_signature_verified'] and rec['notarized_and_stapled']
         p.run('python3', ROOT / 'Tests/check_binary_privacy.py', app)
         for name in ('macdir', 'DiagnosticWorker', 'ServerAskpass'):
             binary = app / 'Contents/MacOS' / name
@@ -39,14 +40,12 @@ for rec in records:
             assert rejection.returncode != 0 and not rejection.stdout
         rec.update(dmg=dmg.name, self_check=runtime, minimum_macos='14.0', binary_privacy_verified=True)
         print(rec['arch'], runtime)
-with zipfile.ZipFile(ROOT / 'dist/diakitw-1.0.2-arm64/diakitw-1.0.2-macos-arm64.zip') as z:
-    assert z.testzip() is None
 result = {
     'commit': os.environ['GITHUB_SHA'],
     'run_url': 'https://github.com/' + os.environ['GITHUB_REPOSITORY'] + '/actions/runs/' + os.environ['GITHUB_RUN_ID'],
-    'version': '1.0.2', 'display_version': '1.0.2', 'build': '102', 'compiler_jobs': 2,
+    'version': '1.0.3', 'display_version': '1.0.3', 'build': '103', 'compiler_jobs': 2,
     'rosetta_available': rosetta, 'artifacts': records,
-    'not_run': ['hardware stress/GPU worker', 'live external network/SSH/Keychain', 'installed GUI', 'physical Intel / oldest macOS runtime', 'Developer ID / notarization / Gatekeeper acceptance'],
+    'not_run': ['hardware stress/GPU worker', 'live external network/SSH/Keychain', 'installed GUI', 'physical Intel / oldest macOS runtime', 'downloaded DMG installation / Gatekeeper on another Mac'],
     'release_published': False,
 }
 with (EVIDENCE / 'ci-manifest.json').open('x') as f:

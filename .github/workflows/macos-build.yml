@@ -1,4 +1,4 @@
-name: macOS 1.0.2 build-only
+name: macOS 1.0.3 build-only
 
 on:
   workflow_dispatch:
@@ -14,14 +14,14 @@ permissions:
   contents: read
 
 concurrency:
-  group: macos-102-build-only
+  group: macos-103-build-only
   cancel-in-progress: false
 
 jobs:
   build:
     # Standard Apple Silicon runner; free for public repositories, NOT -large/-xlarge.
     runs-on: xcode-27 # Official standard public-preview label, actions/runner-images#14404.
-    timeout-minutes: 45
+    timeout-minutes: 90
     defaults:
       run:
         shell: bash
@@ -30,6 +30,7 @@ jobs:
       DEVELOPER_DIR: /Applications/Xcode_27.2.app/Contents/Developer
       PYTHONDONTWRITEBYTECODE: '1'
       MACOSX_DEPLOYMENT_TARGET: '14.0'
+      MACDIR_DEVELOPER_ID: ${{ secrets.MACDIR_DEVELOPER_ID }}
     steps:
       - name: Checkout reviewed source
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4, verified upstream ref
@@ -41,16 +42,25 @@ jobs:
         timeout-minutes: 3
 
         run: |
-          mkdir -p "$GITHUB_WORKSPACE/.ci-scratch" evidence/diakitw-1.0.2
+          mkdir -p "$GITHUB_WORKSPACE/.ci-scratch" evidence/diakitw-1.0.3
           export TMPDIR="$(cd "$GITHUB_WORKSPACE/.ci-scratch" && pwd -P)"
-          { xcodebuild -version; swift --version; sysctl -n hw.logicalcpu; python3 Tests/test_server_management_model.py "$TMPDIR"; } 2>&1 | tee evidence/diakitw-1.0.2/server-model.log
+          { xcodebuild -version; swift --version; sysctl -n hw.logicalcpu; python3 Tests/test_server_management_model.py "$TMPDIR"; } 2>&1 | tee evidence/diakitw-1.0.3/server-model.log
       - name: Focused rendered layout check
         if: inputs.scope == 'layout'
         timeout-minutes: 5
         run: |
-          mkdir -p "$GITHUB_WORKSPACE/.ci-scratch" evidence/diakitw-1.0.2
+          mkdir -p "$GITHUB_WORKSPACE/.ci-scratch" evidence/diakitw-1.0.3
           export TMPDIR="$(cd "$GITHUB_WORKSPACE/.ci-scratch" && pwd -P)"
-          { xcodebuild -version; swift --version; python3 Tests/check_layout.py 1.0.2; } 2>&1 | tee evidence/diakitw-1.0.2/layout.log
+          { xcodebuild -version; swift --version; python3 Tests/check_layout.py 1.0.3; } 2>&1 | tee evidence/diakitw-1.0.3/layout.log
+      - name: Prepare ephemeral Developer ID and notary credentials
+        if: inputs.scope == 'full'
+        env:
+          MACDIR_SIGNING_P12_BASE64: ${{ secrets.MACDIR_SIGNING_P12_BASE64 }}
+          MACDIR_SIGNING_P12_PASSWORD: ${{ secrets.MACDIR_SIGNING_P12_PASSWORD }}
+          MACDIR_NOTARY_KEY_BASE64: ${{ secrets.MACDIR_NOTARY_KEY_BASE64 }}
+          MACDIR_NOTARY_KEY_ID: ${{ secrets.MACDIR_NOTARY_KEY_ID }}
+          MACDIR_NOTARY_ISSUER: ${{ secrets.MACDIR_NOTARY_ISSUER }}
+        run: bash setup-signing-ci.sh
       - name: Build both thin architectures and verify installers
         if: inputs.scope == 'full'
         run: bash ci-build.sh
@@ -58,8 +68,8 @@ jobs:
         if: inputs.scope == 'full'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4, verified upstream ref
         with:
-          name: diakitw-1.0.2-macos-arm64
-          path: macdir/dist/diakitw-1.0.2-macos-arm64.dmg
+          name: diakitw-1.0.3-macos-arm64
+          path: macdir/dist/diakitw-1.0.3-macos-arm64.dmg
           if-no-files-found: error
           retention-days: 14
           compression-level: 0
@@ -67,8 +77,8 @@ jobs:
         if: inputs.scope == 'full'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: diakitw-1.0.2-macos-x86_64
-          path: macdir/dist/diakitw-1.0.2-macos-x86_64.dmg
+          name: diakitw-1.0.3-macos-x86_64
+          path: macdir/dist/diakitw-1.0.3-macos-x86_64.dmg
           if-no-files-found: error
           retention-days: 14
           compression-level: 0
@@ -76,7 +86,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: diakitw-1.0.2-macos-evidence
+          name: diakitw-1.0.3-macos-evidence
           path: |
             macdir/evidence/**/*.log
             macdir/evidence/**/*.json
@@ -84,3 +94,7 @@ jobs:
             macdir/evidence/**/*.png
           if-no-files-found: warn
           retention-days: 14
+
+      - name: Remove ephemeral signing credentials
+        if: always() && inputs.scope == 'full'
+        run: bash cleanup-signing-ci.sh

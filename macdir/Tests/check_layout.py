@@ -15,6 +15,18 @@ s=s[:a]+' init() {}\n'+s[b:]
 a=s.index(' func identityChanged() {'); b=s.index(' @Published var result:', a)
 s=s[:a]+' func identityChanged() {}\n'+s[b:]
 s=s[:s.index('if CommandLine.arguments.contains("--self-check")')]
+# Tag the seven real action buttons on a test-only SwiftUI source copy.
+for index, (old, new) in enumerate([
+ ('Button("Тест интернета") { InternetTestWindow.shared.show() }', 'Button("Тест интернета") { InternetTestWindow.shared.show() }.layoutProbe("toolbar-0")'),
+ ('Button("Диагностика") { DiagnosticsWindow.shared.show() }', 'Button("Диагностика") { DiagnosticsWindow.shared.show() }.layoutProbe("toolbar-1")'),
+ ('Button("Терминал") { DesktopActions.shared.terminal() }', 'Button("Терминал") { DesktopActions.shared.terminal() }.layoutProbe("toolbar-2")'),
+ ('Button("Мониторинг системы") { DesktopActions.shared.processes() }', 'Button("Мониторинг системы") { DesktopActions.shared.processes() }.layoutProbe("toolbar-3")'),
+ ('Button("Проверить кэши") { model.showCaches = true; model.caches.audit() }', 'Button("Проверить кэши") { model.showCaches = true; model.caches.audit() }.layoutProbe("toolbar-4")'),
+ ('Button("Корень /") { model.scan(URL(fileURLWithPath: "/")) }', 'Button("Корень /") { model.scan(URL(fileURLWithPath: "/")) }.layoutProbe("toolbar-5")'),
+ ('.keyboardShortcut("o")', '.keyboardShortcut("o").layoutProbe("toolbar-6")'),
+]):
+    assert s.count(old) >= 1, f'missing action probe {index}'
+    s=s.replace(old, new, 1)
 s=s.replace('networkNumbers.fixedSize()', 'networkNumbers.fixedSize().layoutProbe("numbers")')
 s=s.replace('     networkNumbers\n', '     networkNumbers.layoutProbe("numbers")\n')
 s=s.replace('TrafficChart(history: model.trafficHistory, range: $model.trafficRange)', 'TrafficChart(history: model.trafficHistory, range: $model.trafficRange).layoutProbe("chart")')

@@ -269,23 +269,33 @@ struct ContentView: View {
    .onReceive(NotificationCenter.default.publisher(for: NSApplication.willTerminateNotification)) { _ in model.stop() }
  }
 
- private func dashboard(viewport: CGSize) -> some View {
-  VStack(spacing: 16) {
-   let headerLayout = viewport.width >= 1100 ? AnyLayout(HStackLayout()) : AnyLayout(VStackLayout(alignment: .leading, spacing: 10))
-   headerLayout {
-    HStack {
-    Image(nsImage: NSImage(contentsOf: Bundle.main.url(forResource: "macdir", withExtension: "icns") ?? URL(fileURLWithPath: "assets/macdir.icns")) ?? NSImage()).resizable().frame(width: 38, height: 38).accessibilityLabel("diakitw Modular W")
-    VStack(alignment: .leading) { Text("diakitw").font(.system(size: 28, weight: .bold, design: .rounded)); Text("Пространство и ресурсы вашего Mac").font(.caption).foregroundStyle(.secondary) }
-    Spacer()
-    }
-    HStack {
-    if model.scanning { ProgressView().controlSize(.small); Button("Остановить") { model.cancel() } }
-    Button("Диагностика") { DiagnosticsWindow.shared.show() }
+ @ViewBuilder private var toolbarActions: some View {
     Button("Тест интернета") { InternetTestWindow.shared.show() }
+    Button("Диагностика") { DiagnosticsWindow.shared.show() }
+    Button("Терминал") { DesktopActions.shared.terminal() }
+    Button("Мониторинг системы") { DesktopActions.shared.processes() }
     Button("Проверить кэши") { model.showCaches = true; model.caches.audit() }
     Button("Корень /") { model.scan(URL(fileURLWithPath: "/")) }
     Button { model.choose() } label: { Label("Выбрать папку", systemImage: "folder.badge.plus") }.buttonStyle(.borderedProminent).keyboardShortcut("o")
-    if let volume = model.volume { Button { model.scan(volume) } label: { Image(systemName: "arrow.clockwise") }.disabled(model.scanning).help("Сканировать заново") }
+ }
+ private func dashboard(viewport: CGSize) -> some View {
+  VStack(spacing: 16) {
+   let headerLayout = viewport.width >= 1600 ? AnyLayout(HStackLayout()) : AnyLayout(VStackLayout(alignment: .leading, spacing: 10))
+   headerLayout {
+    HStack {
+     Image(nsImage: NSImage(contentsOf: Bundle.main.url(forResource: "macdir", withExtension: "icns") ?? URL(fileURLWithPath: "assets/macdir.icns")) ?? NSImage()).resizable().frame(width: 38, height: 38).accessibilityLabel("diakitw Modular W")
+     VStack(alignment: .leading) { Text("diakitw").font(.system(size: 28, weight: .bold, design: .rounded)); Text("Пространство и ресурсы вашего Mac").font(.caption).foregroundStyle(.secondary) }
+     Spacer()
+    }
+    VStack(alignment: .leading, spacing: 8) {
+     ViewThatFits(in: .horizontal) {
+      HStack(spacing: 8) { toolbarActions }.fixedSize(horizontal: true, vertical: false)
+      LazyVGrid(columns: Array(repeating: GridItem(.flexible(minimum: 130), alignment: .leading), count: viewport.width >= 1100 ? 4 : 2), alignment: .leading, spacing: 8) { toolbarActions }
+     }
+     HStack {
+      if model.scanning { ProgressView().controlSize(.small); Button("Остановить") { model.cancel() } }
+      if let volume = model.volume { Button { model.scan(volume) } label: { Image(systemName: "arrow.clockwise") }.disabled(model.scanning).help("Сканировать заново") }
+     }
     }
    }
    VStack(alignment: .leading, spacing: 3) {
@@ -401,7 +411,7 @@ struct ContentView: View {
 final class AppDelegate: NSObject, NSApplicationDelegate {
  var status: ResourceStatusController?
  @objc func showAbout(_ sender: Any?) {
-  MainActor.assumeIsolated { NSApplication.shared.orderFrontStandardAboutPanel(options: [.applicationVersion: "1.0.2"]) }
+  MainActor.assumeIsolated { NSApplication.shared.orderFrontStandardAboutPanel(options: [.applicationVersion: "1.0.3"]) }
  }
  func applicationWillTerminate(_ notification: Notification) { MainActor.assumeIsolated { InternetTestWindow.shared.stop(); DiagnosticsWindow.shared.stop(); UpdateMenu.shared.stop(); status?.stop() } }
  func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }

@@ -11,10 +11,10 @@ from contextlib import contextmanager
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
-VERSION = '1.0.2'
-BUILD = '102'
+VERSION = '1.0.3'
+BUILD = '103'
 NAME = 'diakitw'
-README = 'README-diakitw-1.0.2-RU.txt'
+README = 'README-diakitw-1.0.3-RU.txt'
 
 
 def artifact_paths(root, arch):
@@ -38,6 +38,15 @@ def run(*args):
     if p.returncode:
         raise RuntimeError(f'exit {p.returncode}')
     return p.stdout
+
+
+def verify_developer_id(path):
+    result = subprocess.run(['codesign', '-dv', '--verbose=4', str(path)],
+                            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    details = result.stdout + result.stderr
+    flags = next((line for line in details.splitlines() if line.startswith('CodeDirectory ') or line.startswith('flags=')), '')
+    if result.returncode or 'Authority=Developer ID Application:' not in details or 'runtime' not in flags:
+        raise RuntimeError(f'Not a hardened Developer ID signature: {path}')
 
 
 def sha(path):
@@ -73,6 +82,7 @@ def main():
         if arch == 'x86_64':
             require_absent(paths['output'])
     require_absent(evidence / 'distribution-manifest.json')
+    run('bash', ROOT / 'sign-and-notarize.sh', 'preflight')
     records = []
     for arch in ('arm64', 'x86_64'):
         paths = artifact_paths(ROOT, arch)
@@ -91,11 +101,12 @@ def main():
                 shutil.copy2(ROOT / 'assets' / name, app / 'Contents/Resources' / name)
             run('strip', '-S', *[app / 'Contents/MacOS' / n for n in ('macdir', 'DiagnosticWorker', 'ServerAskpass')])
             run('python3', ROOT / 'Tests/check_binary_privacy.py', app)
-            run('codesign', '--force', '--sign', '-', app / 'Contents/MacOS/DiagnosticWorker')
+            run('bash', ROOT / 'sign-and-notarize.sh', 'sign', app / 'Contents/MacOS/DiagnosticWorker')
             (app / 'Contents/MacOS/ServerAskpass').chmod(0o755)
-            run('codesign', '--force', '--sign', '-', app / 'Contents/MacOS/ServerAskpass')
-            run('codesign', '--force', '--sign', '-', app)
+            run('bash', ROOT / 'sign-and-notarize.sh', 'sign', app / 'Contents/MacOS/ServerAskpass')
+            run('bash', ROOT / 'sign-and-notarize.sh', 'sign', app)
         run('codesign', '--verify', '--deep', '--strict', app)
+        verify_developer_id(app)
         run('python3', ROOT / 'Tests/check_binary_privacy.py', app)
         stage.mkdir()
         run('ditto', app, stage / 'diakitw.app')
@@ -104,18 +115,21 @@ def main():
         run('hdiutil', 'create', '-volname', f'{NAME} {VERSION} {arch}',
             '-srcfolder', stage, '-format', 'UDZO', '-fs', 'HFS+', dmg)
         run('hdiutil', 'verify', dmg)
+        run('bash', ROOT / 'sign-and-notarize.sh', 'notarize', dmg)
         with read_only_mount(dmg) as mount:
             mounted = mount / 'diakitw.app'
             assert {p.name for p in mount.iterdir()} >= {'diakitw.app', README, 'Applications'}
             assert (mount / 'Applications').is_symlink() and os.readlink(mount / 'Applications') == '/Applications'
             assert sha(mount / README) == sha(ROOT / 'assets' / README)
             run('codesign', '--verify', '--deep', '--strict', mounted)
+            verify_developer_id(mounted)
             for name in ('macdir', 'DiagnosticWorker', 'ServerAskpass'):
                 binary = mounted / 'Contents/MacOS' / name
                 assert run('lipo', '-archs', binary).decode().strip() == arch
                 run('file', binary)
                 run('xcrun', 'vtool', '-show-build', binary)
                 run('codesign', '--verify', '--strict', binary)
+                verify_developer_id(binary)
                 assert sha(binary) == sha(app / 'Contents/MacOS' / name)
             for name in ('macdir.icns', 'server_probe.py'):
                 assert sha(mounted / 'Contents/Resources' / name) == sha(ROOT / 'assets' / name)
@@ -134,7 +148,7 @@ def main():
                             'app_sha256': sha(mounted / 'Contents/MacOS/macdir'),
                             'worker_sha256': sha(mounted / 'Contents/MacOS/DiagnosticWorker'),
                             'askpass_sha256': sha(mounted / 'Contents/MacOS/ServerAskpass'),
-                            'read_only_mount_verified': True, 'signature_verified': True})
+                            'read_only_mount_verified': True, 'developer_id_signature_verified': True, 'notarized_and_stapled': True})
     evidence.mkdir(parents=True, exist_ok=True)
     with (evidence / 'distribution-manifest.json').open('x') as f:
         f.write(json.dumps(records, indent=2) + '\n')
