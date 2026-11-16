@@ -6,7 +6,14 @@ cd "$(dirname "$0")"
 export DEVELOPER_DIR="${DEVELOPER_DIR:?Workflow must pin the reviewed Xcode toolchain}"
 [[ -d "$DEVELOPER_DIR" ]]
 export MACOSX_DEPLOYMENT_TARGET=14.0
-bash sign-and-notarize.sh preflight
+if [[ "${MACDIR_SIGNING_MODE:-signed}" == adhoc ]]; then
+  [[ "${GITHUB_ACTIONS:-}" == true ]] || exit 2
+  bash sign-and-notarize.sh adhoc-preflight
+  export MACDIR_OUTPUT=dist/diakitw-1.0.3-unsigned-arm64
+else
+  [[ "${MACDIR_SIGNING_MODE:-signed}" == signed ]] || exit 2
+  bash sign-and-notarize.sh preflight
+fi
 export MACDIR_TEST_SCRATCH="$GITHUB_WORKSPACE/.ci-scratch"
 mkdir -p "$MACDIR_TEST_SCRATCH" evidence/diakitw-1.0.3
 export TMPDIR="$(cd "$MACDIR_TEST_SCRATCH" && pwd -P)"
