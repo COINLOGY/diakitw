@@ -43,6 +43,18 @@ let sample = sampler.sample(volume: dir)
 check(sample.cpu != nil && sample.cpu! >= 0 && sample.cpu! <= 100, "live CPU sample")
 check(sample.memoryUsed != nil && sample.memoryUsed! > 0, "live memory sample")
 check(sample.diskTotal != nil && sample.diskTotal! > 0, "selected volume capacity")
+var capacity = ResourceSnapshot()
+capacity.diskTotal = 100; capacity.diskFree = 30
+check(capacity.diskOccupied == 70, "container occupied equals total minus free")
+check(capacity.validatedDiskFree == 30, "capacity overview displays valid filesystem free")
+capacity.diskFree = 101
+check(capacity.diskOccupied == nil, "free exceeding capacity remains unknown")
+check(capacity.validatedDiskFree == nil, "overview hides impossible free")
+capacity.diskFree = -1
+check(capacity.diskOccupied == nil, "invalid negative free remains unknown")
+check(capacity.validatedDiskFree == nil, "overview hides negative free")
+capacity.diskTotal = 0; capacity.diskFree = 0
+check(capacity.diskOccupied == nil, "zero capacity remains unknown")
 check(!sample.power.isEmpty, "power source sample")
 print(sample.summary)
 check(bytes(0) == "0 Б", "Russian zero size")

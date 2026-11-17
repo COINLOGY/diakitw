@@ -27,15 +27,25 @@ for index, (old, new) in enumerate([
 ]):
     assert s.count(old) >= 1, f'missing action probe {index}'
     s=s.replace(old, new, 1)
-s=s.replace('networkNumbers.fixedSize()', 'networkNumbers.fixedSize().layoutProbe("numbers")')
-s=s.replace('     networkNumbers\n', '     networkNumbers.layoutProbe("numbers")\n')
+s=s.replace('networkSelector\n   networkInstruments', 'networkSelector.layoutProbe("network-selector")\n   networkInstruments')
+s=s.replace('receiveGauge(scale: scale, labels: labels)', 'receiveGauge(scale: scale, labels: labels).layoutProbe("network-rx")')
+s=s.replace('sendGauge(scale: scale, labels: labels)', 'sendGauge(scale: scale, labels: labels).layoutProbe("network-tx")')
 s=s.replace('TrafficChart(history: model.trafficHistory, range: $model.trafficRange)', 'TrafficChart(history: model.trafficHistory, range: $model.trafficRange).layoutProbe("chart")')
+s=s.replace('diskGauge.frame(width: 245)', 'diskGauge.layoutProbe("disk-gauge").frame(width: 245)')
+s=s.replace('     diskGauge\n', '     diskGauge.layoutProbe("disk-gauge")\n')
+s=s.replace('DiskCapacityOverview(snapshot: model.snapshot, scan: model.result)', 'DiskCapacityOverview(snapshot: model.snapshot, scan: model.result).layoutProbe("disk-overview")')
+for title, label in [('ПРОЦЕССОР', 'resource-cpu'), ('ПАМЯТЬ', 'resource-memory'), ('SWAP', 'resource-swap'), ('БАТАРЕЯ · ЗАРЯД', 'resource-battery')]:
+    lines=s.splitlines(keepends=True)
+    matches=[i for i, line in enumerate(lines) if 'GaugeTile(' in line and 'title: "'+title+'"' in line]
+    assert len(matches)==1, (title, matches)
+    i=matches[0]; lines[i]=lines[i].rstrip('\n')+'.layoutProbe("'+label+'")\n'
+    s=''.join(lines)
 s=s.replace('.pickerStyle(.segmented)\n', '.pickerStyle(.segmented).layoutProbe("viewPicker")\n')
 s=s.replace('}.frame(minWidth: 450)', '}.frame(minWidth: 450).layoutProbe("table")')
 s=s.replace('}.padding(.leading, 12).frame(minWidth: 290)', '}.padding(.leading, 12).frame(minWidth: 290).layoutProbe("map")')
 # Probe only the unshipped copy; preserve production padding and proposals.
 for old, new in [
-    ('   }\n   ViewThatFits(in: .horizontal)', '   }.layoutProbe("gaugeRow")\n   ViewThatFits(in: .horizontal)'),
+    ('   }\n   networkSelector', '   }.layoutProbe("gaugeRow")\n   networkSelector'),
     ('  }.padding(22).frame(maxWidth: .infinity)', '  }.layoutProbe("dashboardContent").padding(22).frame(maxWidth: .infinity).layoutProbe("dashboardDocument")'),
 ]:
     assert s.count(old) == 1, 'layout probe anchor changed: ' + old

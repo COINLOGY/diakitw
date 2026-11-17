@@ -14,14 +14,17 @@ class RateArrowOrder(unittest.TestCase):
         self.assertLess(number, unit)
         self.assertLess(unit, arrow)
         self.assertIn(".frame(width: size * 0.65)", view)
-        for file in ("main.swift", "ServerPanel.swift"):
+        for file in ("NeedleGauge.swift", "ServerPanel.swift"):
             self.assertIn('NetworkRateValue(value:', (ROOT / "Sources/macdir" / file).read_text())
     def test_network_gauge_and_menus_put_arrow_after_rate(self):
         main = (ROOT / "Sources/macdir/main.swift").read_text()
         tile = (ROOT / "Sources/macdir/NeedleGauge.swift").read_text()
         hud = (ROOT / "Sources/macdir/ResourceHUD.swift").read_text()
-        self.assertIn('title: "СЕТЬ · " + selectedInterface', main)
-        self.assertIn('NetworkRateValue(value: networkRate, direction: "↓", size: 16)', tile)
+        self.assertIn('title: "ПРИЁМ"', main)
+        self.assertIn('title: "ОТДАЧА"', main)
+        self.assertIn('NetworkRateValue(value: networkRate, direction: networkDirection, size: 16)', tile)
+        self.assertIn('networkDirection: "↓"', main)
+        self.assertIn('networkDirection: "↑"', main)
         self.assertIn('"RX · \\(interface): \\(rateDetail(n?.received)) ↓"', hud)
         self.assertIn('"TX · \\(interface): \\(rateDetail(n?.sent)) ↑"', hud)
         self.assertIn('Segment(text: rate(n?.received) + "↓"', (ROOT / "Sources/MacdirCore/StatusPresentation.swift").read_text())

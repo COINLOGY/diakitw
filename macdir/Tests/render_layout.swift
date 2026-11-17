@@ -56,6 +56,7 @@ MainActor.assumeIsolated {
   model.snapshot.cpu = 41; model.snapshot.memoryTotal = 8*1024*1024*1024; model.snapshot.memoryUsed = 6*1024*1024*1024
   model.snapshot.swap = 3*1024*1024*1024; model.snapshot.swapTotal = 4*1024*1024*1024
   model.snapshot.diskTotal = 256*1024*1024*1024; model.snapshot.diskFree = 80*1024*1024*1024
+  model.snapshot.diskType = "apfs"; model.snapshot.diskMount = "/"; model.snapshot.diskMeasured = Date(timeIntervalSince1970: 1_700_000_000)
   model.snapshot.batteryPercent = 24; model.snapshot.power = "От аккумулятора"
   model.snapshot.networks = [NetworkRate(name: "fixture0", received: 32000, sent: 18000)]
   for i in 0...60 { model.trafficHistory.append(interface: "fixture0", time: Double(i), received: (sin(Double(i)/4)+1.2)*12000, sent: (cos(Double(i)/7)+1.1)*9000) }
@@ -93,9 +94,9 @@ MainActor.assumeIsolated {
     // Production dashboard has .padding(22); available width comes from the actual clip.
     let available = clipInHost.insetBy(dx: 22, dy: 0)
     if !fillsHorizontally(content, available) || !fillsHorizontally(row, available) { failures.append(size+": dashboard/grid must fill actual available content") }
-    let gauges = layoutFrames.filter { $0.key.hasPrefix("gauge-") }.map(\.value)
+    let gauges = layoutFrames.filter { ["resource-cpu", "resource-memory", "resource-swap", "resource-battery"].contains($0.key) }.map(\.value)
     let occupied = gauges.reduce(CGRect.null) { $0.union($1) }
-    if !fillsHorizontally(occupied, row) { failures.append(size+": gauges must fill the available row") }
+    if occupied.minX < row.minX - 1 || occupied.maxX > row.maxX + 1 { failures.append(size+": gauges leave the row") }
    } else { failures.append(size+": missing content geometry probes") }
   } else { failures.append(size+": missing geometry scroll view") }
 
@@ -105,16 +106,37 @@ MainActor.assumeIsolated {
   } else { failures.append(size+": no bitmap") }
   print(size, layoutFrames)
   if host.bounds.width != CGFloat(width) || host.bounds.height != CGFloat(height) { failures.append(size+": host exceeds requested size") }
-  if let chart = layoutFrames["chart"], let picker = layoutFrames["viewPicker"], let map = layoutFrames["map"], let table = layoutFrames["table"], let numbers = layoutFrames["numbers"] {
-   if chart.height < 84 || chart.maxY > picker.minY || chart.maxY > map.minY || numbers.maxY > picker.minY { failures.append(size+": traffic overlaps lower content") }
-   if table.height < 300 || map.height < 300 { failures.append(size+": lower panels compressed") }
-   if table.intersection(map).width > 1 { failures.append(size+": table and map overlap") }
-   if width <= 800 && chart.minY < numbers.maxY { failures.append(size+": narrow chart must be below numbers") }
-   if width >= 1180 && chart.minX < numbers.maxX { failures.append(size+": wide chart must follow numbers") }
-   let gauges = layoutFrames.filter { $0.key.hasPrefix("gauge-") }.map(\.value)
-   if gauges.count != (width <= 800 && height <= 540 ? 3 : 6) || gauges.contains(where: { $0.width < 230 || abs($0.height - 112) > 1 || $0.maxY > min(numbers.minY, chart.minY) }) { failures.append(size+": gauges compressed or overlapping traffic") }
-
-  } else { failures.append(size+": missing geometry probes") }
+  // Native geometry at seven viewport sizes, both appearances, all three scrollbar styles.
+  if let resource = layoutFrames["resource-cpu"], let row = layoutFrames["gaugeRow"],
+     let rx = layoutFrames["network-rx"], let tx = layoutFrames["network-tx"],
+     let chart = layoutFrames["chart"], let disk = layoutFrames["disk-gauge"],
+     let overview = layoutFrames["disk-overview"], let table = layoutFrames["table"],
+     let map = layoutFrames["map"], let picker = layoutFrames["viewPicker"] {
+   if resource.minY < row.minY - 1 || resource.maxY > row.maxY + 1 ||
+      row.maxY > min(rx.minY, tx.minY) + 1 ||
+      max(rx.maxY, tx.maxY, chart.maxY) > min(disk.minY, overview.minY) + 1 ||
+      max(disk.maxY, overview.maxY) > min(table.minY, map.minY) + 1 ||
+      table.intersection(map).width > 1 || table.height < 300 || map.height < 300 {
+    failures.append(size+": resources/network/disk/folder order or lower panels overlap")
+   }
+   if abs(rx.minY - tx.minY) > 1 || abs(rx.height - tx.height) > 1 ||
+      rx.intersection(tx).width > 1 || rx.width < 200 || tx.width < 200 ||
+      min(rx.minX, tx.minX, chart.minX, disk.minX, overview.minX) < 0 ||
+      max(rx.maxX, tx.maxX, chart.maxX, disk.maxX, overview.maxX) > CGFloat(width) {
+    failures.append(size+": network/disk clipped or two gauges not paired")
+   }
+   if chart.minY < rx.maxY - 1 && chart.minX < tx.maxX - 1 { failures.append(size+": chart must follow RX/TX without overlap") }
+   if chart.height < 84 || picker.minY < chart.maxY - 1 || disk.width < 200 || overview.width < 300 {
+    failures.append(size+": chart or disk dimensions invalid")
+   }
+   let resources = ["resource-cpu", "resource-memory", "resource-swap", "resource-battery"].compactMap { layoutFrames[$0] }
+   if resources.isEmpty || resources.contains(where: { $0.width < 230 || abs($0.height - 112) > 1 }) {
+    failures.append(size+": resource gauges compressed")
+   }
+   if let battery = layoutFrames["resource-battery"], battery.maxY > rx.minY + 1 {
+    failures.append(size+": battery below network")
+   }
+  } else { failures.append(size+": missing dashboard section probes") }
   // Native offscreen geometry: row-major order and no horizontal clipping at 800px.
   let buttons = (0..<7).compactMap { layoutFrames["toolbar-\($0)"] }
   if buttons.count != 7 { failures.append(size+": toolbar buttons missing") }
