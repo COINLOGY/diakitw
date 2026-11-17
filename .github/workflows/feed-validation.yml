@@ -5,6 +5,12 @@ on:
     paths:
       - 'index.html'
       - 'README.md'
+      - 'macdir/Info.plist'
+      - 'ios/Info.plist'
+      - 'diakitw-android/app/build.gradle'
+      - 'diakitw-desktop/package.json'
+      - 'diakitw-desktop/package-lock.json'
+      - 'diakitw-desktop/app/package.json'
       - 'manifest.json'
       - 'site.js'
       - 'updates/v1.json'
