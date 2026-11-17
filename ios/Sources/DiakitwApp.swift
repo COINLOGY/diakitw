@@ -212,7 +212,7 @@ struct ContentView: View {
                 }.padding(12).frame(maxWidth: .infinity, alignment: .leading)
                     .background(Theme.panel, in: RoundedRectangle(cornerRadius: 18))
                 UpdateSection(checker: updates)
-                Text("1.0.4 · iOS · build 104").font(.caption2).foregroundStyle(Theme.muted)
+                Text("1.0.5 · iOS · build 105").font(.caption2).foregroundStyle(Theme.muted)
             }.padding(16).frame(maxWidth: 1000)
                 .frame(maxWidth: .infinity)
         }

@@ -1,6 +1,8 @@
-# diakitw iOS 1.0.3 (103)
+# diakitw iOS 1.0.5 (105)
 
-User-facing version **1.0.3**. Apple platform metadata and iOS updater identity are **1.0.3**, build **103**. The updater only offers a newer, matching iOS asset when the public feed actually contains one; it does not install unsigned archives.
+User-facing version **1.0.5**. Apple platform metadata and iOS updater identity are **1.0.5**, build **105**. The updater only offers a newer, matching iOS asset when the public feed actually contains one; it does not install unsigned archives.
+
+The battery card reports charge and power state only; iOS battery cycle count is not claimed.
 
 Unsigned build-only candidate, iOS deployment target 16.0. No certificates, Apple account, device installation or GitHub Release publication in this workflow. Device ZIP **cannot be installed directly**. A developer must sign/provision an appropriate device build; the simulator archive is not an iPhone installer.
 
