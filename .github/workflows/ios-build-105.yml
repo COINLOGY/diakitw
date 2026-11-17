@@ -1,7 +1,7 @@
 name: iOS 1.0.5 unsigned compile/tests (no upload)
 on:
   push:
-    branches: [feat/release-105-ios]
+    branches: [feat/release-105-candidate]
     paths: ["ios/**", ".github/workflows/ios-build-105.yml"]
   workflow_dispatch:
 permissions:

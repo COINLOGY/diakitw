@@ -38,7 +38,7 @@ assert 'bash test.sh' in script and 'Tests/update_checks.swift' in script
 readme = (root / "README.md").read_text()
 assert "iOS 1.0.5 (105)" in readme and "cannot be installed directly" in readme
 workflow = (root.parent / ".github/workflows/ios-build-105.yml").read_text()
-assert "branches: [feat/release-105-ios]" in workflow
+assert "branches: [feat/release-105-candidate]" in workflow
 assert "group: ios-105" in workflow
 assert "1.0.5 unsigned compile/tests (no upload)" in workflow
 assert "timeout-minutes: 50" in workflow
