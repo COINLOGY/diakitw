@@ -16,12 +16,19 @@ reason = ('java.lang.' + name) if name in classes and match and match.group(1).s
 frames = re.findall(r'SAFE_FRAME app\.diakitw\.[A-Za-z0-9]+\(([A-Za-z0-9_]+\.java):([0-9]{1,5})\)', report)
 frames = frames or re.findall(r'\bapp\.diakitw\.[A-Za-z0-9.$]+\(([A-Za-z0-9_]+\.java):([0-9]{1,5})\)', report)
 frame = next((f for f in frames if f[0] == 'EntryProbe.java'), frames[0] if frames else None)
-location = f' at {frame[0]}:{frame[1]}' if frame else ''
+location = ' at ' + ' > '.join(f'{file}:{line}' for file, line in frames[:4]) if frame else ''
 bounds = re.search(r'Map hidden below initial viewport visible=([0-9]{1,6}) total=([0-9]{1,6})', report)
 map_visibility = f'; map visible={bounds.group(1)}/{bounds.group(2)}' if bounds else ''
 # Only fixed assertion messages from the checked-in offline probe can leave CI.
 # Never print an arbitrary exception message: it may contain an external IP.
 known = {
+    'Outside parent:': 'outside-parent',
+    'Typical main must not scroll:': 'unexpected-scroll',
+    'Touch target <48dp:': 'touch-small',
+    'Text clipped vertically:': 'text-clipped',
+    'Text clipped horizontally:': 'text-clipped',
+    'Ellipsis:': 'text-ellipsis',
+    'Brand must not wrap': 'brand-wrap',
     'Visible entry label missing': 'entry-label',
     'Accessible entry omits visible IP/country': 'entry-accessibility',
     'Accessible click failed': 'entry-click',

@@ -45,9 +45,11 @@ class Release105(unittest.TestCase):
         import subprocess, sys, tempfile
         with tempfile.TemporaryDirectory() as directory:
             report = Path(directory) / 'probe.txt'
-            report.write_text('FAIL java.lang.AssertionError: 2001:db8::1\nSAFE_FRAME app.diakitw.EntryProbe(EntryProbe.java:23)\n')
+            report.write_text('FAIL java.lang.AssertionError: Text clipped vertically: 2001:db8::1\nSAFE_FRAME app.diakitw.LayoutProbe(LayoutProbe.java:52)\nSAFE_FRAME app.diakitw.EntryProbe(EntryProbe.java:23)\n')
             result = subprocess.run([sys.executable, str(ANDROID / 'ci/safe-probe-summary.py'), str(report)], capture_output=True, text=True, check=True)
             self.assertIn('EntryProbe.java:23', result.stdout)
+            self.assertIn('LayoutProbe.java:52', result.stdout)
+            self.assertIn('code=text-clipped', result.stdout)
             self.assertNotIn('2001:db8::1', result.stdout)
 
 if __name__ == '__main__': unittest.main()
