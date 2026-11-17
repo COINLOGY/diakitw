@@ -17,6 +17,7 @@ final class EntryProbe {
    p.check(a.summary.getText().toString().contentEquals(a.summary.getContentDescription()),"Accessible entry omits visible IP/country");
    View root=a.findViewById(android.R.id.content);int[] xy=new int[2];root.getLocationOnScreen(xy);p.inspect(root,new Rect(xy[0],xy[1],xy[0]+root.getWidth(),xy[1]+root.getHeight()),true);Rect visible=new Rect();p.check(a.persistentMap.getGlobalVisibleRect(visible)&&visible.height()>=a.persistentMap.getHeight()*.75,"Entry map hidden");
   });p.screenshot("048-main-offline");
+  p.ui(()->a.summary.requestRectangleOnScreen(new Rect(0,0,a.summary.getWidth(),a.summary.getHeight()),true));p.waitForIdleSync();
   AccessibilityNodeInfo root=p.getUiAutomation().getRootInActiveWindow();boolean clicked=false;
   for(AccessibilityNodeInfo n:root.findAccessibilityNodeInfosByText("IP / карта"))if(n.getContentDescription()!=null&&n.getContentDescription().toString().startsWith("IP / карта")&&n.isVisibleToUser()&&n.isClickable())clicked=n.performAction(AccessibilityNodeInfo.ACTION_CLICK);
   p.check(clicked,"Accessible click failed");Thread.sleep(400);p.waitForIdleSync();

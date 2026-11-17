@@ -45,7 +45,8 @@ class Release105(unittest.TestCase):
         self.assertIn('Touch target <48dp: class=', probe)
         main = (ANDROID / 'app/src/main/java/app/diakitw/MainActivity.java').read_text()
         self.assertIn('Metric(String name){\n   super(MainActivity.this);this.name=name;setMinimumHeight(dp(48));', main)
-        self.assertLess(main.index('geo.addView(summary,new LinearLayout.LayoutParams(-1,-2))'), main.index('geo.addView(persistentMap,new LinearLayout.LayoutParams'))
+        self.assertGreater(main.index('geo.addView(summary,new LinearLayout.LayoutParams(-1,-2))'), main.index('geo.addView(persistentMap,new LinearLayout.LayoutParams'))
+        self.assertIn('a.summary.requestRectangleOnScreen(', (ANDROID / 'app/src/androidTest/java/app/diakitw/EntryProbe.java').read_text())
         self.assertIn('Entry map hidden', (ANDROID / 'app/src/androidTest/java/app/diakitw/EntryProbe.java').read_text())
         self.assertIn('a.persistentMap.getHeight()*(a.landscape?.5:.75),"Map hidden below initial viewport visible="', probe)
 
