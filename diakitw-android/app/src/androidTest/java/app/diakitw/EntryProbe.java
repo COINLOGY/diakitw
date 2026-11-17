@@ -18,9 +18,14 @@ final class EntryProbe {
    View root=a.findViewById(android.R.id.content);int[] xy=new int[2];root.getLocationOnScreen(xy);p.inspect(root,new Rect(xy[0],xy[1],xy[0]+root.getWidth(),xy[1]+root.getHeight()),true);Rect visible=new Rect();p.check(a.persistentMap.getGlobalVisibleRect(visible)&&visible.height()>=a.persistentMap.getHeight()*.75,"Entry map hidden");
   });p.screenshot("048-main-offline");
   p.ui(()->a.summary.requestRectangleOnScreen(new Rect(0,0,a.summary.getWidth(),a.summary.getHeight()),true));p.waitForIdleSync();
-  AccessibilityNodeInfo root=p.getUiAutomation().getRootInActiveWindow();boolean clicked=false;
-  for(AccessibilityNodeInfo n:root.findAccessibilityNodeInfosByText("IP / карта"))if(n.getContentDescription()!=null&&n.getContentDescription().toString().startsWith("IP / карта")&&n.isVisibleToUser()&&n.isClickable())clicked=n.performAction(AccessibilityNodeInfo.ACTION_CLICK);
-  p.check(clicked,"Accessible click failed");Thread.sleep(400);p.waitForIdleSync();
+  final int[] visibility=new int[3];p.ui(()->{Rect box=new Rect();visibility[0]=a.summary.getGlobalVisibleRect(box)?1:0;visibility[1]=box.height();visibility[2]=a.summary.getHeight();});
+  AccessibilityNodeInfo root=p.getUiAutomation().getRootInActiveWindow();boolean clicked=false;int entryMask=0;
+  for(AccessibilityNodeInfo n:root.findAccessibilityNodeInfosByText("IP / карта")){
+   entryMask|=1;boolean named=n.getContentDescription()!=null&&n.getContentDescription().toString().startsWith("IP / карта");
+   if(named)entryMask|=2;if(n.isVisibleToUser())entryMask|=4;if(n.isClickable())entryMask|=8;
+   if(named&&n.isVisibleToUser()&&n.isClickable()){entryMask|=16;clicked|=n.performAction(AccessibilityNodeInfo.ACTION_CLICK);}
+  }
+  p.check(clicked,"Accessible click failed entryMask="+entryMask+" shown="+visibility[0]+" visible="+visibility[1]+" total="+visibility[2]);Thread.sleep(400);p.waitForIdleSync();
   p.ui(()->{p.check(a.ipDialog!=null&&a.ipDialog.isShowing(),"Entry did not open IP directly");p.check(a.testDialog==null,"Entry opened speed help instead");p.check(a.ipCards.size()==1,"Missing IP map card");p.check(!a.ipCards.get(0).copy.isEnabled(),"Unknown IP copy enabled");});
   MapProbe.ready(p,a.ipCards.get(0).map);p.screenshot("048-ip-offline");
   p.ui(()->p.button(a.ipDialog.getWindow().getDecorView(),"Развернуть карту").performClick());Thread.sleep(300);MapProbe.ready(p,a.expandedMap);p.screenshot("048-map-offline");

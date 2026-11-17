@@ -47,6 +47,7 @@ class Release105(unittest.TestCase):
         self.assertIn('Metric(String name){\n   super(MainActivity.this);this.name=name;setMinimumHeight(dp(48));', main)
         self.assertGreater(main.index('geo.addView(summary,new LinearLayout.LayoutParams(-1,-2))'), main.index('geo.addView(persistentMap,new LinearLayout.LayoutParams'))
         self.assertIn('a.summary.requestRectangleOnScreen(', (ANDROID / 'app/src/androidTest/java/app/diakitw/EntryProbe.java').read_text())
+        self.assertIn('Accessible click failed entryMask=', (ANDROID / 'app/src/androidTest/java/app/diakitw/EntryProbe.java').read_text())
         self.assertIn('Entry map hidden', (ANDROID / 'app/src/androidTest/java/app/diakitw/EntryProbe.java').read_text())
         self.assertIn('a.persistentMap.getHeight()*(a.landscape?.5:.75),"Map hidden below initial viewport visible="', probe)
 
@@ -54,12 +55,13 @@ class Release105(unittest.TestCase):
         import subprocess, sys, tempfile
         with tempfile.TemporaryDirectory() as directory:
             report = Path(directory) / 'probe.txt'
-            report.write_text('FAIL java.lang.AssertionError: Touch target <48dp: class=Button size=42x36 id=-1 IP=2001:db8::1\nSAFE_FRAME app.diakitw.LayoutProbe(LayoutProbe.java:52)\nSAFE_FRAME app.diakitw.EntryProbe(EntryProbe.java:23)\n')
+            report.write_text('FAIL java.lang.AssertionError: Touch target <48dp: class=Button size=42x36 id=-1 IP=2001:db8::1\nAccessible click failed entryMask=11 shown=1 visible=44 total=48\nSAFE_FRAME app.diakitw.LayoutProbe(LayoutProbe.java:52)\nSAFE_FRAME app.diakitw.EntryProbe(EntryProbe.java:23)\n')
             result = subprocess.run([sys.executable, str(ANDROID / 'ci/safe-probe-summary.py'), str(report)], capture_output=True, text=True, check=True)
             self.assertIn('EntryProbe.java:23', result.stdout)
             self.assertIn('LayoutProbe.java:52', result.stdout)
             self.assertIn('code=touch-small', result.stdout)
             self.assertIn('touch=Button:42x36:id=-1', result.stdout)
+            self.assertIn('entryMask=11', result.stdout)
             self.assertNotIn('2001:db8::1', result.stdout)
 
 if __name__ == '__main__': unittest.main()

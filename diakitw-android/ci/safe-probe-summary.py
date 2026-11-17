@@ -43,4 +43,6 @@ known = {
 code = next((label for message, label in known.items() if message in report), 'not-allowlisted')
 touch = re.search(r'Touch target <48dp: class=([A-Za-z]{1,32}) size=([0-9]{1,4})x([0-9]{1,4}) id=(-?[0-9]{1,10})', report)
 touch_detail = f'; touch={touch.group(1)}:{touch.group(2)}x{touch.group(3)}:id={touch.group(4)}' if touch else ''
-print(f'FAIL native entry probe; {reason}{location}{map_visibility}; code={code}{touch_detail}; raw report withheld')
+entry = re.search(r'Accessible click failed entryMask=([0-9]{1,2}) shown=([01]) visible=([0-9]{1,4}) total=([0-9]{1,4})', report)
+entry_detail = f'; entryMask={entry.group(1)} shown={entry.group(2)} visible={entry.group(3)}/{entry.group(4)}' if entry and int(entry.group(1)) <= 31 else ''
+print(f'FAIL native entry probe; {reason}{location}{map_visibility}; code={code}{touch_detail}{entry_detail}; raw report withheld')
