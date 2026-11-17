@@ -152,9 +152,29 @@ public final class LayoutProbe extends Instrumentation {
   if("proxy".equals(mode)){ProxyProbe.run();out.putString("stream","PASS proxy fixtures\n");finish(Activity.RESULT_OK,out);return;}
   if("ip".equals(mode)){IpProbe.run();out.putString("stream","PASS IP parsing IPv4/IPv6 and malformed schema\n");finish(Activity.RESULT_OK,out);return;}
   Intent launch=new Intent(getTargetContext(),MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-  if("arrow".equals(mode)||"entry".equals(mode)||"release103".equals(mode))launch.putExtra("diakitw.test.offline",true);
+  if("arrow".equals(mode)||"entry".equals(mode)||"release103".equals(mode)||"release104".equals(mode))launch.putExtra("diakitw.test.offline",true);
   MainActivity a=(MainActivity)startActivitySync(launch);
   Thread.sleep("arrow".equals(mode)?300:3500);waitForIdleSync();
+  if("release104".equals(mode)){
+   if(requestedOrientation!=null)check(a.getResources().getConfiguration().orientation==Integer.parseInt(requestedOrientation),"release104 orientation mismatch");
+   if(argsFontScale!=null)check(a.getResources().getConfiguration().fontScale>=Float.parseFloat(argsFontScale),"release104 font scale mismatch");
+   TrafficRate counters=new TrafficRate();
+   check(Double.isNaN(counters.update(100,200,1_000_000_000L).rx),"First RX sample invented");
+   TrafficRate.Rates observed=counters.update(1_000_100,200,2_000_000_000L);
+   check(Math.abs(observed.rx-8.0)<.000001&&observed.tx==0,"Device byte delta or units wrong");
+   check(Double.isNaN(counters.update(-1,199,3_000_000_000L).rx),"Unsupported RX invented");
+   check(Double.isNaN(TrafficRate.rate(200,199,1,2)),"Counter rollback invented");
+   counters.reset();check(Double.isNaN(counters.update(10,10,4_000_000_000L).tx),"Pause baseline not reset");
+   ui(()->{Rect visible=new Rect();check(a.persistentMap.getGlobalVisibleRect(visible)&&visible.height()>=a.persistentMap.getHeight()*(a.landscape?.5:.75),"Map hidden below initial viewport");
+    check(a.cpu.getParent()==a.ram.getParent()&&a.ram.getParent()==a.disk.getParent(),"Resource gauges missing");
+    check(a.networkSection!=null&&a.storageSection!=null&&a.receive!=a.send,"Separate monitoring dials missing");
+    check(a.receive.face.getWidth()>=a.dp(112)&&a.send.face.getWidth()>=a.dp(112),"Network gauges not readable");
+    check(a.receive.value.getText().toString().contains("Мбит/с ↓")&&a.send.value.getText().toString().contains("Мбит/с ↑"),"Directions missing");
+    check(a.storageDetail.getText().toString().contains("доступно")&&a.storageDetail.getText().toString().contains("GiB"),"Real disk capacity unavailable");
+    check(a.folderResult.getText().toString().contains("выберите"),"Folder map pretends access without grant");
+    check(a.testOffline&&a.test==null&&!SpeedTest.BUSY.get(),"Offline probe started paid speed test");});
+   ui(a::finish);out.putString("stream","PASS release104 offline resources, RX/TX, disk, map visible, folder grant gate\n");finish(Activity.RESULT_OK,out);return;
+  }
   if("release103".equals(mode)){
    if(requestedOrientation!=null)check(a.getResources().getConfiguration().orientation==Integer.parseInt(requestedOrientation),"Orientation not applied");
    if(argsFontScale!=null)check(a.getResources().getConfiguration().fontScale>=Float.parseFloat(argsFontScale),"Font scale not applied");

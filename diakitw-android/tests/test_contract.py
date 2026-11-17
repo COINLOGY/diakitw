@@ -6,7 +6,8 @@ class Wiring(unittest.TestCase):
   for text in ['onPause()', 'removeCallbacks', 'shutdownNow()', 'getMemoryInfo', 'getAvailableBytes', 'getTotalBytes', 'setOnApplyWindowInsetsListener','stopTest()', 'Тест интернета']: self.assertIn(text,s)
  def test_compact_dashboard(self):
   s=(ROOT/'app/src/main/java/app/diakitw/MainActivity.java').read_text()
-  self.assertNotIn('TrafficStats',s)
+  self.assertIn('TrafficStats.getTotalRxBytes()',s)
+  self.assertIn('TrafficStats.getTotalTxBytes()',s)
   self.assertNotIn('new History()',s)
   self.assertIn('Обзор',s)
   self.assertIn('new Metric[]{cpu,ram,disk}',s)
