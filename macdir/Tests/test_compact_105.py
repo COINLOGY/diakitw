@@ -17,6 +17,10 @@ class Compact105(unittest.TestCase):
         self.assertNotIn('1_227', MAIN)
         self.assertNotIn('1227', MAIN)
 
+    def test_narrow_toolbar_and_network_control_do_not_waste_rows(self):
+        self.assertIn('count: viewportWidth >= 800 ? 4 : 2', MAIN)
+        self.assertIn('}.labelsHidden().frame(width: 110)', MAIN)
+
     def test_capacity_strip_keeps_apfs_caveat_on_hover(self):
         disk = (ROOT / 'Sources/macdir/DiskCapacityOverview.swift').read_text()
         self.assertIn('HStack(alignment: .center, spacing: 12)', disk)

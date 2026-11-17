@@ -242,7 +242,7 @@ struct ContentView: View {
    Label("Сеть", systemImage: "network").font(.headline)
    Picker("Интерфейс шкалы и графика", selection: $model.selectedInterface) {
     ForEach(Array(Set(model.snapshot.networks.map(\.name) + [selectedInterface])).sorted(), id: \.self) { Text($0).tag($0) }
-   }.frame(width: 110).help("Интерфейс приборов и графика; смена очищает историю графика")
+   }.labelsHidden().frame(width: 110).help("Интерфейс приборов и графика; смена очищает историю графика")
    Spacer(minLength: 0)
   }
  }
@@ -317,7 +317,7 @@ struct ContentView: View {
    }
    ViewThatFits(in: .horizontal) {
     HStack(spacing: 6) { toolbarActions }.fixedSize(horizontal: true, vertical: false)
-    LazyVGrid(columns: Array(repeating: GridItem(.flexible(minimum: 128), alignment: .leading), count: viewportWidth >= 1040 ? 4 : 2), alignment: .leading, spacing: 6) { toolbarActions }
+    LazyVGrid(columns: Array(repeating: GridItem(.flexible(minimum: 128), alignment: .leading), count: viewportWidth >= 800 ? 4 : 2), alignment: .leading, spacing: 6) { toolbarActions }
    }
   }
  }
