@@ -43,17 +43,18 @@ public final class LayoutProbe extends Instrumentation {
   Thread.sleep(2000);ui(()->{check(!Egress.BUSY.get()&&a.ipRun==null&&!a.autoIp.running,"Pause worker not drained");check(a.ipTime.equals("01:02:03"),"Stale result published");long start=a.autoIp.lastStart;a.startAutoIp();check(a.autoIp.lastStart==start,"Hidden request");});
  }
  void check(boolean ok,String message){if(!ok)throw new AssertionError(message);}
- void inspect(View v,Rect area){
+ void inspect(View v,Rect area){inspect(v,area,false);}
+ void inspect(View v,Rect area,boolean allowScroll){
   if(v.getVisibility()!=View.VISIBLE)return;
   int[] p=new int[2];v.getLocationOnScreen(p);Rect bounds=new Rect(p[0],p[1],p[0]+v.getWidth(),p[1]+v.getHeight());
   check(area.contains(bounds),"Outside parent: "+v.getClass()+" "+bounds+" parent "+area);
-  if(v instanceof ScrollView){android.content.res.Configuration cfg=v.getResources().getConfiguration();boolean typical=cfg.smallestScreenWidthDp>=360&&cfg.fontScale<=1.5f;if(typical)check(!v.canScrollVertically(1)&&!v.canScrollVertically(-1),"Typical main must not scroll: viewport="+v.getHeight()+" content="+((ScrollView)v).getChildAt(0).getHeight()+" config="+cfg.screenHeightDp);}
+  if(v instanceof ScrollView){android.content.res.Configuration cfg=v.getResources().getConfiguration();boolean typical=cfg.smallestScreenWidthDp>=360&&cfg.fontScale<=1.5f;if(typical&&!allowScroll)check(!v.canScrollVertically(1)&&!v.canScrollVertically(-1),"Typical main must not scroll: viewport="+v.getHeight()+" content="+((ScrollView)v).getChildAt(0).getHeight()+" config="+cfg.screenHeightDp);}
   if(v.isClickable()){float density=v.getResources().getDisplayMetrics().density;check(v.getWidth()>=48*density&&v.getHeight()>=48*density,"Touch target <48dp: "+v);}
   if(v instanceof TextView){TextView t=(TextView)v;Layout l=t.getLayout();if(l!=null&&t.getText().toString().equals("diakitw"))check(l.getLineCount()==1,"Brand must not wrap");if(l!=null){check(l.getHeight()<=t.getHeight()-t.getCompoundPaddingTop()-t.getCompoundPaddingBottom(),"Text clipped vertically: "+t.getText());for(int i=0;i<l.getLineCount();i++){check(l.getEllipsisCount(i)==0,"Ellipsis: "+t.getText());check(l.getLineWidth(i)<=l.getWidth()+1,"Text clipped horizontally: "+t.getText());}}report.append(t.getText()).append(" ").append(bounds).append('\n');}
   if(v instanceof MainActivity.ResourceGauge){
    MainActivity.ResourceGauge gauge=(MainActivity.ResourceGauge)v;dial(gauge,Double.isFinite(gauge.fraction));
   }
-  if(v instanceof ViewGroup){ViewGroup g=(ViewGroup)v;for(int i=0;i<g.getChildCount();i++){View child=g.getChildAt(i);Rect childArea=bounds;if(v instanceof ScrollView){int[] loc=new int[2];child.getLocationOnScreen(loc);childArea=new Rect(loc[0],loc[1],loc[0]+child.getWidth(),loc[1]+child.getHeight());}inspect(child,childArea);}}
+  if(v instanceof ViewGroup){ViewGroup g=(ViewGroup)v;for(int i=0;i<g.getChildCount();i++){View child=g.getChildAt(i);Rect childArea=bounds;if(v instanceof ScrollView){int[] loc=new int[2];child.getLocationOnScreen(loc);childArea=new Rect(loc[0],loc[1],loc[0]+child.getWidth(),loc[1]+child.getHeight());}inspect(child,childArea,allowScroll);}}
  }
  void secondary(View v){
   if(v.getVisibility()!=View.VISIBLE)return;

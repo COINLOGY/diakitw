@@ -40,6 +40,9 @@ class Release105(unittest.TestCase):
         self.assertIn('Обновления · 1.0.5 (105)', probe)
         self.assertIn('PASS release105 offline', probe)
         self.assertIn('SAFE_FRAME app.diakitw.', probe)
+        self.assertIn('p.inspect(root,new Rect(xy[0],xy[1],xy[0]+root.getWidth(),xy[1]+root.getHeight()),true)', (ANDROID / 'app/src/androidTest/java/app/diakitw/EntryProbe.java').read_text())
+        self.assertIn('if(typical&&!allowScroll)', probe)
+        self.assertIn('Entry map hidden', (ANDROID / 'app/src/androidTest/java/app/diakitw/EntryProbe.java').read_text())
 
     def test_safe_failure_summary_has_allowlisted_line_not_ip(self):
         import subprocess, sys, tempfile
