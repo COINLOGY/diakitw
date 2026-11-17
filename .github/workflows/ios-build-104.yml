@@ -1,0 +1,26 @@
+name: iOS 1.0.4 unsigned compile/tests (no upload)
+on:
+  push:
+    branches: [feat/release-104-candidate]
+    paths: ["ios/**", ".github/workflows/ios-build-104.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ios-104
+  cancel-in-progress: false
+jobs:
+  build-test:
+    runs-on: macos-15-intel
+    # Previous run passed both production builds and XCTest, then reached the
+    # job limit during the final fixture build; retain every acceptance gate.
+    timeout-minutes: 45
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Sequential unsigned builds and offline tests
+        run: bash ios/Scripts/ci-build.sh

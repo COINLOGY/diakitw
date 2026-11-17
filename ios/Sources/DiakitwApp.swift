@@ -156,7 +156,7 @@ struct ContentView: View {
                     .accessibilityIdentifier("speed-start-stop")
                     .id("speed-controls")
                 UpdateSection(checker: updates)
-                Text("1.0.3 · iOS · build 103").font(.caption2).foregroundStyle(Theme.muted)
+                Text("1.0.4 · iOS · build 104").font(.caption2).foregroundStyle(Theme.muted)
             }.padding(16).frame(maxWidth: 1000)
                 .frame(maxWidth: .infinity)
         }
