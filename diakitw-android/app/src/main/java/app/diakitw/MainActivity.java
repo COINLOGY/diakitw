@@ -16,6 +16,9 @@ import android.graphics.drawable.RippleDrawable;
 import android.graphics.drawable.StateListDrawable;
 import android.os.*;
 import android.net.*;
+import android.net.TrafficStats;
+import android.provider.DocumentsContract;
+import android.database.Cursor;
 import android.util.Log;
 import android.util.TypedValue;
 import android.view.*;
@@ -52,7 +55,7 @@ public final class MainActivity extends Activity {
  }
  void updatesMenu(){
   if(updateDialog!=null)updateDialog.dismiss();
-  AlertDialog.Builder menu=new AlertDialog.Builder(this).setTitle("Обновления · 1.0.4 (104)").setSingleChoiceItems(new String[]{"Стабильный","Тестовый"},updates.channel.equals("stable")?0:1,(d,which)->{if(updateFetch!=null)updateFetch.cancel();updates.channel(which==0?"stable":"preview");updateOffer=null;updateNotice.setVisibility(View.GONE);saveUpdates();})
+  AlertDialog.Builder menu=new AlertDialog.Builder(this).setTitle("Обновления · 1.0.3 (103)").setSingleChoiceItems(new String[]{"Стабильный","Тестовый"},updates.channel.equals("stable")?0:1,(d,which)->{if(updateFetch!=null)updateFetch.cancel();updates.channel(which==0?"stable":"preview");updateOffer=null;updateNotice.setVisibility(View.GONE);saveUpdates();})
    .setPositiveButton("Проверить обновления",(d,w)->checkUpdates(true)).setNegativeButton("Позже",null);
   if(updateOffer!=null)menu.setNeutralButton("Скачать доступное",(d,w)->showUpdateOffer());
   updateDialog=menu.show();updateDialog.getWindow().setBackgroundDrawable(panel());
@@ -113,7 +116,8 @@ public final class MainActivity extends Activity {
  final Handler main=new Handler(Looper.getMainLooper());
  final Handler speedResults=new Handler(Looper.getMainLooper());
  ScheduledExecutorService worker; int generation,testGeneration; SpeedTest test; AlertDialog testDialog;
- Metric cpu,ram,disk; long previousCpu=-1,previousWall=-1; TextView summary,geoCountry,geoCity,geoCaption; MapView persistentMap; String last="Ещё не измерено";
+ Metric cpu,ram,disk; SpeedDial receive,send; ActivityChart activityChart; TextView storageDetail,folderResult; LinearLayout networkSection,storageSection;
+ final TrafficRate traffic=new TrafficRate(); long previousCpu=-1,previousWall=-1; int folderGeneration; TextView summary,geoCountry,geoCity,geoCaption; MapView persistentMap; String last="Ещё не измерено";
  boolean compact,landscape; Egress ipRun; int ipGeneration;
  final AutoEgress autoIp=new AutoEgress();final Handler ipResults=new Handler(Looper.getMainLooper());
  ConnectivityManager connectivity;ConnectivityManager.NetworkCallback networkCallback;
@@ -147,7 +151,21 @@ public final class MainActivity extends Activity {
   persistentMap=new MapView(this,true);persistentMap.update(ipSnapshot,true);geo.addView(persistentMap,new LinearLayout.LayoutParams(-1,dp(landscape?140:220)));
   geoCaption=text(mapPrecision(),12,MUTED);geo.addView(geoCaption);if(!landscape)geo.addView(summary,new LinearLayout.LayoutParams(-1,-2));
   geo.addView(button("Источник и точность",v->showText("IP · источник и точность",IP_NOTICE)));
-  metricViewport.removeView(metrics);LinearLayout dashboard=column();dashboard.setOrientation(landscape?LinearLayout.HORIZONTAL:LinearLayout.VERTICAL);dashboard.addView(metrics,landscape?new LinearLayout.LayoutParams(0,-2,1.25f):new LinearLayout.LayoutParams(-1,-2));LinearLayout.LayoutParams gp=landscape?new LinearLayout.LayoutParams(0,-2,1f):new LinearLayout.LayoutParams(-1,-2);gp.setMargins(dp(3),0,dp(3),dp(8));dashboard.addView(geo,gp);metricViewport.addView(dashboard);
+  metricViewport.removeView(metrics);LinearLayout dashboard=column();dashboard.setOrientation(landscape?LinearLayout.HORIZONTAL:LinearLayout.VERTICAL);dashboard.addView(metrics,landscape?new LinearLayout.LayoutParams(0,-2,1.25f):new LinearLayout.LayoutParams(-1,-2));LinearLayout.LayoutParams gp=landscape?new LinearLayout.LayoutParams(0,-2,1f):new LinearLayout.LayoutParams(-1,-2);gp.setMargins(dp(3),0,dp(3),dp(8));dashboard.addView(geo,gp);
+  LinearLayout page=column();page.addView(dashboard);
+  networkSection=column();networkSection.setPadding(dp(8),dp(8),dp(8),dp(8));networkSection.setBackground(panel());
+  networkSection.addView(text("СЕТЬ · весь трафик устройства",16,TEXT));
+  receive=new SpeedDial("Приём","↓",GREEN);send=new SpeedDial("Передача","↑",BLUE);
+  LinearLayout rates=column();rates.addView(receive);LinearLayout.LayoutParams sp=new LinearLayout.LayoutParams(-1,-2);sp.topMargin=dp(6);rates.addView(send,sp);networkSection.addView(rates);
+  networkSection.addView(text("Активность · последние 30 измерений, Мбит/с",12,MUTED));activityChart=new ActivityChart();networkSection.addView(activityChart,new LinearLayout.LayoutParams(-1,dp(56)));
+  page.addView(networkSection);
+  storageSection=column();storageSection.setPadding(dp(8),dp(8),dp(8),dp(8));storageSection.setBackground(panel());
+  storageSection.addView(text("ДИСК · данные приложения",16,TEXT));storageDetail=text("Н/Д",16,MUTED);storageSection.addView(storageDetail);
+  storageSection.addView(text("Раздел данных приложения: занято и доступно по Android StatFs. Не список томов и не состояние накопителя.",13,MUTED));
+  folderResult=text("Карта файлов: выберите доступную папку. Без разрешения файлы других приложений не видны.",13,MUTED);storageSection.addView(folderResult);
+  storageSection.addView(button("Выбрать папку для карты",v->pickFolder()));
+  LinearLayout.LayoutParams sectionGap=new LinearLayout.LayoutParams(-1,-2);sectionGap.topMargin=dp(8);page.addView(storageSection,sectionGap);
+  metricViewport.addView(page);
   if(!landscape)root.addView(metricViewport,new LinearLayout.LayoutParams(-1,0,1));
   Button internet=button("Тест интернета",v->openTest());styleButton(internet,true);internet.setMinHeight(dp(56));footer.addView(internet,new LinearLayout.LayoutParams(-1,-2));if(landscape){Space spacer=new Space(this);rail.addView(spacer,new LinearLayout.LayoutParams(-1,0,1));rail.addView(footer);}else root.addView(footer);setContentView(root);
  }
@@ -165,7 +183,7 @@ public final class MainActivity extends Activity {
  GradientDrawable panel(){return shape(CARD,LINE,20);}
  void showText(String title,String message){AlertDialog d=new AlertDialog.Builder(this).setTitle(title).setMessage(message).setPositiveButton("Понятно",null).show();d.getWindow().setBackgroundDrawable(panel());d.getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(BLUE);}
  void showHelp(String title,String message){AlertDialog d=new AlertDialog.Builder(this).setTitle(title).setMessage(message+"\n\nОбновления: HTTPS GitHub Pages, до 32 KiB, 10 с. Новая проверка при первом выходе на передний план после запуска процесса; затем до суток после успеха, час после ошибки, ручная повторная проверка не чаще минуты. После согласия APK загружается и сверяется с v2 feed и закреплённым сертификатом; установку выполняет Android. Для подходящего обновления самой программы ОС может не запросить подтверждение; иначе запросит. Канал по умолчанию: тестовый.").setNeutralButton("Обновления",(x,w)->updatesMenu()).setPositiveButton("Понятно",null).show();d.getWindow().setBackgroundDrawable(panel());}
- void help(){showHelp("Обзор · diakitw 1.0.4","RAM: (totalMem − availMem) / totalMem. Хранилище: StatFs total − available, том данных приложения; не здоровье накопителя. Нажмите карточку для подробностей. Недоступные показания: Н/Д, без стрелки. Шкалы 0–100%: до 20% зелёный, до 80% синий, выше красный; RAM и хранилище: занято / всего GiB.\n\nCPU APP: только процесс diakitw, не нагрузка всего телефона. Разность CPU-времени / монотонное время / число доступных логических CPU. Первый, сброшенный и задержанный более 5 с интервал — Н/Д. SWAP и UID-трафик не показываются.\n\nТест интернета запускается только вручную, отдельно от мониторинга. HTTP RTT — не ICMP ping; включает установление соединения, TLS и обработку сервера. Потери пакетов не измеряются. HTTP jitter — среднее абсолютных разностей соседних успешных проб, только при 2–3 пробах. Скорости одного короткого потока включают накладные задержки и не являются максимумом линии.\n\nСбор и тест останавливаются при уходе из приложения, повороте или закрытии теста. Последний отчёт сохраняется локально и доступен через «Последний отчёт / JSON». Payload-файлы не создаются.");}
+ void help(){showHelp("Обзор · diakitw 1.0.4","Сеть: приём/передача — разность общих счётчиков устройства за монотонный интервал, не скорость VPN, не максимум линии. Первое измерение и недоступные счётчики — Н/Д. Активность показывает только измерения на этом экране. Карта файлов — только выбранная вами папка через системный доступ, до 500 элементов и 4 уровней; размер Н/Д при неполных метаданных.\n\nRAM: (totalMem − availMem) / totalMem. Хранилище: StatFs total − available, том данных приложения; не здоровье накопителя. Нажмите карточку для подробностей. Недоступные показания: Н/Д, без стрелки. Шкалы 0–100%: до 20% зелёный, до 80% синий, выше красный; RAM и хранилище: занято / всего GiB.\n\nCPU APP: только процесс diakitw, не нагрузка всего телефона. Разность CPU-времени / монотонное время / число доступных логических CPU. Первый, сброшенный и задержанный более 5 с интервал — Н/Д. SWAP и UID-трафик не показываются.\n\nТест интернета запускается только вручную, отдельно от мониторинга. HTTP RTT — не ICMP ping; включает установление соединения, TLS и обработку сервера. Потери пакетов не измеряются. HTTP jitter — среднее абсолютных разностей соседних успешных проб, только при 2–3 пробах. Скорости одного короткого потока включают накладные задержки и не являются максимумом линии.\n\nСбор и тест останавливаются при уходе из приложения, повороте или закрытии теста. Последний отчёт сохраняется локально и доступен через «Последний отчёт / JSON». Payload-файлы не создаются.");}
  void updateSummary(){
   String label="IP / карта · "+ipStatusLabel();
   String visible=label+"\n"+(ipSnapshot==null?"Н/Д\nСтрана: Н/Д":ipSnapshot.ip+"\n"+countryLabel()+(ipSnapshot.city.isEmpty()?"":" · ≈ "+ipSnapshot.city));
@@ -175,8 +193,8 @@ public final class MainActivity extends Activity {
  String ipStatusLabel(){return ipBadge.equals("Снимок")?"Обновлено":ipBadge;}
  static String flag(String country){return new String(Character.toChars(0x1f1e6+country.charAt(0)-'A'))+new String(Character.toChars(0x1f1e6+country.charAt(1)-'A'));}
  String countryLabel(){return ipSnapshot==null||ipSnapshot.country.isEmpty()?"Страна не определена":flag(ipSnapshot.country)+" "+new Locale("",ipSnapshot.country).getDisplayCountry(new Locale("ru"));}
- @Override protected void onResume(){super.onResume();if(!testOffline){updates.start(System.currentTimeMillis());main.post(updateTick);}long remaining=Math.max(0,Math.min(86400000L,getPreferences(MODE_PRIVATE).getLong("ipQuotaUntil",0)-System.currentTimeMillis()));autoIp.blockUntil(SystemClock.elapsedRealtime()+remaining);if(remaining>0){ipBadge="Лимит";ipState="Лимит IPwho.is · проверка отложена до 24 ч";renderIp();}if(!testOffline){autoIp.resume(SystemClock.elapsedRealtime());watchNetwork();main.post(ipTick);}synchronized(this){previousCpu=-1;previousWall=-1;}cpu.update(Double.NaN,"Только diakitw");int token=++generation;worker=Executors.newSingleThreadScheduledExecutor();worker.scheduleWithFixedDelay(()->{Sample s;synchronized(this){if(token!=generation)return;s=sample();}main.post(()->{if(token==generation){cpu.update(s.cpu,"Только diakitw");ram.update(s.ram,s.ramDetail);disk.update(s.disk,s.diskDetail);Log.d("diakitw","sample published");}});},0,3,TimeUnit.SECONDS);}
- @Override protected void onPause(){stopUpdates();generation++;autoIp.pause();if(ipSnapshot!=null){ipBadge="Устарел";ipState="Приложение было скрыто · снимок не текущий";renderIp();}unwatchNetwork();stopIp();stopTest();if(mapDialog!=null){mapDialog.dismiss();mapDialog=null;expandedMap=null;expandedMapCaption=null;}if(ipDialog!=null){ipDialog.dismiss();ipDialog=null;}if(testDialog!=null){testDialog.dismiss();testDialog=null;}if(worker!=null){worker.shutdownNow();worker=null;}main.removeCallbacksAndMessages(null);Log.i("diakitw","sampler paused; callbacks cancelled");super.onPause();}
+ @Override protected void onResume(){super.onResume();if(!testOffline){updates.start(System.currentTimeMillis());main.post(updateTick);}long remaining=Math.max(0,Math.min(86400000L,getPreferences(MODE_PRIVATE).getLong("ipQuotaUntil",0)-System.currentTimeMillis()));autoIp.blockUntil(SystemClock.elapsedRealtime()+remaining);if(remaining>0){ipBadge="Лимит";ipState="Лимит IPwho.is · проверка отложена до 24 ч";renderIp();}if(!testOffline){autoIp.resume(SystemClock.elapsedRealtime());watchNetwork();main.post(ipTick);}synchronized(this){previousCpu=-1;previousWall=-1;traffic.reset();}activityChart.clear();receive.update(Double.NaN);send.update(Double.NaN);cpu.update(Double.NaN,"Только diakitw");int token=++generation;worker=Executors.newSingleThreadScheduledExecutor();worker.scheduleWithFixedDelay(()->{Sample s;synchronized(this){if(token!=generation)return;s=sample();}main.post(()->{if(token==generation){cpu.update(s.cpu,"Только diakitw");ram.update(s.ram,s.ramDetail);disk.update(s.disk,s.diskDetail);storageDetail.setText(s.diskDetail.equals("Н/Д")?"Н/Д":s.diskDetail+" · доступно "+number(s.diskAvailable/1073741824.0)+" GiB");receive.update(s.rx);send.update(s.tx);activityChart.add(s.rx,s.tx);Log.d("diakitw","sample published");}});},0,3,TimeUnit.SECONDS);}
+ @Override protected void onPause(){stopUpdates();generation++;folderGeneration++;autoIp.pause();if(ipSnapshot!=null){ipBadge="Устарел";ipState="Приложение было скрыто · снимок не текущий";renderIp();}unwatchNetwork();stopIp();stopTest();if(mapDialog!=null){mapDialog.dismiss();mapDialog=null;expandedMap=null;expandedMapCaption=null;}if(ipDialog!=null){ipDialog.dismiss();ipDialog=null;}if(testDialog!=null){testDialog.dismiss();testDialog=null;}if(worker!=null){worker.shutdownNow();worker=null;}main.removeCallbacksAndMessages(null);Log.i("diakitw","sampler paused; callbacks cancelled");super.onPause();}
  @Override public void onSaveInstanceState(Bundle out){out.putString("summary",test!=null?"Отменено при смене экрана":last);super.onSaveInstanceState(out);}
  void stopTest(){if(test!=null){test.cancel();Log.i("diakitw","speed cancellation requested");}}
  boolean saveSpeedReport(SpeedTest.Result r){String json=SpeedReport.json(r);return getPreferences(MODE_PRIVATE).edit().putString("speedReportJson",json).putString("speedReportText",SpeedReport.text(r)).commit();}
@@ -309,7 +327,8 @@ public final class MainActivity extends Activity {
   long wall=SystemClock.elapsedRealtime(),process=android.os.Process.getElapsedCpuTime();
   s.cpu=Core.cpu(previousCpu,process,previousWall<0?0:wall-previousWall,Runtime.getRuntime().availableProcessors());previousCpu=process;previousWall=wall;
   try{ActivityManager am=(ActivityManager)getSystemService(ACTIVITY_SERVICE);ActivityManager.MemoryInfo m=new ActivityManager.MemoryInfo();if(am!=null){am.getMemoryInfo(m);s.ram=Core.percent(m.totalMem,m.availMem);s.ramDetail=pair(m.totalMem,m.availMem);}}catch(RuntimeException ignored){}
-  try{StatFs f=new StatFs(getFilesDir().getAbsolutePath());s.disk=Core.percent(f.getTotalBytes(),f.getAvailableBytes());s.diskDetail=pair(f.getTotalBytes(),f.getAvailableBytes());}catch(RuntimeException ignored){}
+  try{StatFs f=new StatFs(getFilesDir().getAbsolutePath());s.disk=Core.percent(f.getTotalBytes(),f.getAvailableBytes());s.diskAvailable=f.getAvailableBytes();if(Double.isFinite(s.disk))s.diskDetail=pair(f.getTotalBytes(),f.getAvailableBytes());}catch(RuntimeException ignored){}
+  TrafficRate.Rates rates=traffic.update(TrafficStats.getTotalRxBytes(),TrafficStats.getTotalTxBytes(),SystemClock.elapsedRealtimeNanos());s.rx=rates.rx;s.tx=rates.tx;
   return s;
  }
  static String pair(long total,long available){return number((total-available)/1073741824.0)+" / "+number(total/1073741824.0)+" GiB";}
@@ -363,5 +382,37 @@ public final class MainActivity extends Activity {
    ticks(c);if(known)needle(c,fraction,color);labels(c,"50%","0%","100%");
   }
  }
- static final class Sample{double cpu=Double.NaN,ram=Double.NaN,disk=Double.NaN;String ramDetail="Н/Д",diskDetail="Н/Д";}
+ // A grant from the system picker is used only for this one scan, never persisted.
+ void pickFolder(){Intent intent=new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);try{startActivityForResult(intent,104);}catch(RuntimeException e){folderResult.setText("Системный выбор папки недоступен");}}
+ @Override protected void onActivityResult(int request,int result,Intent data){super.onActivityResult(request,result,data);if(request!=104||result!=RESULT_OK||data==null||data.getData()==null)return;
+  Uri root=data.getData();final int token=++folderGeneration;folderResult.setText("Сканирование выбранной папки…");
+  Thread scan=new Thread(()->{String report;try{report=folderMap(root);}catch(RuntimeException e){report="Папка недоступна или доступ отозван";}final String value=report;main.post(()->{if(token==folderGeneration)folderResult.setText(value);});},"folder-map");scan.setDaemon(true);scan.start();
+ }
+ String folderMap(Uri root){
+  String parent=DocumentsContract.getTreeDocumentId(root);java.util.ArrayList<String> entries=new java.util.ArrayList<>();int[] budget={500};
+  Uri children=DocumentsContract.buildChildDocumentsUriUsingTree(root,parent);
+  try(Cursor cursor=getContentResolver().query(children,new String[]{DocumentsContract.Document.COLUMN_DOCUMENT_ID,DocumentsContract.Document.COLUMN_DISPLAY_NAME,DocumentsContract.Document.COLUMN_MIME_TYPE,DocumentsContract.Document.COLUMN_SIZE},null,null,null)){
+   if(cursor==null)return "Провайдер папки не вернул данные";
+   while(cursor.moveToNext()&&budget[0]>0){budget[0]--;String id=cursor.getString(0),name=cursor.getString(1),mime=cursor.getString(2);long size=cursor.isNull(3)?-1:cursor.getLong(3);
+    if(DocumentsContract.Document.MIME_TYPE_DIR.equals(mime))size=folderBytes(root,id,1,budget);
+    entries.add((name==null?"Без имени":name)+" · "+(size<0?"размер Н/Д":number(size/1048576.0)+" MiB"));
+   }
+  }
+  return "Карта выбранной папки · "+entries.size()+" элементов"+(budget[0]<=0?" · частично (лимит 500)":"")+(entries.isEmpty()?" · пусто":"\n"+android.text.TextUtils.join("\n",entries));
+ }
+ long folderBytes(Uri root,String id,int depth,int[] budget){if(depth>4||budget[0]<=0)return -1;Uri children=DocumentsContract.buildChildDocumentsUriUsingTree(root,id);long sum=0;
+  try(Cursor cursor=getContentResolver().query(children,new String[]{DocumentsContract.Document.COLUMN_DOCUMENT_ID,DocumentsContract.Document.COLUMN_MIME_TYPE,DocumentsContract.Document.COLUMN_SIZE},null,null,null)){
+   if(cursor==null)return -1;while(cursor.moveToNext()){if(budget[0]--<=0)return -1;long size=DocumentsContract.Document.MIME_TYPE_DIR.equals(cursor.getString(1))?folderBytes(root,cursor.getString(0),depth+1,budget):cursor.isNull(2)?-1:cursor.getLong(2);if(size<0||Long.MAX_VALUE-sum<size)return -1;sum+=size;}
+  }return sum;
+ }
+ final class ActivityChart extends View{
+  final double[] down=new double[30],up=new double[30];int count;final Paint ink=new Paint(Paint.ANTI_ALIAS_FLAG);
+  ActivityChart(){super(MainActivity.this);setContentDescription("Активность сети: данных пока нет");}
+  void clear(){count=0;invalidate();setContentDescription("Активность сети: данных пока нет");}
+  void add(double rx,double tx){if(count==30){System.arraycopy(down,1,down,0,29);System.arraycopy(up,1,up,0,29);count=29;}down[count]=rx;up[count]=tx;count++;invalidate();setContentDescription("Активность сети · приём "+(Double.isFinite(rx)?SpeedScale.label(rx):"Н/Д")+" · передача "+(Double.isFinite(tx)?SpeedScale.label(tx):"Н/Д")+" Мбит/с");}
+  @Override protected void onDraw(Canvas canvas){super.onDraw(canvas);double max=1;for(int i=0;i<count;i++){if(Double.isFinite(down[i]))max=Math.max(max,down[i]);if(Double.isFinite(up[i]))max=Math.max(max,up[i]);}double scale=SpeedScale.maximum(max);if(!Double.isFinite(scale))scale=1;
+   float slot=getWidth()/30f;for(int i=0;i<count;i++){float x=(i+0.5f)*slot;if(Double.isFinite(down[i])){ink.setColor(GREEN);ink.setStrokeWidth(Math.max(dp(2),slot/3));canvas.drawLine(x,getHeight(),x,getHeight()*(1-(float)(down[i]/scale)),ink);}if(Double.isFinite(up[i])){ink.setColor(BLUE);ink.setStrokeWidth(Math.max(dp(2),slot/3));canvas.drawLine(x+slot/3,getHeight(),x+slot/3,getHeight()*(1-(float)(up[i]/scale)),ink);}}
+  }
+ }
+ static final class Sample{double cpu=Double.NaN,ram=Double.NaN,disk=Double.NaN,rx=Double.NaN,tx=Double.NaN;long diskAvailable=-1;String ramDetail="Н/Д",diskDetail="Н/Д";}
 }
