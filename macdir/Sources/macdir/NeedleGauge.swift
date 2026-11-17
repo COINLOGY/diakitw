@@ -127,7 +127,7 @@ struct GaugeTile: View {
     } else {
      Text(value).font(.system(size: 22, weight: .semibold, design: .rounded)).foregroundStyle(gaugeColor(fraction, battery: battery)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.65)
     }
-    Text(detail).font(.system(size: 10)).foregroundStyle(.secondary).lineLimit(3).frame(height: 38, alignment: .topLeading)
+    Text(detail).font(.system(size: 10)).foregroundStyle(.secondary).lineLimit(2).frame(minHeight: 22, alignment: .topLeading)
    }.frame(maxWidth: .infinity, alignment: .leading)
    if amountOnly {
     Image(systemName: symbol).font(.system(size: 30, weight: .light)).foregroundStyle(.secondary).frame(width: 100, height: 88)

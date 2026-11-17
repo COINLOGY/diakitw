@@ -1,5 +1,6 @@
 import Foundation
 import Darwin
+import IOKit
 import IOKit.ps
 
 public func bytes(_ value: Int64?) -> String {
@@ -23,6 +24,23 @@ public struct NetworkRate: Sendable, Identifiable {
   self.name = name; self.received = received; self.sent = sent
  }
 }
+/// A missing/invalid hardware value is unavailable; never infer cycles from capacity or charge.
+public enum BatteryCycles {
+ public static func validated(_ number: NSNumber?) -> Int? {
+  guard let number else { return nil }
+  let value = number.int64Value
+  guard value >= 0, value <= 100_000, NSNumber(value: value) == number else { return nil }
+  return Int(value)
+ }
+ public static func read() -> Int? {
+  let service = IOServiceGetMatchingService(kIOMainPortDefault, IOServiceMatching("AppleSmartBattery"))
+  guard service != 0 else { return nil }
+  defer { IOObjectRelease(service) }
+  let raw = IORegistryEntryCreateCFProperty(service, "CycleCount" as CFString, kCFAllocatorDefault, 0)?.takeRetainedValue()
+  return validated(raw as? NSNumber)
+ }
+}
+
 public struct ResourceSnapshot: Sendable {
  public var cpu: Double?
  public var memoryUsed: Int64?
@@ -48,6 +66,7 @@ public struct ResourceSnapshot: Sendable {
  public var interfaceAddresses: [String: [String]] = [:]
  public var power = "Н/Д"
  public var batteryPercent: Double?
+ public var batteryCycles: Int?
  public var summary: String {
   "CPU: \(cpu.map { String(format: "%.1f%%", $0) } ?? "Н/Д"); RAM active+wired+compressed: \(bytes(memoryUsed))/\(bytes(memoryTotal)); compressed: \(bytes(compressed)); swap: \(bytes(swap)); disk free: \(bytes(diskFree))/\(bytes(diskTotal)); power: \(power); network: " + networks.map { "\($0.name) \($0.received.map { String(format: "%.0f B/s", $0) } ?? "Н/Д") ↓ \($0.sent.map { String(format: "%.0f B/s", $0) } ?? "Н/Д") ↑" }.joined(separator: ", ")
  }
@@ -170,6 +189,7 @@ public final class ResourceSampler: @unchecked Sendable {
     }
    }
   }
+  s.batteryCycles = BatteryCycles.read()
   return s
  }
 }

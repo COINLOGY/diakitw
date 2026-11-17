@@ -9,19 +9,15 @@ MAIN = (ROOT / 'Sources/macdir/main.swift').read_text()
 class DashboardLayoutTests(unittest.TestCase):
     def test_resources_network_disk_folder_order_and_real_rates(self):
         dashboard = MAIN.split('private func dashboard(viewport: CGSize)', 1)[1].split('\nfinal class AppDelegate:', 1)[0]
-        resources = dashboard.index('title: "ПРОЦЕССОР"')
-        swap = dashboard.index('title: "SWAP"')
-        battery = dashboard.index('title: "БАТАРЕЯ · ЗАРЯД"')
-        network = dashboard.index('networkInstruments')
-        disk = dashboard.index('diskGauge')
-        overview = dashboard.index('DiskCapacityOverview(')
-        folders = dashboard.index('if let current = model.current')
-        self.assertLess(resources, swap)
-        self.assertLess(swap, battery)
-        self.assertLess(battery, network)
-        self.assertLess(network, disk)
-        self.assertLess(disk, overview)
-        self.assertLess(overview, folders)
+        resources = MAIN.split('private func compactResources(', 1)[1].split('private var compactNetwork:', 1)[0]
+        self.assertLess(resources.index('title: "ПРОЦЕССОР"'), resources.index('title: "SWAP"'))
+        self.assertLess(resources.index('title: "SWAP"'), resources.index('title: "БАТАРЕЯ · ЗАРЯД"'))
+        self.assertIn('model.snapshot.batteryCycles', resources)
+        self.assertLess(dashboard.index('compactResources(viewportWidth:'), dashboard.index('compactNetwork'))
+        self.assertLess(dashboard.index('compactNetwork'), dashboard.index('compactDisk'))
+        self.assertLess(dashboard.index('compactDisk'), dashboard.index('if let current = model.current'))
+        disk = MAIN.split('private var compactDisk:', 1)[1].split('private func dashboard(', 1)[0]
+        self.assertLess(disk.index('diskGauge.frame'), disk.index('DiskCapacityOverview('))
         instruments = MAIN.split('private var networkInstruments:', 1)[1].split('private var diskGauge:', 1)[0]
         self.assertLess(instruments.index('receiveGauge(scale:'), instruments.index('sendGauge(scale:'))
         self.assertLess(instruments.index('sendGauge(scale:'), instruments.index('TrafficChart(history:'))

@@ -18,7 +18,7 @@ assert 'NWPathMonitor()' in main and 'pathUpdateHandler' in main
 assert 'NSApplication.didBecomeActiveNotification' in main
 assert 'identityChanged()' in main and 'pathMonitor.cancel()' in main
 assert main.count('identityMonitor?.cancel()') >= 2
-assert 'Внешний (выход в интернет)' in main and 'VPN' in main
+assert 'Выход в интернет / VPN' in main
 # Minimum width is now adaptive; rendered size/overlap checks live in check_layout.py.
 assert 'minWidth: 800' in main and 'window.contentMinSize = NSSize(width: 800, height: 540)' in main
 assert resources.count('getifaddrs(&addresses)') == 1

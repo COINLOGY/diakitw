@@ -71,9 +71,9 @@ class ExpressiveGeometry(unittest.TestCase):
             # actual font metrics and all visibility masks instead.
             if path == 'macdir/Sources/macdir/StatusTypography.swift':
                 continue
-            # GaugeTile was deliberately redesigned in 1.0.4 to display measured
+            # GaugeTile was deliberately redesigned in 1.0.5 to display measured
             # network direction and app-volume capacity. Its current layout is
-            # checked by test_release_104_mac and native check_layout.py instead.
+            # checked by test_release_105_mac and native check_layout.py instead.
             if path == 'macdir/Sources/macdir/NeedleGauge.swift':
                 continue
             current = text(path)

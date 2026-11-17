@@ -303,66 +303,87 @@ struct ContentView: View {
   }.buttonStyle(.plain)
    .popover(isPresented: $model.showCapacity) { Text(model.snapshot.diskDetail).font(.system(.body, design: .monospaced)).textSelection(.enabled).padding(20) }
  }
- private func dashboard(viewport: CGSize) -> some View {
-  VStack(spacing: 16) {
-   let headerLayout = viewport.width >= 1600 ? AnyLayout(HStackLayout()) : AnyLayout(VStackLayout(alignment: .leading, spacing: 10))
-   headerLayout {
-    HStack {
-     Image(nsImage: NSImage(contentsOf: Bundle.main.url(forResource: "macdir", withExtension: "icns") ?? URL(fileURLWithPath: "assets/macdir.icns")) ?? NSImage()).resizable().frame(width: 38, height: 38).accessibilityLabel("diakitw Modular W")
-     VStack(alignment: .leading) { Text("diakitw").font(.system(size: 28, weight: .bold, design: .rounded)); Text("Пространство и ресурсы вашего Mac").font(.caption).foregroundStyle(.secondary) }
-     Spacer()
+ private func compactToolbar(viewportWidth: CGFloat) -> some View {
+  let headerLayout = viewportWidth >= 1500 ? AnyLayout(HStackLayout(alignment: .center, spacing: 14)) : AnyLayout(VStackLayout(alignment: .leading, spacing: 7))
+  return headerLayout {
+   HStack(spacing: 8) {
+    Image(nsImage: NSImage(contentsOf: Bundle.main.url(forResource: "macdir", withExtension: "icns") ?? URL(fileURLWithPath: "assets/macdir.icns")) ?? NSImage())
+     .resizable().frame(width: 32, height: 32).accessibilityLabel("diakitw Modular W")
+    VStack(alignment: .leading, spacing: 0) {
+     Text("diakitw").font(.system(size: 22, weight: .bold, design: .rounded))
+     Text("Пространство и ресурсы вашего Mac").font(.caption2).foregroundStyle(.secondary)
     }
-    VStack(alignment: .leading, spacing: 8) {
-     ViewThatFits(in: .horizontal) {
-      HStack(spacing: 8) { toolbarActions }.fixedSize(horizontal: true, vertical: false)
-      LazyVGrid(columns: Array(repeating: GridItem(.flexible(minimum: 130), alignment: .leading), count: viewport.width >= 1100 ? 4 : 2), alignment: .leading, spacing: 8) { toolbarActions }
-     }
-     HStack {
-      if model.scanning { ProgressView().controlSize(.small); Button("Остановить") { model.cancel() } }
-      if let volume = model.volume { Button { model.scan(volume) } label: { Image(systemName: "arrow.clockwise") }.disabled(model.scanning).help("Сканировать заново") }
-     }
-    }
+    Spacer(minLength: 0)
    }
+   ViewThatFits(in: .horizontal) {
+    HStack(spacing: 6) { toolbarActions }.fixedSize(horizontal: true, vertical: false)
+    LazyVGrid(columns: Array(repeating: GridItem(.flexible(minimum: 128), alignment: .leading), count: viewportWidth >= 1040 ? 4 : 2), alignment: .leading, spacing: 6) { toolbarActions }
+   }
+  }
+ }
+ private var compactIdentity: some View {
+  HStack(alignment: .top, spacing: 12) {
    VStack(alignment: .leading, spacing: 3) {
+    Text("Этот Mac · интерфейс " + selectedInterface).font(.caption2).foregroundStyle(.secondary)
     Text(model.computerName).font(.headline).lineLimit(1).help(model.computerName)
-    Text("Внутренний: " + model.internalAddressText).lineLimit(1).truncationMode(.middle).help(model.internalAddressText)
-    Text("Внешний (выход в интернет)").font(.caption).foregroundStyle(.secondary)
-    HStack(alignment: .top) {
-     VStack(alignment: .leading, spacing: 4) {
-      Text(model.externalAddress ?? "Недоступен").font(.system(size: 20, weight: .semibold, design: .monospaced)).fixedSize(horizontal: false, vertical: true)
-      Text(model.egressLocation?.summary.isEmpty == false ? model.egressLocation!.summary : "Страна / город недоступны").font(.system(size: 14)).fixedSize(horizontal: false, vertical: true)
-     }.frame(maxWidth: .infinity, alignment: .leading)
-     Button("Карта") { if let url = model.egressLocation?.mapURL { DesktopActions.shared.openMap(url) } }
-      .disabled(model.egressLocation?.mapURL == nil)
-      .help("Открыть Apple Maps: передаётся приблизительная координата выхода либо только страна; не GPS. Сервис карт получает сетевой запрос только после нажатия.")
+    Text("Внутренний: " + model.internalAddressText).font(.caption).lineLimit(1).truncationMode(.middle).help(model.internalAddressText)
+   }.frame(maxWidth: .infinity, alignment: .leading)
+   VStack(alignment: .leading, spacing: 3) {
+    Text("Выход в интернет / VPN").font(.caption2).foregroundStyle(.secondary)
+    HStack(spacing: 8) {
+     Text(model.externalAddress ?? "Недоступен").font(.system(size: 17, weight: .semibold, design: .monospaced)).lineLimit(1).minimumScaleFactor(0.75)
+     if let flag = model.egressLocation?.flag {
+      Text(flag).font(.system(size: 16)).fixedSize().layoutPriority(1)
+     }
+     Text(model.egressLocation.map { [$0.country, $0.city].compactMap { $0 }.joined(separator: " · ") }.flatMap { $0.isEmpty ? nil : $0 } ?? "Страна / город недоступны")
+      .font(.caption).lineLimit(1).minimumScaleFactor(0.75)
     }
-    Text("2ip через EMCx · резерв GeoJS · выход / VPN, не GPS").font(.caption).foregroundStyle(.secondary)
+    Text("2ip через EMCx · резерв GeoJS · выход/VPN, не GPS").font(.caption2).foregroundStyle(.secondary).lineLimit(1)
      .help("HTTPS aia.emcx.pro/diakitw-api/geo: EMCx и 2ip получают IP выхода/VPN; токен 2ip только на сервере. При ошибке — GeoJS/Cloudflare. Приблизительные страна/город, не GPS. Серверные квоты 300/день, 9000/месяц; кэш 1 ч. Строка меню работает и в фоне; debounce 2 с, минимум и период 60 с; до 8 с и 16 KiB на провайдера, без cookies/redirects. Ошибка очищает данные. Карта — только по нажатию.")
-   }.font(.system(size: 12, design: .monospaced)).textSelection(.enabled)
-    .frame(maxWidth: .infinity, alignment: .leading)
-   Text("Ресурсы").font(.headline).frame(maxWidth: .infinity, alignment: .leading)
-   LazyVGrid(columns: Array(repeating: GridItem(.flexible(minimum: 230), spacing: 10),
-                            count: viewport.width >= 1040 ? 4 : 2), spacing: 10) {
+   }.frame(maxWidth: .infinity, alignment: .leading)
+   Button("Карта") { if let url = model.egressLocation?.mapURL { DesktopActions.shared.openMap(url) } }
+    .disabled(model.egressLocation?.mapURL == nil)
+    .help("Открыть Apple Maps: передаётся приблизительная координата выхода либо только страна; не GPS. Сервис карт получает сетевой запрос только после нажатия.")
+  }.padding(10).background(InstrumentTheme.panel, in: RoundedRectangle(cornerRadius: 12))
+   .textSelection(.enabled)
+ }
+ private func compactResources(viewportWidth: CGFloat) -> some View {
+  VStack(alignment: .leading, spacing: 7) {
+   Text("Ресурсы").font(.headline)
+   LazyVGrid(columns: Array(repeating: GridItem(.flexible(minimum: 220), spacing: 8), count: viewportWidth >= 1040 ? 4 : 2), spacing: 8) {
     GaugeTile(symbol: "cpu", title: "ПРОЦЕССОР", value: MetricPresentation.percent(model.snapshot.cpu), detail: "\(ProcessInfo.processInfo.processorCount) логических ядер", fraction: GaugeScale.fraction(model.snapshot.cpu, maximum: 100))
     GaugeTile(symbol: "memorychip", title: "ПАМЯТЬ", value: MetricPresentation.utilization(model.snapshot.memoryUsed, total: model.snapshot.memoryTotal), detail: MetricPresentation.usedTotal(model.snapshot.memoryUsed, total: model.snapshot.memoryTotal), fraction: GaugeScale.fraction(model.snapshot.memoryUsed.map(Double.init), maximum: Double(model.snapshot.memoryTotal)), explanation: "Активная + wired + сжатая память; GiB = 2³⁰ байт")
     GaugeTile(symbol: "arrow.left.arrow.right", title: "SWAP", value: MetricPresentation.utilization(model.snapshot.swap, total: model.snapshot.swapTotal), detail: MetricPresentation.usedTotal(model.snapshot.swap, total: model.snapshot.swapTotal), fraction: GaugeScale.fraction(model.snapshot.swap.map(Double.init), maximum: model.snapshot.swapTotal.map(Double.init)), explanation: MetricPresentation.swapExplanation)
-    GaugeTile(symbol: "bolt.fill", title: "БАТАРЕЯ · ЗАРЯД", value: MetricPresentation.battery(model.snapshot.batteryPercent), detail: MetricPresentation.powerState(model.snapshot.power), fraction: GaugeScale.fraction(model.snapshot.batteryPercent, maximum: 100), battery: true)
+    GaugeTile(symbol: "bolt.fill", title: "БАТАРЕЯ · ЗАРЯД", value: MetricPresentation.battery(model.snapshot.batteryPercent), detail: MetricPresentation.powerState(model.snapshot.power) + " · циклы: " + (model.snapshot.batteryCycles.map(String.init) ?? "Н/Д"), fraction: GaugeScale.fraction(model.snapshot.batteryPercent, maximum: 100), battery: true)
    }
-   networkSelector
-   networkInstruments
-   Divider()
-   Text("Диск").font(.headline).frame(maxWidth: .infinity, alignment: .leading)
+  }
+ }
+ private var compactNetwork: some View {
+  VStack(alignment: .leading, spacing: 7) { networkSelector; networkInstruments }
+ }
+ private var compactDisk: some View {
+  VStack(alignment: .leading, spacing: 7) {
+   Text("Диск").font(.headline)
    ViewThatFits(in: .horizontal) {
-    HStack(alignment: .top, spacing: 10) {
-     diskGauge.frame(width: 245)
+    HStack(alignment: .top, spacing: 8) {
+     diskGauge.frame(width: 240)
      DiskCapacityOverview(snapshot: model.snapshot, scan: model.result).frame(maxWidth: .infinity)
     }
-    VStack(spacing: 10) {
-     diskGauge
-     DiskCapacityOverview(snapshot: model.snapshot, scan: model.result)
-    }
+    VStack(spacing: 8) { diskGauge; DiskCapacityOverview(snapshot: model.snapshot, scan: model.result) }
    }
-   Divider()
+  }
+ }
+ private func dashboard(viewport: CGSize) -> some View {
+  VStack(alignment: .leading, spacing: 9) {
+   compactToolbar(viewportWidth: viewport.width)
+   HStack(spacing: 8) {
+    if model.scanning { ProgressView().controlSize(.small); Button("Остановить") { model.cancel() } }
+    if let volume = model.volume { Button { model.scan(volume) } label: { Label("Сканировать заново", systemImage: "arrow.clockwise") }.disabled(model.scanning) }
+   }.controlSize(.small)
+   compactIdentity
+   compactResources(viewportWidth: viewport.width)
+   compactNetwork
+   compactDisk
    if model.scanning {
     TimelineView(.periodic(from: .now, by: 1)) { context in
      HStack {
@@ -421,22 +442,26 @@ struct ContentView: View {
      HStack { Text(path).font(.caption).lineLimit(1).truncationMode(.middle).textSelection(.enabled); Spacer(); Button("Показать в Finder") { model.reveal(path) } }.frame(height: 24)
     }
    } else {
-    Spacer()
-    Image(systemName: model.scanning ? "externaldrive.badge.timemachine" : "folder.badge.questionmark").font(.system(size: 64)).foregroundStyle(.cyan.opacity(0.7))
-    Text(model.scanning ? "Изучаем метаданные…" : "С чего начнём?").font(.title2.bold())
-    Text(model.scanning ? "Сканирование выполняется в фоне. Вы можете остановить его." : "Выберите папку — увидите, где находятся большие файлы.\nАнализ папок ничего не удаляет. Очистка кэшей — отдельно, с подтверждением.").multilineTextAlignment(.center).foregroundStyle(.secondary)
-    Spacer()
+    HStack(spacing: 12) {
+     Image(systemName: model.scanning ? "externaldrive.badge.timemachine" : "folder.badge.questionmark").font(.system(size: 30)).foregroundStyle(.cyan.opacity(0.7))
+     VStack(alignment: .leading, spacing: 3) {
+      Text(model.scanning ? "Изучаем метаданные…" : "Выберите папку для анализа").font(.headline)
+      Text("Анализ папок ничего не удаляет. Очистка кэшей — отдельно, с подтверждением.").font(.caption).foregroundStyle(.secondary)
+     }
+     Spacer(minLength: 0)
+     Button { model.choose() } label: { Label("Выбрать папку", systemImage: "folder.badge.plus") }
+    }.padding(10).background(InstrumentTheme.panel, in: RoundedRectangle(cornerRadius: 12))
    }
    Text("Анализ — только чтение; очистка 3 кэшей — с подтверждением · APFS-клоны и общие блоки не позволяют оценить освобождаемое место · Сеть по интерфейсам · Скорость диска и ватты: Н/Д")
     .font(.system(size: 10)).foregroundStyle(.secondary).frame(maxWidth: .infinity, alignment: .leading)
-  }.padding(22).frame(maxWidth: .infinity)
+  }.padding(14).frame(maxWidth: .infinity)
  }
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
  var status: ResourceStatusController?
  @objc func showAbout(_ sender: Any?) {
-  MainActor.assumeIsolated { NSApplication.shared.orderFrontStandardAboutPanel(options: [.applicationVersion: "1.0.4"]) }
+  MainActor.assumeIsolated { NSApplication.shared.orderFrontStandardAboutPanel(options: [.applicationVersion: "1.0.5"]) }
  }
  func applicationWillTerminate(_ notification: Notification) { MainActor.assumeIsolated { InternetTestWindow.shared.stop(); DiagnosticsWindow.shared.stop(); UpdateMenu.shared.stop(); status?.stop() } }
  func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }

@@ -2,7 +2,7 @@ from pathlib import Path
 r=Path(__file__).resolve().parents[1]
 m=(r/'Sources/macdir/main.swift').read_text()
 assert 'EgressLocation' in m, 'geo location not integrated'
-assert 'model.egressLocation!.summary' in m, 'render country with flag adjacent to country in IP panel'
+assert 'model.egressLocation?.flag' in m and 'Text(flag).font' in m, 'render country with flag adjacent to country in IP panel'
 assert 'GeoLookup.fetch()' in m
 assert 'identityRequest?.cancel()' in m
 assert 'DesktopActions.shared.addItems(to: appMenu)' in m

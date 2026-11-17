@@ -6,7 +6,7 @@ from pathlib import Path
 import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
-EVIDENCE = ROOT / 'evidence/diakitw-1.0.4'
+EVIDENCE = ROOT / 'evidence/diakitw-1.0.5'
 spec = importlib.util.spec_from_file_location('packager', ROOT / 'package-diagnostics-dmg.py')
 p = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(p)
@@ -49,7 +49,7 @@ for rec in records:
 result = {
     'commit': os.environ['GITHUB_SHA'],
     'run_url': 'https://github.com/' + os.environ['GITHUB_REPOSITORY'] + '/actions/runs/' + os.environ['GITHUB_RUN_ID'],
-    'version': '1.0.4', 'display_version': '1.0.4', 'build': '104', 'compiler_jobs': 2,
+    'version': '1.0.5', 'display_version': '1.0.5', 'build': '105', 'compiler_jobs': 2,
     'rosetta_available': rosetta, 'artifacts': records,
     'not_run': ['hardware stress/GPU worker', 'live external network/SSH/Keychain', 'installed GUI', 'physical Intel / oldest macOS runtime', 'downloaded DMG installation / Gatekeeper on another Mac'],
     'release_published': False, 'gatekeeper_accepted': False,

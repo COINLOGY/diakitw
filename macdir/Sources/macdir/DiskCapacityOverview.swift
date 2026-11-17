@@ -9,33 +9,41 @@ struct DiskCapacityOverview: View {
  private var fraction: Double? {
   GaugeScale.fraction(occupied.map(Double.init), maximum: snapshot.diskTotal.map(Double.init))
  }
+ private var caveat: String {
+  "Занятость файловой системы — не сумма папок. " +
+   (scan.map { $0.root.complete
+     ? "Обход выбранной папки завершён; его логические размеры не равны занятым блокам APFS."
+     : "Обход выбранной папки частичный (≥); его логические размеры не описывают весь диск."
+   } ?? "Обход папок ещё не завершён.")
+ }
  var body: some View {
-  VStack(alignment: .leading, spacing: 10) {
-   HStack {
-    Label("Обзор ёмкости", systemImage: "internaldrive").font(.headline)
-    Spacer(minLength: 0)
+  HStack(alignment: .center, spacing: 12) {
+   VStack(alignment: .leading, spacing: 3) {
+    Label("Обзор ёмкости", systemImage: "internaldrive").font(.caption.weight(.semibold))
     Text(snapshot.diskType == "apfs" ? "APFS · общий контейнер" : "\(snapshot.diskType) · файловая система")
-     .font(.caption).foregroundStyle(.secondary)
-   }
-   Text("\(bytes(occupied)) из \(bytes(snapshot.diskTotal)) занято")
-    .font(.system(.title3, design: .rounded, weight: .semibold)).monospacedDigit()
-   GeometryReader { geometry in
-    ZStack(alignment: .leading) {
-     Capsule().fill(.secondary.opacity(0.24))
-     if let fraction { Capsule().fill(InstrumentTheme.lime).frame(width: geometry.size.width * fraction) }
-    }
-   }.frame(height: 10).accessibilityLabel("Занято \(MetricPresentation.utilization(occupied, total: snapshot.diskTotal)); свободно \(bytes(snapshot.validatedDiskFree))")
-   HStack {
-    Text("Занято: \(bytes(occupied))")
-    Spacer(minLength: 8)
-    Text("Свободно: \(bytes(snapshot.validatedDiskFree))")
-   }.font(.caption.monospacedDigit())
-   Text("Снимок \(snapshot.diskMount) · \(snapshot.diskMeasured?.formatted(date: .abbreviated, time: .standard) ?? "замер недоступен")")
-    .font(.caption2).foregroundStyle(.secondary)
-   Text("Занятость файловой системы — не сумма папок. \(scan.map { $0.root.complete ? "Обход выбранной папки завершён; его логические размеры не равны занятым блокам APFS." : "Обход выбранной папки частичный (≥); его логические размеры не описывают весь диск." } ?? "Обход папок ещё не завершён.")")
-    .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-  }.padding(14).frame(maxWidth: .infinity, alignment: .leading)
-   .background(InstrumentTheme.panel, in: RoundedRectangle(cornerRadius: 14))
+     .font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+    Text(snapshot.diskMount).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+   }.frame(width: 166, alignment: .leading)
+   VStack(alignment: .leading, spacing: 5) {
+    Text("\(bytes(occupied)) из \(bytes(snapshot.diskTotal)) занято")
+     .font(.system(.headline, design: .rounded)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.75)
+    GeometryReader { geometry in
+     ZStack(alignment: .leading) {
+      Capsule().fill(.secondary.opacity(0.24))
+      if let fraction { Capsule().fill(InstrumentTheme.lime).frame(width: geometry.size.width * fraction) }
+     }
+    }.frame(height: 8).accessibilityLabel("Занято \(MetricPresentation.utilization(occupied, total: snapshot.diskTotal)); свободно \(bytes(snapshot.validatedDiskFree))")
+    HStack(spacing: 10) {
+     Text("Занято: \(bytes(occupied))")
+     Spacer(minLength: 4)
+     Text("Свободно: \(bytes(snapshot.validatedDiskFree))")
+    }.font(.caption2.monospacedDigit()).lineLimit(1).minimumScaleFactor(0.75)
+    Text("Снимок \(snapshot.diskMeasured?.formatted(date: .abbreviated, time: .standard) ?? "замер недоступен")")
+     .font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+   }.frame(maxWidth: .infinity, alignment: .leading)
+  }.padding(12).frame(maxWidth: .infinity, alignment: .leading)
+   .background(InstrumentTheme.panel, in: RoundedRectangle(cornerRadius: 12))
+   .help(caveat)
    .accessibilityElement(children: .contain)
  }
 }
