@@ -13,6 +13,7 @@ public final class LayoutProbe extends Instrumentation {
  String requestedOrientation,argsFontScale;StringBuilder report=new StringBuilder();boolean interactions,idleOnly; String mode;float expectedRadius=-1;
  @Override public void onCreate(Bundle args){super.onCreate(args);requestedOrientation=args.getString("orientation");argsFontScale=args.getString("minFontScale");mode=args.getString("mode");idleOnly="idle".equals(args.getString("mode"));interactions=idleOnly||"interactions".equals(args.getString("mode"));start();}
  Button button(View v,String label){if(v instanceof Button&&(((Button)v).getText().toString().equals(label)||label.equals(v.getContentDescription())))return (Button)v;if(v instanceof ViewGroup){ViewGroup g=(ViewGroup)v;for(int i=0;i<g.getChildCount();i++){Button b=button(g.getChildAt(i),label);if(b!=null)return b;}}return null;}
+ boolean visibleText(View v,String text){if(v instanceof TextView&&v.isShown()&&text.equals(((TextView)v).getText().toString()))return true;if(v instanceof ViewGroup){ViewGroup g=(ViewGroup)v;for(int i=0;i<g.getChildCount();i++)if(visibleText(g.getChildAt(i),text))return true;}return false;}
  void ui(Runnable action){final Throwable[] error={null};runOnMainSync(()->{try{action.run();}catch(Throwable t){error[0]=t;}});if(error[0]!=null)throw new AssertionError(error[0]);}
  void interactions(MainActivity a)throws Exception{
   int uid=android.os.Process.myUid();long rx=android.net.TrafficStats.getUidRxBytes(uid),tx=android.net.TrafficStats.getUidTxBytes(uid);
@@ -152,10 +153,16 @@ public final class LayoutProbe extends Instrumentation {
   if("proxy".equals(mode)){ProxyProbe.run();out.putString("stream","PASS proxy fixtures\n");finish(Activity.RESULT_OK,out);return;}
   if("ip".equals(mode)){IpProbe.run();out.putString("stream","PASS IP parsing IPv4/IPv6 and malformed schema\n");finish(Activity.RESULT_OK,out);return;}
   Intent launch=new Intent(getTargetContext(),MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-  if("arrow".equals(mode)||"entry".equals(mode)||"release103".equals(mode)||"release104".equals(mode))launch.putExtra("diakitw.test.offline",true);
+  if("arrow".equals(mode)||"entry".equals(mode)||"release103".equals(mode)||"release104".equals(mode)||"release105".equals(mode))launch.putExtra("diakitw.test.offline",true);
   MainActivity a=(MainActivity)startActivitySync(launch);
   Thread.sleep("arrow".equals(mode)?300:3500);waitForIdleSync();
-  if("release104".equals(mode)){
+  if("release104".equals(mode)||"release105".equals(mode)){
+    if("release105".equals(mode))ui(()->{
+     check(BuildConfig.VERSION_NAME.equals("1.0.5")&&BuildConfig.VERSION_CODE==105,"Wrong release105 package version");
+     a.updatesMenu();
+     check(visibleText(a.updateDialog.getWindow().getDecorView(),"Обновления · 1.0.5 (105)"),"Native version title not visible");
+     a.updateDialog.dismiss();
+    });
    if(requestedOrientation!=null)check(a.getResources().getConfiguration().orientation==Integer.parseInt(requestedOrientation),"release104 orientation mismatch");
    if(argsFontScale!=null)check(a.getResources().getConfiguration().fontScale>=Float.parseFloat(argsFontScale),"release104 font scale mismatch");
    TrafficRate counters=new TrafficRate();
@@ -173,7 +180,7 @@ public final class LayoutProbe extends Instrumentation {
     check(a.storageDetail.getText().toString().contains("доступно")&&a.storageDetail.getText().toString().contains("GiB"),"Real disk capacity unavailable");
     check(a.folderResult.getText().toString().contains("выберите"),"Folder map pretends access without grant");
     check(a.testOffline&&a.test==null&&!SpeedTest.BUSY.get(),"Offline probe started paid speed test");});
-   ui(a::finish);out.putString("stream","PASS release104 offline resources, RX/TX, disk, map visible, folder grant gate\n");finish(Activity.RESULT_OK,out);return;
+   ui(a::finish);out.putString("stream",("release105".equals(mode)?"PASS release105 offline resources, RX/TX, disk, map visible, folder grant gate\n":"PASS release104 offline resources, RX/TX, disk, map visible, folder grant gate\n"));finish(Activity.RESULT_OK,out);return;
   }
   if("release103".equals(mode)){
    if(requestedOrientation!=null)check(a.getResources().getConfiguration().orientation==Integer.parseInt(requestedOrientation),"Orientation not applied");
