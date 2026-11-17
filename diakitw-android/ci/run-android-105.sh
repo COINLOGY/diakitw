@@ -54,6 +54,13 @@ for variant in portrait landscape large-font; do
   fi
   check_offline || { echo 'FAIL network returned during native probe' >&2; exit 1; }
 done
+# Reset to standard presentation after the separate large-font acceptance.
+# Entry tests assert accessibility and no-scroll layout at the normal viewport.
+adb shell am force-stop app.diakitw || :
+adb shell wm size 1080x1920
+adb shell settings put system user_rotation 0
+adb shell settings put system font_scale 1.0
+check_offline || { echo 'FAIL network returned during display reset' >&2; exit 1; }
 # The existing entry route checks the verified ISO country flag on visible compact cards.
 check_offline || { echo 'FAIL network returned before entry probe' >&2; exit 1; }
 report="${RUNNER_TEMP:-/tmp}/android-105-entry.txt"

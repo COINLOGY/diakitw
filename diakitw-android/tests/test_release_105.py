@@ -35,6 +35,8 @@ class Release105(unittest.TestCase):
             self.assertIn(text, runner)
         self.assertIn('"release105".equals(mode)', probe)
         self.assertIn('diakitw.test.offline', probe)
+        self.assertIn('adb shell settings put system font_scale 1.0', runner)
+        self.assertLess(runner.index('for variant in portrait landscape large-font'), runner.index('adb shell settings put system font_scale 1.0\ncheck_offline'))
         self.assertIn('Обновления · 1.0.5 (105)', probe)
         self.assertIn('PASS release105 offline', probe)
 
