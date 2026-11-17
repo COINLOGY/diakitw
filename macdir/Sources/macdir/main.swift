@@ -101,12 +101,11 @@ final class Cancellation: @unchecked Sendable {
   monitor = Task { [weak self] in
    while !Task.isCancelled {
     guard let self else { return }
-    let url = self.volume
     let sampler = self.sampler
     let sample = await withCheckedContinuation { continuation in
-     self.queue.async { continuation.resume(returning: sampler.sample(volume: url)) }
+     self.queue.async { continuation.resume(returning: sampler.sample(volume: URL(fileURLWithPath: "/"))) }
     }
-    if url == self.volume { self.snapshot = sample }
+    self.snapshot = sample
     if let time = sample.networkSampleTime {
      let network = sample.networks.first { $0.name == self.selectedInterface }
      self.trafficHistory.append(interface: self.selectedInterface, time: time, received: network?.received, sent: network?.sent)
@@ -238,19 +237,39 @@ struct ContentView: View {
  private var selectedInterface: String { model.selectedInterface }
  private var selectedNetwork: NetworkRate? { model.snapshot.networks.first { $0.name == selectedInterface } }
 
- private var networkNumbers: some View {
+ private var networkSelector: some View {
   HStack {
-   Label("Сеть", systemImage: "network").font(.caption.bold())
-   Picker("Интерфейс шкалы", selection: $model.selectedInterface) {
+   Label("Сеть", systemImage: "network").font(.headline)
+   Picker("Интерфейс шкалы и графика", selection: $model.selectedInterface) {
     ForEach(Array(Set(model.snapshot.networks.map(\.name) + [selectedInterface])).sorted(), id: \.self) { Text($0).tag($0) }
-   }.labelsHidden().frame(width: 90).help("Интерфейс шкалы и графика; смена очищает историю графика")
-   NetworkRateValue(value: selectedNetwork?.received, direction: "↓")
-    .font(.system(size: 24, weight: .semibold, design: .monospaced))
-    .foregroundStyle(selectedNetwork?.received == nil ? Color.secondary : Color(red: 0.65, green: 0.90, blue: 0.25))
-   NetworkRateValue(value: selectedNetwork?.sent, direction: "↑")
-    .font(.system(size: 24, weight: .semibold, design: .monospaced))
-    .foregroundStyle(selectedNetwork?.sent == nil ? Color.secondary : Color(red: 0.30, green: 0.75, blue: 1.0))
+   }.frame(width: 110).help("Интерфейс приборов и графика; смена очищает историю графика")
+   Spacer(minLength: 0)
   }
+ }
+
+ private var networkInstruments: some View {
+  let scale = model.trafficHistory.scale(in: model.trafficRange)
+  let labels = NetworkSpeedScale.labels(maximum: scale)
+  return ViewThatFits(in: .horizontal) {
+   HStack(alignment: .center, spacing: 10) {
+    receiveGauge(scale: scale, labels: labels).frame(minWidth: 210)
+    sendGauge(scale: scale, labels: labels).frame(minWidth: 210)
+    TrafficChart(history: model.trafficHistory, range: $model.trafficRange).frame(minWidth: 280, maxWidth: .infinity)
+   }
+   VStack(spacing: 10) {
+    HStack(spacing: 10) {
+     receiveGauge(scale: scale, labels: labels)
+     sendGauge(scale: scale, labels: labels)
+    }
+    TrafficChart(history: model.trafficHistory, range: $model.trafficRange).frame(maxWidth: .infinity)
+   }
+  }.fixedSize(horizontal: false, vertical: true)
+ }
+ private func receiveGauge(scale: Double, labels: [String]) -> some View {
+  GaugeTile(symbol: "arrow.down", title: "ПРИЁМ", value: NetworkPresentation(selectedNetwork?.received).text + " ↓", detail: selectedInterface + " · 0–" + labels[2] + "/с", fraction: GaugeScale.fraction(selectedNetwork?.received, maximum: scale), neutral: true, networkRate: selectedNetwork?.received, networkDirection: "↓", tickLabels: labels, directionColor: InstrumentTheme.lime)
+ }
+ private func sendGauge(scale: Double, labels: [String]) -> some View {
+  GaugeTile(symbol: "arrow.up", title: "ОТДАЧА", value: NetworkPresentation(selectedNetwork?.sent).text + " ↑", detail: selectedInterface + " · 0–" + labels[2] + "/с", fraction: GaugeScale.fraction(selectedNetwork?.sent, maximum: scale), neutral: true, networkRate: selectedNetwork?.sent, networkDirection: "↑", tickLabels: labels, directionColor: InstrumentTheme.cyan)
  }
 
  var body: some View {
@@ -277,6 +296,12 @@ struct ContentView: View {
     Button("Проверить кэши") { model.showCaches = true; model.caches.audit() }
     Button("Корень /") { model.scan(URL(fileURLWithPath: "/")) }
     Button { model.choose() } label: { Label("Выбрать папку", systemImage: "folder.badge.plus") }.buttonStyle(.borderedProminent).keyboardShortcut("o")
+ }
+ private var diskGauge: some View {
+  Button { model.showCapacity.toggle() } label: {
+   GaugeTile(symbol: "internaldrive", title: "ДИСК · ЗАНЯТО", value: MetricPresentation.utilization(model.snapshot.diskOccupied, total: model.snapshot.diskTotal), detail: MetricPresentation.usedTotal(model.snapshot.diskOccupied, total: model.snapshot.diskTotal), fraction: GaugeScale.fraction(model.snapshot.diskOccupied.map(Double.init), maximum: model.snapshot.diskTotal.map(Double.init)), explanation: "APFS: занято в общем пуле, не сумма папок. Нажмите для точных байтов.")
+  }.buttonStyle(.plain)
+   .popover(isPresented: $model.showCapacity) { Text(model.snapshot.diskDetail).font(.system(.body, design: .monospaced)).textSelection(.enabled).padding(20) }
  }
  private func dashboard(viewport: CGSize) -> some View {
   VStack(spacing: 16) {
@@ -315,28 +340,28 @@ struct ContentView: View {
      .help("HTTPS aia.emcx.pro/diakitw-api/geo: EMCx и 2ip получают IP выхода/VPN; токен 2ip только на сервере. При ошибке — GeoJS/Cloudflare. Приблизительные страна/город, не GPS. Серверные квоты 300/день, 9000/месяц; кэш 1 ч. Строка меню работает и в фоне; debounce 2 с, минимум и период 60 с; до 8 с и 16 KiB на провайдера, без cookies/redirects. Ошибка очищает данные. Карта — только по нажатию.")
    }.font(.system(size: 12, design: .monospaced)).textSelection(.enabled)
     .frame(maxWidth: .infinity, alignment: .leading)
+   Text("Ресурсы").font(.headline).frame(maxWidth: .infinity, alignment: .leading)
    LazyVGrid(columns: Array(repeating: GridItem(.flexible(minimum: 230), spacing: 10),
-                            count: viewport.width >= (6 * 230 + 5 * 10 + 44) ? 6 : 3), spacing: 10) {
+                            count: viewport.width >= 1040 ? 4 : 2), spacing: 10) {
     GaugeTile(symbol: "cpu", title: "ПРОЦЕССОР", value: MetricPresentation.percent(model.snapshot.cpu), detail: "\(ProcessInfo.processInfo.processorCount) логических ядер", fraction: GaugeScale.fraction(model.snapshot.cpu, maximum: 100))
     GaugeTile(symbol: "memorychip", title: "ПАМЯТЬ", value: MetricPresentation.utilization(model.snapshot.memoryUsed, total: model.snapshot.memoryTotal), detail: MetricPresentation.usedTotal(model.snapshot.memoryUsed, total: model.snapshot.memoryTotal), fraction: GaugeScale.fraction(model.snapshot.memoryUsed.map(Double.init), maximum: Double(model.snapshot.memoryTotal)), explanation: "Активная + wired + сжатая память; GiB = 2³⁰ байт")
     GaugeTile(symbol: "arrow.left.arrow.right", title: "SWAP", value: MetricPresentation.utilization(model.snapshot.swap, total: model.snapshot.swapTotal), detail: MetricPresentation.usedTotal(model.snapshot.swap, total: model.snapshot.swapTotal), fraction: GaugeScale.fraction(model.snapshot.swap.map(Double.init), maximum: model.snapshot.swapTotal.map(Double.init)), explanation: MetricPresentation.swapExplanation)
-    Button { model.showCapacity.toggle() } label: {
-     GaugeTile(symbol: "internaldrive", title: "ДИСК · ЗАНЯТО", value: MetricPresentation.utilization(model.snapshot.diskOccupied, total: model.snapshot.diskTotal), detail: MetricPresentation.usedTotal(model.snapshot.diskOccupied, total: model.snapshot.diskTotal), fraction: GaugeScale.fraction(model.snapshot.diskOccupied.map(Double.init), maximum: model.snapshot.diskTotal.map(Double.init)), explanation: "APFS: занято в общем пуле, не размер отдельного тома. Нажмите для точных байтов.")
-    }.buttonStyle(.plain)
-     .popover(isPresented: $model.showCapacity) { Text(model.snapshot.diskDetail).font(.system(.body, design: .monospaced)).textSelection(.enabled).padding(20) }
     GaugeTile(symbol: "bolt.fill", title: "БАТАРЕЯ · ЗАРЯД", value: MetricPresentation.battery(model.snapshot.batteryPercent), detail: MetricPresentation.powerState(model.snapshot.power), fraction: GaugeScale.fraction(model.snapshot.batteryPercent, maximum: 100), battery: true)
-    GaugeTile(symbol: "network", title: "СЕТЬ · " + selectedInterface, value: NetworkPresentation(selectedNetwork?.received).text + " ↓", detail: "Приём · " + selectedInterface + "\nШкала 0–10 MiB/с", fraction: GaugeScale.fraction(selectedNetwork?.received, maximum: 10 * 1024 * 1024), neutral: true, upperLabel: "10 MiB/с", networkRate: selectedNetwork?.received)
    }
+   networkSelector
+   networkInstruments
+   Divider()
+   Text("Диск").font(.headline).frame(maxWidth: .infinity, alignment: .leading)
    ViewThatFits(in: .horizontal) {
-    HStack(alignment: .center, spacing: 16) {
-     networkNumbers.fixedSize()
-     TrafficChart(history: model.trafficHistory, range: $model.trafficRange).frame(minWidth: 280, maxWidth: .infinity)
+    HStack(alignment: .top, spacing: 10) {
+     diskGauge.frame(width: 245)
+     DiskCapacityOverview(snapshot: model.snapshot, scan: model.result).frame(maxWidth: .infinity)
     }
-    VStack(alignment: .leading, spacing: 8) {
-     networkNumbers
-     TrafficChart(history: model.trafficHistory, range: $model.trafficRange).frame(maxWidth: .infinity)
+    VStack(spacing: 10) {
+     diskGauge
+     DiskCapacityOverview(snapshot: model.snapshot, scan: model.result)
     }
-   }.fixedSize(horizontal: false, vertical: true)
+   }
    Divider()
    if model.scanning {
     TimelineView(.periodic(from: .now, by: 1)) { context in

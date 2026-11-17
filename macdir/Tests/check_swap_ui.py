@@ -6,7 +6,8 @@ class SwapUI(unittest.TestCase):
   text=(root/'Sources/macdir/main.swift').read_text()
   self.assertIn('title: "SWAP"',text)
   self.assertLess(text.index('title: "ПАМЯТЬ"'),text.index('title: "SWAP"'))
-  self.assertLess(text.index('title: "SWAP"'),text.index('title: "ДИСК'))
+  dashboard=text.split('private func dashboard(viewport: CGSize)',1)[1]
+  self.assertLess(dashboard.index('title: "SWAP"'),dashboard.index('diskGauge.frame('))
   self.assertNotIn('ForEach(model.snapshot.networks) { net in',text)
  def test_swap_dial_on_both_panels(self):
   for filename in ['main.swift', 'ServerPanel.swift']:

@@ -32,13 +32,15 @@ public struct ResourceSnapshot: Sendable {
  public var swapTotal: Int64?
  public var diskTotal: Int64?
  public var diskFree: Int64?
+ public var diskAvailable: Int64?
  public var diskVolumeUsed: Int64?
- public var diskOccupied: Int64? { guard let diskTotal, let diskFree else { return nil }; return diskTotal - diskFree }
+ public var diskOccupied: Int64? { guard let diskTotal, let diskFree, diskTotal > 0, diskFree >= 0, diskFree <= diskTotal else { return nil }; return diskTotal - diskFree }
+ public var validatedDiskFree: Int64? { diskOccupied == nil ? nil : diskFree }
  public var diskMount = "Н/Д"
  public var diskType = "Н/Д"
  public var diskMeasured: Date?
  public var diskDetail: String {
-  "statfs · \(diskType) · \(diskMount)\nЁмкость: \(exactBytes(diskTotal))\nСвободно (без purgeable): \(exactBytes(diskFree))\nЁмкость − свободно (APFS: общий пул, не один том): \(exactBytes(diskOccupied))\nЗанято выбранным томом (df Used): \(exactBytes(diskVolumeUsed))\nFinder доступно с purgeable: Н/Д\nЗамер: \(diskMeasured?.description ?? "Н/Д")"
+  "statfs · \(diskType) · \(diskMount)\nЁмкость: \(exactBytes(diskTotal))\nСвободно в файловой системе: \(exactBytes(validatedDiskFree))\nДоступно пользователю: \(exactBytes(diskAvailable))\nЁмкость − свободно (APFS: общий пул, не один том): \(exactBytes(diskOccupied))\nЗанято выбранным томом (df Used): \(exactBytes(diskVolumeUsed))\nFinder доступно с purgeable: Н/Д\nЗамер: \(diskMeasured?.description ?? "Н/Д")"
  }
  public var networks: [NetworkRate] = []
  /// Monotonic time used for network counter deltas, not UI delivery time.
@@ -88,8 +90,9 @@ public final class ResourceSampler: @unchecked Sendable {
    if statfs(volume.path, &fs) == 0 {
     let block = Int64(fs.f_bsize)
     s.diskTotal = Int64(fs.f_blocks) * block
-    s.diskFree = Int64(fs.f_bavail) * block
-    // APFS f_bfree is shared-container free, not the volume's own usage.
+    s.diskFree = Int64(fs.f_bfree) * block
+    s.diskAvailable = Int64(fs.f_bavail) * block
+    // APFS f_bfree is shared-container free; f_bavail is user-available, not the volume's own usage.
     // getattrlist packs attributes on 4-byte boundaries after the UInt32 length.
     var request = attrlist()
     request.bitmapcount = UInt16(ATTR_BIT_MAP_COUNT)

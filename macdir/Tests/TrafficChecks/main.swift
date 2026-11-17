@@ -49,3 +49,6 @@ Thread.sleep(forTimeInterval: 0.05)
 let second = sampler.sample(volume: nil)
 check(first.networkSampleTime != nil && second.networkSampleTime! > first.networkSampleTime!, "sampler publishes its monotonic network timestamp")
 print("\(count) traffic checks passed")
+
+check(NetworkSpeedScale.labels(maximum: 1024) == ["0", "0.5 KiB", "1.0 KiB"], "shared RX/TX scale labels on idle")
+check(NetworkSpeedScale.labels(maximum: 2 * 1_048_576) == ["0", "1.0 MiB", "2.0 MiB"], "scale labels follow actual traffic peak")

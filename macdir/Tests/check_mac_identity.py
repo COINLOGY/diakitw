@@ -28,6 +28,7 @@ print('PASS: Mac identity source wiring (not rendered GUI or live HTTP proof)')
 server_ui = (root / 'Sources/macdir/ServerPanel.swift').read_text()
 assert 'NSApplication.didResignActiveNotification' in server_ui and 'NSApp.isActive' in server_ui, 'server polling must stop when app inactive'
 assert 'foreground: self?.statusVisible == true || (self?.identityVisible == true && NSApp.isActive)' in main
-assert main.count('NetworkRateValue(') >= 2
-assert server_ui.count('NetworkRateValue(') >= 2
 assert 'networkRate: selectedNetwork?.received' in main
+assert 'networkRate: selectedNetwork?.sent' in main
+assert 'NetworkRateValue(value: networkRate' in (root / 'Sources/macdir/NeedleGauge.swift').read_text()
+assert server_ui.count('NetworkRateValue(') >= 2
