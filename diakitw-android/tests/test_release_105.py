@@ -42,17 +42,19 @@ class Release105(unittest.TestCase):
         self.assertIn('SAFE_FRAME app.diakitw.', probe)
         self.assertIn('p.inspect(root,new Rect(xy[0],xy[1],xy[0]+root.getWidth(),xy[1]+root.getHeight()),true)', (ANDROID / 'app/src/androidTest/java/app/diakitw/EntryProbe.java').read_text())
         self.assertIn('if(typical&&!allowScroll)', probe)
+        self.assertIn('Touch target <48dp: class=', probe)
         self.assertIn('Entry map hidden', (ANDROID / 'app/src/androidTest/java/app/diakitw/EntryProbe.java').read_text())
 
     def test_safe_failure_summary_has_allowlisted_line_not_ip(self):
         import subprocess, sys, tempfile
         with tempfile.TemporaryDirectory() as directory:
             report = Path(directory) / 'probe.txt'
-            report.write_text('FAIL java.lang.AssertionError: Text clipped vertically: 2001:db8::1\nSAFE_FRAME app.diakitw.LayoutProbe(LayoutProbe.java:52)\nSAFE_FRAME app.diakitw.EntryProbe(EntryProbe.java:23)\n')
+            report.write_text('FAIL java.lang.AssertionError: Touch target <48dp: class=Button size=42x36 id=-1 IP=2001:db8::1\nSAFE_FRAME app.diakitw.LayoutProbe(LayoutProbe.java:52)\nSAFE_FRAME app.diakitw.EntryProbe(EntryProbe.java:23)\n')
             result = subprocess.run([sys.executable, str(ANDROID / 'ci/safe-probe-summary.py'), str(report)], capture_output=True, text=True, check=True)
             self.assertIn('EntryProbe.java:23', result.stdout)
             self.assertIn('LayoutProbe.java:52', result.stdout)
-            self.assertIn('code=text-clipped', result.stdout)
+            self.assertIn('code=touch-small', result.stdout)
+            self.assertIn('touch=Button:42x36:id=-1', result.stdout)
             self.assertNotIn('2001:db8::1', result.stdout)
 
 if __name__ == '__main__': unittest.main()
