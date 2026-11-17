@@ -8,6 +8,16 @@ import Darwin
     @Published var diskUsed: Double?
     @Published var charge: Double?
     @Published var power = "Н/Д"
+    struct TrafficPoint: Identifiable {
+        let id = UUID()
+        let rx: Double
+        let tx: Double
+    }
+    @Published var rxRate: Double?
+    @Published var txRate: Double?
+    @Published var networkHistory: [TrafficPoint] = []
+    private var lastCounters: [String: (rx: UInt32, tx: UInt32)] = [:]
+    private var lastCounterTime: TimeInterval?
     var ip: String { geo?.ip ?? "Н/Д" }
     var country: String { geo?.country ?? "Н/Д" }
     @Published var geo: NetworkPolicy.Egress?
@@ -38,7 +48,12 @@ import Darwin
         foreground = active
         generation = UUID()
         sampler?.cancel(); lookup?.cancel()
-        if !active { cancelSpeed(); geo = nil; ipDate = nil; ipStatus = "Приостановлено"; return }
+        if !active {
+            cancelSpeed(); geo = nil; ipDate = nil; ipStatus = "Приостановлено"
+            lastCounters = [:]; lastCounterTime = nil
+            rxRate = nil; txRate = nil; networkHistory = []
+            return
+        }
         UIDevice.current.isBatteryMonitoringEnabled = true
         let token = generation
         sampler = Task { [weak self] in
@@ -81,6 +96,7 @@ import Darwin
             diskTotal = total.doubleValue
             diskUsed = total.doubleValue - free.doubleValue
         } else { diskTotal = nil; diskUsed = nil }
+        sampleTraffic()
         let device = UIDevice.current
         charge = device.batteryLevel >= 0 ? Double(device.batteryLevel) : nil
         switch device.batteryState {
@@ -89,6 +105,58 @@ import Darwin
         case .unplugged: power = "От батареи"
         default: power = "Состояние недоступно"
         }
+    }
+    // AF_LINK byte counters for active Wi-Fi/Ethernet and cellular interfaces only.
+    // No per-app attribution, packet capture, location permission or network request.
+    private func sampleTraffic() {
+        var head: UnsafeMutablePointer<ifaddrs>?
+        guard getifaddrs(&head) == 0, let first = head else {
+            lastCounters = [:]; lastCounterTime = nil
+            rxRate = nil; txRate = nil; networkHistory = []
+            return
+        }
+        defer { freeifaddrs(first) }
+        var current: [String: (rx: UInt32, tx: UInt32)] = [:]
+        var cursor: UnsafeMutablePointer<ifaddrs>? = first
+        while let entry = cursor {
+            let item = entry.pointee
+            let name = String(cString: item.ifa_name)
+            if (name.hasPrefix("en") || name.hasPrefix("pdp_ip")),
+               (item.ifa_flags & UInt32(IFF_UP)) != 0,
+               let address = item.ifa_addr, address.pointee.sa_family == UInt8(AF_LINK),
+               let data = item.ifa_data {
+                let counters = data.assumingMemoryBound(to: if_data.self).pointee
+                current[name] = (UInt32(truncatingIfNeeded: counters.ifi_ibytes), UInt32(truncatingIfNeeded: counters.ifi_obytes))
+            }
+            cursor = item.ifa_next
+        }
+        let now = ProcessInfo.processInfo.systemUptime
+        if let previousTime = lastCounterTime, now > previousTime {
+            var incoming: UInt64 = 0, outgoing: UInt64 = 0, matches = 0
+            for (name, values) in current {
+                if let old = lastCounters[name],
+                   let rx = NetworkPolicy.counterDelta(old: old.rx, new: values.rx, seconds: now - previousTime),
+                   let tx = NetworkPolicy.counterDelta(old: old.tx, new: values.tx, seconds: now - previousTime) {
+                    // Ignore counter overflow rather than reporting a misleading spike.
+                    if UInt64.max - incoming >= rx, UInt64.max - outgoing >= tx {
+                        incoming += rx; outgoing += tx; matches += 1
+                    }
+                }
+            }
+            if matches > 0 {
+                rxRate = incoming == 0 ? 0 : Int(exactly: incoming).flatMap { NetworkPolicy.rate(bytes: $0, seconds: now - previousTime) }
+                txRate = outgoing == 0 ? 0 : Int(exactly: outgoing).flatMap { NetworkPolicy.rate(bytes: $0, seconds: now - previousTime) }
+                if let rxRate, let txRate {
+                    networkHistory.append(TrafficPoint(rx: rxRate, tx: txRate))
+                    if networkHistory.count > 30 { networkHistory.removeFirst(networkHistory.count - 30) }
+                }
+            } else {
+                rxRate = nil; txRate = nil; networkHistory = []
+            }
+        } else {
+            rxRate = nil; txRate = nil; networkHistory = []
+        }
+        lastCounters = current; lastCounterTime = now
     }
     private func refreshIP(_ token: UUID) async {
         ipStatus = "Обновление…"

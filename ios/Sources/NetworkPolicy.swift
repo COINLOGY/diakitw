@@ -28,6 +28,17 @@ enum NetworkPolicy {
         let result = Double(bytes) * 8 / seconds / 1_000_000
         return result.isFinite ? result : nil
     }
+    // if_data counters from getifaddrs are 32-bit. Treat only a near-boundary
+    // decrease as one wrap; other decreases are resets and remain unknown.
+    static func counterDelta(old: UInt32, new: UInt32, seconds: Double) -> UInt64? {
+        guard seconds.isFinite, seconds > 0 else { return nil }
+        if new >= old { return UInt64(new - old) }
+        guard old >= 0xC0000000, new <= 0x3FFFFFFF else { return nil }
+        let bytes = UInt64(UInt32.max) - UInt64(old) + 1 + UInt64(new)
+        // Ambiguous reset/rollover must not display an implausible spike.
+        guard Double(bytes) * 8 / seconds <= 10_000_000_000 else { return nil }
+        return bytes
+    }
     struct Egress {
         let ip: String; let country: String
         var city: String? = nil; var region: String? = nil; var timezone: String? = nil

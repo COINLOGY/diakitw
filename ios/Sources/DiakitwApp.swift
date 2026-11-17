@@ -97,6 +97,35 @@ private struct MetricCard: View {
     }
 }
 
+private struct NetworkActivityGraph: View {
+    let samples: [Monitor.TrafficPoint]
+    var body: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Text("Сетевая активность").font(.subheadline.weight(.medium))
+            Canvas { context, size in
+                let ceiling = max(1.0, samples.map { max($0.rx, $0.tx) }.max() ?? 0)
+                func line(_ received: Bool) -> Path {
+                    var path = Path()
+                    for (index, sample) in samples.enumerated() {
+                        let value = received ? sample.rx : sample.tx
+                        let x = size.width * Double(index) / Double(max(samples.count - 1, 1))
+                        let y = size.height * (1 - min(value / ceiling, 1))
+                        if index == 0 { path.move(to: CGPoint(x: x, y: y)) }
+                        else { path.addLine(to: CGPoint(x: x, y: y)) }
+                    }
+                    return path
+                }
+                context.stroke(line(true), with: .color(Theme.lime), lineWidth: 2)
+                context.stroke(line(false), with: .color(Theme.cyan), lineWidth: 2)
+            }.frame(height: 88).accessibilityHidden(true)
+            Text("↓ приём · ↑ отдача · интерфейсы Wi-Fi/сотовой связи · Мбит/с")
+                .font(.caption).foregroundStyle(Theme.muted)
+        }.padding(12).frame(maxWidth: .infinity, alignment: .leading)
+            .background(Theme.panel, in: RoundedRectangle(cornerRadius: 18))
+            .accessibilityLabel("Сетевая активность: приём и отдача за последние 30 замеров")
+    }
+}
+
 @MainActor private final class Presentation: ObservableObject {
     @Published var help = false
 }
@@ -121,11 +150,18 @@ struct ContentView: View {
                     Spacer()
                     Button { presentation.help = true } label: { Image(systemName: "questionmark.circle").font(.title2).frame(width: 48, height: 48) }.accessibilityLabel("О показаниях и приватности")
                 }
+                Text("Ресурсы").font(.title3.weight(.semibold))
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 290), spacing: 12)], spacing: 12) {
                     MetricCard(title: "RAM приложения", number: number(model.appRAM.map { $0 / 1_048_576 }, suffix: " MiB"), detail: number(ramFraction.map { $0*100 }, suffix: "% физической RAM") + "\nВсего " + number(model.physicalRAM / 1_073_741_824, suffix: " GiB"), value: ramFraction)
-                    MetricCard(title: "Том приложения", number: number(storageFraction.map { $0*100 }, suffix: "%"), detail: number(model.diskUsed.map { $0 / 1_073_741_824 }) + " / " + number(model.diskTotal.map { $0 / 1_073_741_824 }, suffix: " GiB"), value: storageFraction)
                     MetricCard(title: "Батарея", number: number(model.charge.map { $0*100 }, suffix: "%"), detail: model.power, value: model.charge, battery: true)
                 }
+                Text("Сеть").font(.title3.weight(.semibold))
+                let trafficScale = max(Dial.speedScale(model.rxRate), Dial.speedScale(model.txRate))
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 290), spacing: 12)], spacing: 12) {
+                    MetricCard(title: "↓ RX", number: number(model.rxRate), detail: "Мбит/с · Wi-Fi/сотовая связь", value: model.rxRate, maximum: trafficScale, speedColor: Theme.lime)
+                    MetricCard(title: "↑ TX", number: number(model.txRate), detail: "Мбит/с · Wi-Fi/сотовая связь", value: model.txRate, maximum: trafficScale, speedColor: Theme.cyan)
+                }
+                NetworkActivityGraph(samples: model.networkHistory)
                 VStack(alignment: .leading, spacing: 4) {
                     Text("IP · \(model.country) \(NetworkPolicy.flag(for: model.country)) · \(model.ip)").font(.subheadline.monospaced()).textSelection(.enabled)
                     if let city = model.geo?.city { Text("≈ " + city).font(.subheadline) }
@@ -155,6 +191,26 @@ struct ContentView: View {
                 }.buttonStyle(.borderedProminent).tint(Theme.cyan).foregroundStyle(Theme.background)
                     .accessibilityIdentifier("speed-start-stop")
                     .id("speed-controls")
+                Text("Хранилище").font(.title3.weight(.semibold))
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 290), spacing: 12)], spacing: 12) {
+                    MetricCard(title: "Том приложения", number: number(storageFraction.map { $0*100 }, suffix: "%"), detail: number(model.diskUsed.map { $0 / 1_073_741_824 }) + " / " + number(model.diskTotal.map { $0 / 1_073_741_824 }, suffix: " GiB"), value: storageFraction)
+                }
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Ёмкость тома приложения").font(.subheadline.weight(.medium))
+                    GeometryReader { geometry in
+                        ZStack(alignment: .leading) {
+                            Capsule().fill(Theme.muted.opacity(0.25))
+                            if let fraction = storageFraction {
+                                Capsule().fill(Theme.lime).frame(width: geometry.size.width * fraction)
+                            }
+                        }
+                    }.frame(height: 10).accessibilityHidden(true)
+                    Text("Занято: " + number(model.diskUsed.map { $0 / 1_073_741_824 }, suffix: " GiB") + " · свободно: " + number(model.diskTotal.flatMap { total in model.diskUsed.map { max(0, total - $0) } }.map { $0 / 1_073_741_824 }, suffix: " GiB"))
+                        .font(.caption).foregroundStyle(Theme.muted)
+                    Text("Оценка файлового тома домашнего каталога приложения; не карта всех файлов и не обзор APFS-контейнера.")
+                        .font(.caption).foregroundStyle(Theme.muted).fixedSize(horizontal: false, vertical: true)
+                }.padding(12).frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Theme.panel, in: RoundedRectangle(cornerRadius: 18))
                 UpdateSection(checker: updates)
                 Text("1.0.3 · iOS · build 103").font(.caption2).foregroundStyle(Theme.muted)
             }.padding(16).frame(maxWidth: 1000)
