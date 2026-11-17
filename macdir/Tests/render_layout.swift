@@ -51,13 +51,14 @@ MainActor.assumeIsolated {
   let model = Model()
   model.computerName = "Fixture Mac — синтетические данные"
   model.selectedInterface = "fixture0"
-  model.egressLocation = EgressLocation.decode(Data(#"{"ip":"2001:db8:1234:5678:abcd:efab:1234:5678","country":"Fixture — United Kingdom of Great Britain and Northern Ireland","city":"Fixture — Newcastle upon Tyne & a deliberately long city name","latitude":"54.9","longitude":"-1.6"}"#.utf8), status: 200)
+  model.egressLocation = EgressLocation.decode(Data(#"{"ip":"2001:db8:1234:5678:abcd:efab:1234:5678","country_code":"GB","country":"Fixture — United Kingdom of Great Britain and Northern Ireland","city":"Fixture — Newcastle upon Tyne & a deliberately long city name","latitude":"54.9","longitude":"-1.6"}"#.utf8), status: 200)
   model.externalAddress = model.egressLocation?.ip
+  if model.egressLocation?.flag != "🇬🇧" { failures.append("fixture country flag not derived from verified code") }
   model.snapshot.cpu = 41; model.snapshot.memoryTotal = 8*1024*1024*1024; model.snapshot.memoryUsed = 6*1024*1024*1024
   model.snapshot.swap = 3*1024*1024*1024; model.snapshot.swapTotal = 4*1024*1024*1024
   model.snapshot.diskTotal = 256*1024*1024*1024; model.snapshot.diskFree = 80*1024*1024*1024
   model.snapshot.diskType = "apfs"; model.snapshot.diskMount = "/"; model.snapshot.diskMeasured = Date(timeIntervalSince1970: 1_700_000_000)
-  model.snapshot.batteryPercent = 24; model.snapshot.power = "От аккумулятора"
+  model.snapshot.batteryPercent = 24; model.snapshot.batteryCycles = 1227; model.snapshot.power = "От аккумулятора"
   model.snapshot.networks = [NetworkRate(name: "fixture0", received: 32000, sent: 18000)]
   for i in 0...60 { model.trafficHistory.append(interface: "fixture0", time: Double(i), received: (sin(Double(i)/4)+1.2)*12000, sent: (cos(Double(i)/7)+1.1)*9000) }
   let root = FileNode(path: "/Synthetic", isDirectory: true)
@@ -91,8 +92,8 @@ MainActor.assumeIsolated {
    print("GEOMETRY", size, "host", host.bounds, "scroll", scrollInHost, "clip", clipInHost, "document", documentInHost, "gutter", scrollInHost.width - clipInHost.width, "style", outer.scrollerStyle.rawValue, "vertical", outer.hasVerticalScroller, "row", String(describing: layoutFrames["gaugeRow"]), "content", String(describing: layoutFrames["dashboardContent"]), "swiftDocument", String(describing: layoutFrames["dashboardDocument"]))
    if let swiftDocument = layoutFrames["dashboardDocument"], let content = layoutFrames["dashboardContent"], let row = layoutFrames["gaugeRow"] {
     if !fillsHorizontally(documentInHost, clipInHost) || !fillsHorizontally(swiftDocument, documentInHost) || abs(swiftDocument.minY - documentInHost.minY) > 1 || abs(swiftDocument.height - documentInHost.height) > 1 { failures.append(size+": document/clip coordinate calibration failed") }
-    // Production dashboard has .padding(22); available width comes from the actual clip.
-    let available = clipInHost.insetBy(dx: 22, dy: 0)
+    // Production dashboard has .padding(14); available width comes from the actual clip.
+    let available = clipInHost.insetBy(dx: 14, dy: 0)
     if !fillsHorizontally(content, available) || !fillsHorizontally(row, available) { failures.append(size+": dashboard/grid must fill actual available content") }
     let gauges = layoutFrames.filter { ["resource-cpu", "resource-memory", "resource-swap", "resource-battery"].contains($0.key) }.map(\.value)
     let occupied = gauges.reduce(CGRect.null) { $0.union($1) }
