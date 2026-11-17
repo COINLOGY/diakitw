@@ -173,7 +173,7 @@ public final class LayoutProbe extends Instrumentation {
    check(Double.isNaN(counters.update(-1,199,3_000_000_000L).rx),"Unsupported RX invented");
    check(Double.isNaN(TrafficRate.rate(200,199,1,2)),"Counter rollback invented");
    counters.reset();check(Double.isNaN(counters.update(10,10,4_000_000_000L).tx),"Pause baseline not reset");
-   ui(()->{Rect visible=new Rect();check(a.persistentMap.getGlobalVisibleRect(visible)&&visible.height()>=a.persistentMap.getHeight()*(a.landscape?.5:.75),"Map hidden below initial viewport");
+   ui(()->{Rect visible=new Rect();check(a.persistentMap.getGlobalVisibleRect(visible)&&visible.height()>=a.persistentMap.getHeight()*(a.landscape?.5:.75),"Map hidden below initial viewport visible="+visible.height()+" total="+a.persistentMap.getHeight());
     check(a.cpu.getParent()==a.ram.getParent()&&a.ram.getParent()==a.disk.getParent(),"Resource gauges missing");
     check(a.networkSection!=null&&a.storageSection!=null&&a.receive!=a.send,"Separate monitoring dials missing");
     check(a.receive.face.getWidth()>=a.dp(112)&&a.send.face.getWidth()>=a.dp(112),"Network gauges not readable");
