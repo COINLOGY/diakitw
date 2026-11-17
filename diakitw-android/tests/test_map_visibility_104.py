@@ -13,8 +13,8 @@ class MapVisibility104(unittest.TestCase):
         self.assertIn('dp(landscape?140:220)', SRC)
         self.assertIn('gp.setMargins(dp(3),0,dp(3),dp(8))', SRC)
 
-    def test_country_and_map_precede_redundant_ip_summary(self):
-        self.assertGreater(SRC.index('geo.addView(summary', SRC.index('LinearLayout geo=column()')), SRC.index('geo.addView(persistentMap', SRC.index('LinearLayout geo=column()')))
+    def test_country_and_entry_precede_map_in_current_dashboard(self):
+        self.assertLess(SRC.index('geo.addView(summary', SRC.index('LinearLayout geo=column()')), SRC.index('geo.addView(persistentMap', SRC.index('LinearLayout geo=column()')))
         self.assertIn('(compact||!landscape)&&getResources().getConfiguration().fontScale<=1.5f', SRC)
 
     def test_landscape_uses_two_columns_instead_of_burying_map_below_gauges(self):

@@ -147,9 +147,9 @@ public final class MainActivity extends Activity {
   summary.setIncludeFontPadding(false);summary.setTextSize(landscape?18:14);if(landscape)footer.addView(summary,new LinearLayout.LayoutParams(-1,-2));
   LinearLayout geo=column();geo.setPadding(dp(12),dp(10),dp(12),dp(10));geo.setBackground(shape(0xff1a2a34,0xff365a6a,17));
   geoCountry=text(countryLabel(),20,TEXT);geoCountry.setTypeface(Typeface.DEFAULT,Typeface.BOLD);geo.addView(geoCountry);
-  geoCity=text("",16,TEXT);geo.addView(geoCity);
+  geoCity=text("",16,TEXT);geo.addView(geoCity);if(!landscape)geo.addView(summary,new LinearLayout.LayoutParams(-1,-2));
   persistentMap=new MapView(this,true);persistentMap.update(ipSnapshot,true);geo.addView(persistentMap,new LinearLayout.LayoutParams(-1,dp(landscape?140:220)));
-  geoCaption=text(mapPrecision(),12,MUTED);geo.addView(geoCaption);if(!landscape)geo.addView(summary,new LinearLayout.LayoutParams(-1,-2));
+  geoCaption=text(mapPrecision(),12,MUTED);geo.addView(geoCaption);
   geo.addView(button("Источник и точность",v->showText("IP · источник и точность",IP_NOTICE)));
   metricViewport.removeView(metrics);LinearLayout dashboard=column();dashboard.setOrientation(landscape?LinearLayout.HORIZONTAL:LinearLayout.VERTICAL);dashboard.addView(metrics,landscape?new LinearLayout.LayoutParams(0,-2,1.25f):new LinearLayout.LayoutParams(-1,-2));LinearLayout.LayoutParams gp=landscape?new LinearLayout.LayoutParams(0,-2,1f):new LinearLayout.LayoutParams(-1,-2);gp.setMargins(dp(3),0,dp(3),dp(8));dashboard.addView(geo,gp);
   LinearLayout page=column();page.addView(dashboard);

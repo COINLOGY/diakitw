@@ -45,6 +45,7 @@ class Release105(unittest.TestCase):
         self.assertIn('Touch target <48dp: class=', probe)
         main = (ANDROID / 'app/src/main/java/app/diakitw/MainActivity.java').read_text()
         self.assertIn('Metric(String name){\n   super(MainActivity.this);this.name=name;setMinimumHeight(dp(48));', main)
+        self.assertLess(main.index('geo.addView(summary,new LinearLayout.LayoutParams(-1,-2))'), main.index('geo.addView(persistentMap,new LinearLayout.LayoutParams'))
         self.assertIn('Entry map hidden', (ANDROID / 'app/src/androidTest/java/app/diakitw/EntryProbe.java').read_text())
 
     def test_safe_failure_summary_has_allowlisted_line_not_ip(self):
