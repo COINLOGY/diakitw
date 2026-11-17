@@ -226,5 +226,15 @@ public final class LayoutProbe extends Instrumentation {
   ui(a::openMap);Thread.sleep(300);waitForIdleSync();ui(()->secondary(a.mapDialog.getWindow().getDecorView()));
   report.append("PASS secondary native text/touch bounds and speed unknown/zero/overflow rasters; rich IPv6 card, mini-map and expanded map dialog\n");
   runOnMainSync(()->a.finish());out.putString("stream","PASS actual Android view/text/touch and gauge label bounds, right alignment, unknown raster and threshold fixtures; real metrics + explicit test-only result fixtures\n"+report);finish(Activity.RESULT_OK,out);
- }catch(Throwable t){out.putString("stream","FAIL "+t+"\n"+report);finish(Activity.RESULT_CANCELED,out);}}
+ }catch(Throwable t){
+   Throwable root=t;
+   while(root.getCause()!=null&&root.getCause()!=root)root=root.getCause();
+   StringBuilder safe=new StringBuilder();
+   for(StackTraceElement e:root.getStackTrace()){
+    String file=e.getFileName();
+    if("EntryProbe.java".equals(file)||"LayoutProbe.java".equals(file)||"MapProbe.java".equals(file))
+     safe.append("SAFE_FRAME app.diakitw.").append(file.replace(".java", "")).append("(").append(file).append(":").append(Math.max(0,e.getLineNumber())).append(")\n");
+   }
+   out.putString("stream","FAIL "+t+"\n"+safe+report);finish(Activity.RESULT_CANCELED,out);
+  }}
 }

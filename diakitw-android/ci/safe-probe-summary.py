@@ -13,8 +13,10 @@ classes = ('AssertionError', 'NullPointerException', 'IllegalStateException',
 match = re.search(r'\bFAIL\s+([A-Za-z0-9.$]+)', report)
 name = match.group(1).split('.')[-1] if match else ''
 reason = ('java.lang.' + name) if name in classes and match and match.group(1).startswith('java.lang.') else 'reason unavailable'
-frame = re.search(r'\bapp\.diakitw\.[A-Za-z0-9.$]+\(([A-Za-z0-9_]+\.java):([0-9]{1,5})\)', report)
-location = f' at {frame.group(1)}:{frame.group(2)}' if frame else ''
+frames = re.findall(r'SAFE_FRAME app\.diakitw\.[A-Za-z0-9]+\(([A-Za-z0-9_]+\.java):([0-9]{1,5})\)', report)
+frames = frames or re.findall(r'\bapp\.diakitw\.[A-Za-z0-9.$]+\(([A-Za-z0-9_]+\.java):([0-9]{1,5})\)', report)
+frame = next((f for f in frames if f[0] == 'EntryProbe.java'), frames[0] if frames else None)
+location = f' at {frame[0]}:{frame[1]}' if frame else ''
 bounds = re.search(r'Map hidden below initial viewport visible=([0-9]{1,6}) total=([0-9]{1,6})', report)
 map_visibility = f'; map visible={bounds.group(1)}/{bounds.group(2)}' if bounds else ''
 # Only fixed assertion messages from the checked-in offline probe can leave CI.

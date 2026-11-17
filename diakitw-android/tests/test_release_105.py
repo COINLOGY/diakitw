@@ -39,5 +39,15 @@ class Release105(unittest.TestCase):
         self.assertLess(runner.index('for variant in portrait landscape large-font'), runner.index('adb shell settings put system font_scale 1.0\ncheck_offline'))
         self.assertIn('Обновления · 1.0.5 (105)', probe)
         self.assertIn('PASS release105 offline', probe)
+        self.assertIn('SAFE_FRAME app.diakitw.', probe)
+
+    def test_safe_failure_summary_has_allowlisted_line_not_ip(self):
+        import subprocess, sys, tempfile
+        with tempfile.TemporaryDirectory() as directory:
+            report = Path(directory) / 'probe.txt'
+            report.write_text('FAIL java.lang.AssertionError: 2001:db8::1\nSAFE_FRAME app.diakitw.EntryProbe(EntryProbe.java:23)\n')
+            result = subprocess.run([sys.executable, str(ANDROID / 'ci/safe-probe-summary.py'), str(report)], capture_output=True, text=True, check=True)
+            self.assertIn('EntryProbe.java:23', result.stdout)
+            self.assertNotIn('2001:db8::1', result.stdout)
 
 if __name__ == '__main__': unittest.main()
