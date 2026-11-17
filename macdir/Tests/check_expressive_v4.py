@@ -62,6 +62,7 @@ class ExpressiveGeometry(unittest.TestCase):
             self.assertIn(token, mac)
         self.assertIn('fraction.isFinite, (0...1).contains(fraction)', mac)
         self.assertIn('neutral ? directionColor : gaugeColor(f, battery: battery)', mac)
+        self.assertIn('NetworkRateValue(value: networkRate, direction: networkDirection', mac)
 
     def test_layout_expressions_unchanged_from_052(self):
         for entry in BASELINE:
@@ -70,13 +71,14 @@ class ExpressiveGeometry(unittest.TestCase):
             # actual font metrics and all visibility masks instead.
             if path == 'macdir/Sources/macdir/StatusTypography.swift':
                 continue
+            # GaugeTile was deliberately redesigned in 1.0.4 to display measured
+            # network direction and app-volume capacity. Its current layout is
+            # checked by test_release_104_mac and native check_layout.py instead.
+            if path == 'macdir/Sources/macdir/NeedleGauge.swift':
+                continue
             current = text(path)
             if start: current = current.split(start,1)[1]
             if end: current = current.split(end,1)[0]
-            if path == 'macdir/Sources/macdir/NeedleGauge.swift':
-                # Keep the entire GaugeTile snapshot; normalize only the reviewed arrow argument.
-                current = current.replace('NetworkRateValue(value: networkRate, direction: "↓", size: 16)',
-                                          'NetworkRateValue(value: networkRate, size: 16)')
             self.assertEqual(current, entry['source'], path)
 
 if __name__ == '__main__':

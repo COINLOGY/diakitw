@@ -27,6 +27,9 @@ class Packaging104(unittest.TestCase):
                      'archive-v104.py', 'verify-archives-v104.py'):
             self.assertIn('1.0.4', (scripts / name).read_text(), name)
         self.assertIn('bundles-v104', (scripts / 'verify-upstream-v104.py').read_text())
+        archive = (scripts / 'archive-v104.py').read_text()
+        self.assertIn('README-CANDIDATE.txt', archive)
+        self.assertIn('неподписан', archive)
         pe = (scripts / 'normalize-pe-v104.mjs').read_text()
         self.assertIn('version.setFileVersion(1,0,4,104,0)', pe)
         self.assertIn('(4<<16)|104', pe)

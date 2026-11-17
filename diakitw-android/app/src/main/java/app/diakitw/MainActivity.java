@@ -55,7 +55,7 @@ public final class MainActivity extends Activity {
  }
  void updatesMenu(){
   if(updateDialog!=null)updateDialog.dismiss();
-  AlertDialog.Builder menu=new AlertDialog.Builder(this).setTitle("Обновления · 1.0.3 (103)").setSingleChoiceItems(new String[]{"Стабильный","Тестовый"},updates.channel.equals("stable")?0:1,(d,which)->{if(updateFetch!=null)updateFetch.cancel();updates.channel(which==0?"stable":"preview");updateOffer=null;updateNotice.setVisibility(View.GONE);saveUpdates();})
+  AlertDialog.Builder menu=new AlertDialog.Builder(this).setTitle("Обновления · 1.0.4 (104)").setSingleChoiceItems(new String[]{"Стабильный","Тестовый"},updates.channel.equals("stable")?0:1,(d,which)->{if(updateFetch!=null)updateFetch.cancel();updates.channel(which==0?"stable":"preview");updateOffer=null;updateNotice.setVisibility(View.GONE);saveUpdates();})
    .setPositiveButton("Проверить обновления",(d,w)->checkUpdates(true)).setNegativeButton("Позже",null);
   if(updateOffer!=null)menu.setNeutralButton("Скачать доступное",(d,w)->showUpdateOffer());
   updateDialog=menu.show();updateDialog.getWindow().setBackgroundDrawable(panel());

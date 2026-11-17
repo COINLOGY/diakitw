@@ -21,6 +21,12 @@ for platform,ext in [('win32','zip'),('linux','tar.gz')]:
  title='diakitw-1.0.4-'+('windows' if platform=='win32' else 'linux')+'-x64'
  dest=root/'dist'/(title+'.'+ext)
  if dest.exists():raise RuntimeError('Refusing overwrite '+str(dest))
+ notice=folder/'README-CANDIDATE.txt'
+ if notice.exists():raise RuntimeError('Refusing overwrite '+str(notice))
+ if platform=='win32':
+  notice.write_text('diakitw 1.0.4 · предварительная сборка Windows x64.\nEXE неподписан (нет доверенной Authenticode-подписи); SmartScreen может заблокировать запуск. Не считать стабильным выпуском и не распространять массово. Сверяйте SHA-256 архива с evidence этого запуска GitHub Actions.\n',encoding='utf-8')
+ else:
+  notice.write_text('diakitw 1.0.4 · предварительная переносимая сборка Linux x64.\nЭто не подписанный пакет и не автоустановщик. Сверяйте SHA-256 архива с evidence этого запуска GitHub Actions.\n',encoding='utf-8')
  files=sorted(p for p in folder.rglob('*') if p.is_file())
  assert not any(p.suffix=='.node' for p in files)
  if ext=='zip':
