@@ -335,7 +335,7 @@ public final class MainActivity extends Activity {
  final class Metric extends LinearLayout {
   final TextView value,detail;final String name;final ResourceGauge gauge;String information="",previousDetail;double previous=Double.NaN;
   Metric(String name){
-   super(MainActivity.this);this.name=name;setOrientation(HORIZONTAL);setGravity(Gravity.CENTER_VERTICAL);setPadding(dp(12),dp(3),dp(12),dp(3));setBackground(new RippleDrawable(ColorStateList.valueOf(0x224cbfff),panel(),null));setElevation(dp(2));
+   super(MainActivity.this);this.name=name;setMinimumHeight(dp(48));setOrientation(HORIZONTAL);setGravity(Gravity.CENTER_VERTICAL);setPadding(dp(12),dp(3),dp(12),dp(3));setBackground(new RippleDrawable(ColorStateList.valueOf(0x224cbfff),panel(),null));setElevation(dp(2));
    LinearLayout copy=column();copy.setGravity(Gravity.CENTER_VERTICAL);TextView label=text(name,12,TEXT);label.setPadding(0,0,dp(6),0);
    value=text("Н/Д",22,MUTED);value.setTypeface(Typeface.create("sans-serif-medium",Typeface.NORMAL));
    if((compact||!landscape)&&getResources().getConfiguration().fontScale<=1.5f){LinearLayout line=new LinearLayout(MainActivity.this);line.setGravity(Gravity.CENTER_VERTICAL);line.addView(label,new LinearLayout.LayoutParams(0,-2,1));line.addView(value);copy.addView(line);}else{copy.addView(label);copy.addView(value);}
