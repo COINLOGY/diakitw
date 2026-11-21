@@ -27,7 +27,7 @@ final class BoundedTransfer: NSObject, URLSessionDataDelegate, @unchecked Sendab
         guard !cancelled else { lock.unlock(); continuation.resume(throwing: CancellationError()); return }
         self.continuation = continuation
         configuration.timeoutIntervalForRequest = 12
-        configuration.timeoutIntervalForResource = 20
+        configuration.timeoutIntervalForResource = 22
         configuration.httpCookieStorage = nil
         configuration.httpShouldSetCookies = false
         configuration.urlCredentialStorage = nil

@@ -49,6 +49,7 @@ import Darwin
         generation = UUID()
         sampler?.cancel(); lookup?.cancel()
         if !active {
+            UIDevice.current.isBatteryMonitoringEnabled = false
             cancelSpeed(); geo = nil; ipDate = nil; ipStatus = "Приостановлено"
             lastCounters = [:]; lastCounterTime = nil
             rxRate = nil; txRate = nil; networkHistory = []

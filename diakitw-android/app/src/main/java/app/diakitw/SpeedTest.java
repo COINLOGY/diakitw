@@ -26,7 +26,7 @@ final class SpeedTest {
  HttpURLConnection open(String path)throws IOException{
   check();HttpURLConnection c=factory.open(path);connection=c;
   c.setConnectTimeout(5000);c.setReadTimeout(5000);c.setInstanceFollowRedirects(false);c.setUseCaches(false);
-  c.setRequestProperty("Accept-Encoding","identity");c.setRequestProperty("Cache-Control","no-store");c.setRequestProperty("Connection","close");c.setRequestProperty("User-Agent","diakitw/0.1.1");check();return c;
+  c.setRequestProperty("Accept-Encoding","identity");c.setRequestProperty("Cache-Control","no-store");c.setRequestProperty("Connection","close");c.setRequestProperty("User-Agent","diakitw/"+BuildConfig.VERSION_NAME);check();return c;
  }
  void ok(HttpURLConnection c)throws IOException{int status=c.getResponseCode();if(status!=200&&status!=204)throw new IOException("HTTP");check();}
  void close(){HttpURLConnection c=connection;connection=null;if(c!=null)c.disconnect();}

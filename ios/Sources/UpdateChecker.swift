@@ -86,7 +86,7 @@ public enum UpdateContract {
                       let hash = a["sha256"] as? String, hash.utf8.count == 64,
                       hash.range(of: "^[a-fA-F0-9]{64}$", options: .regularExpression) != nil else { throw Failure.invalid }
                 let size = try integer(a["size"]), url = try assetURL(u, version: text)
-                guard size > 0 else { throw Failure.invalid }
+                guard size > 0, size <= 8 * 1024 * 1024 * 1024 else { throw Failure.invalid }
                 if key == platform {
                     let expected: String?
                     switch key {

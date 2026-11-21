@@ -16,10 +16,14 @@ final class GeoLookup: NSObject, URLSessionTaskDelegate, @unchecked Sendable {
   defer { session.invalidateAndCancel() }
   // No lookup parameter, API token or caller-supplied IP. Each attempt is
   // independently bounded; the existing provider runs only on primary failure.
-  for endpoint in ["https://emcx.pro/diakitw-api/geo", "https://get.geojs.io/v1/ip/geo.json"] {
+  let endpoints: [(url: String, decode: (Data, Int) -> EgressLocation?)] = [
+   ("https://emcx.pro/diakitw-api/geo", EgressLocation.decodeProxy),
+   ("https://get.geojs.io/v1/ip/geo.json", EgressLocation.decode),
+  ]
+  for endpoint in endpoints {
    guard !Task.isCancelled else { return nil }
    do {
-    let (bytes, response) = try await session.bytes(from: URL(string: endpoint)!)
+    let (bytes, response) = try await session.bytes(from: URL(string: endpoint.url)!)
     guard (response as? HTTPURLResponse)?.statusCode == 200, response.expectedContentLength <= 16384 else { continue }
     var data = Data()
     for try await byte in bytes {
@@ -28,8 +32,7 @@ final class GeoLookup: NSObject, URLSessionTaskDelegate, @unchecked Sendable {
      data.append(byte)
     }
     try Task.checkCancellation()
-    let location = endpoint == "https://emcx.pro/diakitw-api/geo"
-     ? EgressLocation.decodeProxy(data, status: 200) : EgressLocation.decode(data, status: 200)
+    let location = endpoint.decode(data, 200)
     if let location { return location }
    } catch { if Task.isCancelled { return nil } }
   }

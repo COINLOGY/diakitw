@@ -49,7 +49,7 @@ diakitw-1.0.6-macos-unsigned-x86_64.dmg (ad-hoc подпись, не Developer I
 diakitw не меняет его сортировку.
 
 ВНЕШНИЙ IP, СТРАНА / ГОРОД И КАРТА
-Основной HTTPS endpoint: https://aia.emcx.pro/diakitw-api/geo (GET без параметров).
+Основной HTTPS endpoint: https://emcx.pro/diakitw-api/geo (GET без параметров).
 2ip через EMCx: один ответ содержит внешний IP вызывающего подключения и его
 приблизительную географию. Токен 2ip хранится только на сервере, не в приложении.
 EMCx и 2ip обрабатывают IP выхода. Серверные квоты: 300/день и 9000/месяц;
