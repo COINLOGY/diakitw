@@ -8,9 +8,9 @@ def sha(stream):
 def filehash(p):
  with p.open('rb') as f:return sha(f)
 checks=[]
-for a in json.loads((root/'dist/release-manifest-1.0.5.json').read_text())['artifacts']:
+for a in json.loads((root/'dist/release-manifest-1.0.6.json').read_text())['artifacts']:
  p=root/'dist'/a['file']; assert filehash(p)==a['sha256']
- folder=root/'bundles-v105'/('diakitw-'+a['platform']+'-x64')
+ folder=root/'bundles-v106'/('diakitw-'+a['platform']+'-x64')
  expected={str(x.relative_to(folder)):x for x in folder.rglob('*') if x.is_file()}
  seen=set()
  if p.suffix=='.zip':
@@ -39,5 +39,5 @@ for p in (root/'.electron-cache').rglob('electron-v45.2.3-*.zip'):
  assert filehash(p)==expected[p.name];cached.append(p.name)
 assert {'electron-v45.2.3-win32-x64.zip','electron-v45.2.3-linux-x64.zip'}<=set(cached)
 report={'artifacts':checks,'old_release_hashes':'checked separately on delivery host','cached_upstream_verified':cached,'target_runtime_tested':False}
-(root/'evidence/v105/archive-verification.json').write_text(json.dumps(report,indent=2)+'\n')
+(root/'evidence/v106/archive-verification.json').write_text(json.dumps(report,indent=2)+'\n')
 print(json.dumps(report,indent=2))

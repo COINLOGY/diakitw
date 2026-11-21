@@ -25,7 +25,7 @@ function lookupGeo(signal,{request=require('node:https').request,timeout=5000}={
   const abort=()=>finish(Error('cancelled'));
   if(signal?.aborted){reject(Error('cancelled'));return;}
   try{
-   req=request('https://aia.emcx.pro/diakitw-api/geo',{method:'GET',agent:false,headers:{Accept:'application/json','Cache-Control':'no-store'}},response=>{
+   req=request('https://emcx.pro/diakitw-api/geo',{method:'GET',agent:false,headers:{Accept:'application/json','Cache-Control':'no-store'}},response=>{
     if(done){response.destroy();return;}res=response;
     res.on('error',()=>finish(Error('network')));res.on('aborted',()=>finish(Error('network')));
     if(res.statusCode!==200){finish(Error('http'));return;}

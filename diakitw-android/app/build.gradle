@@ -4,6 +4,6 @@ android {
  compileSdk 36
  buildToolsVersion '35.0.0'
  buildFeatures { buildConfig true }
- defaultConfig { applicationId 'app.diakitw'; minSdk 26; targetSdk 36; versionCode 105; versionName '1.0.5'; testInstrumentationRunner 'app.diakitw.LayoutProbe' }
+ defaultConfig { applicationId 'app.diakitw'; minSdk 26; targetSdk 36; versionCode 106; versionName '1.0.6'; testInstrumentationRunner 'app.diakitw.LayoutProbe' }
  compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
 }

@@ -7,7 +7,7 @@ MAIN = (ROOT / 'Sources/macdir/main.swift').read_text()
 RESOURCES = (ROOT / 'Sources/MacdirCore/Resources.swift').read_text()
 GEO = (ROOT / 'Sources/MacdirCore/EgressLocation.swift').read_text()
 
-class Compact105(unittest.TestCase):
+class Compact106(unittest.TestCase):
     def test_real_cycle_count_never_substitutes_a_fixture(self):
         self.assertIn('batteryCycles: Int?', RESOURCES)
         self.assertIn('IORegistryEntryCreateCFProperty', RESOURCES)

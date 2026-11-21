@@ -45,11 +45,11 @@ for variant in portrait landscape large-font; do
   esac
   adb shell am force-stop app.diakitw || :
   check_offline || { echo 'FAIL network returned before native probe' >&2; exit 1; }
-  report="${RUNNER_TEMP:-/tmp}/android-105-${variant}.txt"
-  if ! adb shell am instrument -w -e mode release105 -e orientation "$expected" -e minFontScale "$font" app.diakitw.test/app.diakitw.LayoutProbe > "$report"; then
+  report="${RUNNER_TEMP:-/tmp}/android-106-${variant}.txt"
+  if ! adb shell am instrument -w -e mode release106 -e orientation "$expected" -e minFontScale "$font" app.diakitw.test/app.diakitw.LayoutProbe > "$report"; then
     python3 ci/safe-probe-summary.py "$report" >&2; exit 1
   fi
-  if ! grep -Fq 'PASS release105 offline resources, RX/TX, disk, map visible, folder grant gate' "$report" || grep -Fq 'FAIL ' "$report" || grep -Fq 'INSTRUMENTATION_FAILED' "$report"; then
+  if ! grep -Fq 'PASS release106 offline resources, RX/TX, disk, map visible, folder grant gate' "$report" || grep -Fq 'FAIL ' "$report" || grep -Fq 'INSTRUMENTATION_FAILED' "$report"; then
     python3 ci/safe-probe-summary.py "$report" >&2; exit 1
   fi
   check_offline || { echo 'FAIL network returned during native probe' >&2; exit 1; }
@@ -63,7 +63,7 @@ adb shell settings put system font_scale 1.0
 check_offline || { echo 'FAIL network returned during display reset' >&2; exit 1; }
 # The existing entry route checks the verified ISO country flag on visible compact cards.
 check_offline || { echo 'FAIL network returned before entry probe' >&2; exit 1; }
-report="${RUNNER_TEMP:-/tmp}/android-105-entry.txt"
+report="${RUNNER_TEMP:-/tmp}/android-106-entry.txt"
 if ! adb shell am instrument -w -e mode entry app.diakitw.test/app.diakitw.LayoutProbe > "$report"; then
   python3 ci/safe-probe-summary.py "$report" >&2; exit 1
 fi
@@ -71,4 +71,4 @@ if ! grep -Fq 'PASS exact visible/accessibility IP / карта; accessibility c
   python3 ci/safe-probe-summary.py "$report" >&2; exit 1
 fi
 check_offline || { echo 'FAIL network returned during entry probe' >&2; exit 1; }
-printf 'PASS native release105 portrait, landscape, large-font; measured RX/TX, scoped disk, map, offline fixtures; source %s\n' "$GITHUB_SHA" > release-candidate/native-105-status.txt
+printf 'PASS native release106 portrait, landscape, large-font; measured RX/TX, scoped disk, map, offline fixtures; source %s\n' "$GITHUB_SHA" > release-candidate/native-106-status.txt

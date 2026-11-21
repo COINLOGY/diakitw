@@ -2,7 +2,7 @@ import Foundation
 import MacdirCore
 
 final class MockGeoProtocol: URLProtocol, @unchecked Sendable {
- static let proxy = "https://aia.emcx.pro/diakitw-api/geo"
+ static let proxy = "https://emcx.pro/diakitw-api/geo"
  static let fallback = "https://get.geojs.io/v1/ip/geo.json"
  static var payload = Data()
  static var status = 200

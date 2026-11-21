@@ -4,20 +4,20 @@ const fs=require('node:fs');
 const html=fs.readFileSync('app/index.html','utf8');
 const css=fs.readFileSync('app/style.css','utf8');
 const renderer=fs.readFileSync('app/renderer.js','utf8');
-const workflow=()=>fs.readFileSync('../.github/workflows/desktop-105-candidate.yml','utf8');
+const workflow=()=>fs.readFileSync('../.github/workflows/desktop-106-candidate.yml','utf8');
 
-test('105 metadata and visible version agree, with Windows PE fixed and string versions',()=>{
+test('106 metadata and visible version agree, with Windows PE fixed and string versions',()=>{
  const app=require('../app/package.json'),build=require('../package.json');
- assert.equal(app.version,'1.0.5');assert.equal(app.displayVersion,'1.0.5');assert.equal(app.build,105);assert.equal(build.version,'1.0.5');
- const lock=require('../package-lock.json');assert.equal(lock.version,'1.0.5');assert.equal(lock.packages[''].version,'1.0.5');
- assert.match(html,/diakitw 1\.0\.5/);
- const builder=fs.readFileSync('scripts/build-v105.mjs','utf8');
- const pe=fs.readFileSync('scripts/normalize-pe-v105.mjs','utf8');
- const verify=fs.readFileSync('scripts/verify-bundles-v105.mjs','utf8');
- for(const source of [builder,pe,verify])assert.match(source,/1\.0\.5/);
- assert.match(builder,/buildVersion:'1\.0\.5\.105'/);
- assert.match(pe,/setFileVersion\(1,0,5,105,0\)/);
- assert.match(verify,/FileVersion==='1\.0\.5\.105'/);
+ assert.equal(app.version,'1.0.6');assert.equal(app.displayVersion,'1.0.6');assert.equal(app.build,106);assert.equal(build.version,'1.0.6');
+ const lock=require('../package-lock.json');assert.equal(lock.version,'1.0.6');assert.equal(lock.packages[''].version,'1.0.6');
+ assert.match(html,/diakitw 1\.0\.6/);
+ const builder=fs.readFileSync('scripts/build-v106.mjs','utf8');
+ const pe=fs.readFileSync('scripts/normalize-pe-v106.mjs','utf8');
+ const verify=fs.readFileSync('scripts/verify-bundles-v106.mjs','utf8');
+ for(const source of [builder,pe,verify])assert.match(source,/1\.0\.6/);
+ assert.match(builder,/buildVersion:'1\.0\.6\.106'/);
+ assert.match(pe,/setFileVersion\(1,0,5,106,0\)/);
+ assert.match(verify,/FileVersion==='1\.0\.6\.106'/);
 });
 
 test('compact layout groups existing measured resources with network, then disk and honest explorer',()=>{
@@ -45,12 +45,12 @@ test('compact gauges reserve enough canvas height to keep measured dial arcs vis
  assert.match(css,/@media\(max-width:35rem\)\{[^}]*\.network \.speeds\{grid-template-columns:1fr\}/);
 });
 
-test('105 candidate workflow binds exact source SHA, preserves archive modes and never publishes',()=>{
+test('106 candidate workflow binds exact source SHA, preserves archive modes and never publishes',()=>{
  const w=workflow();
- for(const s of ['feat/release-105-candidate','npm test','build-v105.mjs win32','build-v105.mjs linux','normalize-pe-v105.mjs','verify-bundles-v105.mjs','verify-upstream-v105.py','archive-v105.py','verify-archives-v105.py','source-commit.txt','GITHUB_SHA','diakitw-1.0.5-windows-x64.zip','diakitw-1.0.5-linux-x64.tar.gz','release-manifest-1.0.5.json'])assert.ok(w.includes(s),s);
- assert.match(w,/if: github\.ref == 'refs\/heads\/feat\/release-105-candidate'/);
+ for(const s of ['feat/release-106-candidate','npm test','build-v106.mjs win32','build-v106.mjs linux','normalize-pe-v106.mjs','verify-bundles-v106.mjs','verify-upstream-v106.py','archive-v106.py','verify-archives-v106.py','source-commit.txt','GITHUB_SHA','diakitw-1.0.6-windows-x64.zip','diakitw-1.0.6-linux-x64.tar.gz','release-manifest-1.0.6.json'])assert.ok(w.includes(s),s);
+ assert.match(w,/if: github\.ref == 'refs\/heads\/feat\/release-106-candidate'/);
  assert.doesNotMatch(w,/gh release |overwrite: true|git push|pages|feed\.json/);
- const archive=fs.readFileSync('scripts/archive-v105.py','utf8');
+ const archive=fs.readFileSync('scripts/archive-v106.py','utf8');
  assert.match(archive,/README-CANDIDATE\.txt/);assert.match(archive,/EXE неподписан/);assert.match(archive,/tarfile\.open/);
- const verification=fs.readFileSync('scripts/verify-archives-v105.py','utf8');assert.match(verification,/m\.mode&0o777/);
+ const verification=fs.readFileSync('scripts/verify-archives-v106.py','utf8');assert.match(verification,/m\.mode&0o777/);
 });

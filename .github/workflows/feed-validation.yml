@@ -38,9 +38,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if python3 -c "import plistlib; assert plistlib.load(open('macdir/Info.plist', 'rb'))['CFBundleShortVersionString'] == '1.0.5'"; then
-            python3 release/tests/test_unified_105_candidate.py
-            python3 release/tests/test_packaging_105_candidate.py
+          if python3 -c "import plistlib; assert plistlib.load(open('macdir/Info.plist', 'rb'))['CFBundleShortVersionString'] == '1.0.6'"; then
+            python3 release/tests/test_unified_106_candidate.py
+            python3 release/tests/test_packaging_106_candidate.py
             python3 macdir/Tests/test_country_flag_status.py
           elif python3 -c "import plistlib; assert plistlib.load(open('macdir/Info.plist', 'rb'))['CFBundleShortVersionString'] == '1.0.4'"; then
             python3 release/tests/test_unified_104_candidate.py

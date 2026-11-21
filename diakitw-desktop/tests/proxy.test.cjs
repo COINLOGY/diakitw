@@ -2,7 +2,7 @@
 const test=require('node:test'),a=require('node:assert/strict');
 const {EventEmitter}=require('node:events');
 const fixture={ip:'203.0.113.44',city:'Berlin',region:'Berlin',country:'Germany',code:'DE',timezone:'Europe/Berlin',lat:52.5,lon:13.4,asn:{id:64500,name:'Example Network',hosting:false}};
-function fake(body){return(url,options,cb)=>{a.equal(url,'https://aia.emcx.pro/diakitw-api/geo');a.equal(options.method,'GET');a.equal(options.agent,false);a.deepEqual(Object.keys(options.headers).sort(),['Accept','Cache-Control']);const req=new EventEmitter();req.destroy=()=>{};req.end=()=>queueMicrotask(()=>{const res=new EventEmitter();res.statusCode=200;res.destroy=()=>{};cb(res);res.emit('data',Buffer.from(JSON.stringify(body)));res.emit('end');});return req;};}
+function fake(body){return(url,options,cb)=>{a.equal(url,'https://emcx.pro/diakitw-api/geo');a.equal(options.method,'GET');a.equal(options.agent,false);a.deepEqual(Object.keys(options.headers).sort(),['Accept','Cache-Control']);const req=new EventEmitter();req.destroy=()=>{};req.end=()=>queueMicrotask(()=>{const res=new EventEmitter();res.statusCode=200;res.destroy=()=>{};cb(res);res.emit('data',Buffer.from(JSON.stringify(body)));res.emit('end');});return req;};}
 test('2ip via EMCx: fixed no-query no-token endpoint decodes the same IP and nullable geography',async()=>{
  const {lookupGeo}=require('../app/geo.cjs');
  const geo=await lookupGeo(undefined,{request:fake(fixture)});

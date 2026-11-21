@@ -1,4 +1,4 @@
-"""105 Mac candidate contract: toolbar, signing, packaging and CI."""
+"""106 Mac candidate contract: toolbar, signing, packaging and CI."""
 import importlib.util
 import plistlib
 import subprocess
@@ -28,25 +28,25 @@ class Release103(unittest.TestCase):
 
     def test_mac_identity_and_package(self):
         info = plistlib.loads((ROOT / 'Info.plist').read_bytes())
-        self.assertEqual((info['CFBundleShortVersionString'], info['CFBundleVersion']), ('1.0.5', '105'))
+        self.assertEqual((info['CFBundleShortVersionString'], info['CFBundleVersion']), ('1.0.6', '106'))
         self.assertEqual(info['CFBundleIdentifier'], 'local.emcx.macdir')
-        self.assertIn('.applicationVersion: "1.0.5"', (ROOT / 'Sources/macdir/main.swift').read_text())
-        self.assertIn('diakitw 1.0.5 (105)', (ROOT / 'Sources/macdir/UpdateMenu.swift').read_text())
+        self.assertIn('.applicationVersion: "1.0.6"', (ROOT / 'Sources/macdir/main.swift').read_text())
+        self.assertIn('diakitw 1.0.6 (106)', (ROOT / 'Sources/macdir/UpdateMenu.swift').read_text())
         checker = (ROOT / 'Sources/MacdirCore/UpdateChecker.swift').read_text()
-        self.assertEqual(checker.count('public static let version = "1.0.5"'), 2)
-        self.assertEqual(checker.count('public static let build = 105'), 2)
-        self.assertIn('#else\n    public static let version = "1.0.5"\n    public static let build = 105', checker)
+        self.assertEqual(checker.count('public static let version = "1.0.6"'), 2)
+        self.assertEqual(checker.count('public static let build = 106'), 2)
+        self.assertIn('#else\n    public static let version = "1.0.6"\n    public static let build = 106', checker)
         spec = importlib.util.spec_from_file_location('packager', ROOT / 'package-diagnostics-dmg.py')
         packager = importlib.util.module_from_spec(spec); spec.loader.exec_module(packager)
-        self.assertEqual((packager.VERSION, packager.BUILD), ('1.0.5', '105'))
-        self.assertEqual(packager.artifact_paths(ROOT, 'arm64')['dmg'].name, 'diakitw-1.0.5-macos-arm64.dmg')
+        self.assertEqual((packager.VERSION, packager.BUILD), ('1.0.6', '106'))
+        self.assertEqual(packager.artifact_paths(ROOT, 'arm64')['dmg'].name, 'diakitw-1.0.6-macos-arm64.dmg')
         self.assertTrue((ROOT / 'assets' / packager.README).is_file())
 
     def test_signing_and_notarization_fail_closed(self):
         build = (ROOT / 'build.sh').read_text()
         packaging = (ROOT / 'package-diagnostics-dmg.py').read_text()
         signing = (ROOT / 'sign-and-notarize.sh').read_text()
-        workflow = (REPO / '.github/workflows/macos-build-105.yml').read_text()
+        workflow = (REPO / '.github/workflows/macos-build-106.yml').read_text()
         self.assertNotIn('codesign --force --sign -', build)
         self.assertNotIn("'codesign', '--force', '--sign', '-'", packaging)
         self.assertIn('Developer ID Application:', signing)
@@ -65,8 +65,8 @@ class Release103(unittest.TestCase):
         self.assertIn('verify_developer_id(path)', packaging)
         self.assertIn('MACDIR_SIGNING_P12_BASE64', workflow)
         self.assertIn('MACDIR_NOTARY_KEY_BASE64', workflow)
-        self.assertIn('macos-105-build-only', workflow)
-        self.assertIn('diakitw-1.0.5-macos-arm64.dmg', workflow)
+        self.assertIn('macos-106-build-only', workflow)
+        self.assertIn('diakitw-1.0.6-macos-arm64.dmg', workflow)
         self.assertNotIn('release create', workflow)
 
     def test_signature_metadata_rejects_adhoc_and_missing_runtime(self):

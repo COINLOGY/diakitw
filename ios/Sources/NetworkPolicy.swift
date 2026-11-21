@@ -5,7 +5,7 @@ import Darwin
 enum NetworkPolicy {
     static let downloadBytes = 8 * 1024 * 1024
     static let uploadBytes = 2 * 1024 * 1024
-    static let egressURL = URL(string: "https://aia.emcx.pro/diakitw-api/geo")!
+    static let egressURL = URL(string: "https://emcx.pro/diakitw-api/geo")!
     static let fallbackURL = URL(string: "https://api.country.is/")!
     static let downloadURL = URL(string: "https://speed.cloudflare.com/__down?bytes=8388608")!
     // One empty HTTPS response, timed end-to-end using the monotonic clock.

@@ -8,7 +8,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.json.*;
 /** Bounded single-use proxy lookup; legacy provider only on failure. No address persistence. */
 final class Egress {
- static final String ENDPOINT="https://aia.emcx.pro/diakitw-api/geo";
+ static final String ENDPOINT="https://emcx.pro/diakitw-api/geo";
  static final String FALLBACK="https://ipwho.is/?fields=success,ip,country_code,city,connection.isp,connection.asn,latitude,longitude";
  static final AtomicBoolean BUSY=new AtomicBoolean();
  static final class RateLimited extends IOException {RateLimited(){super("quota");}}

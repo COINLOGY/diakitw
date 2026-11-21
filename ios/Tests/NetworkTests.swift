@@ -11,7 +11,7 @@ import Foundation
         guard NetworkPolicy.rate(bytes: 1, seconds: .leastNonzeroMagnitude) == nil else {
             print("FAIL: overflowing rate must be unknown, not infinity"); exit(1)
         }
-        guard NetworkPolicy.egressURL.absoluteString == "https://aia.emcx.pro/diakitw-api/geo" else {
+        guard NetworkPolicy.egressURL.absoluteString == "https://emcx.pro/diakitw-api/geo" else {
             print("FAIL: approved primary proxy absent"); exit(1)
         }
         let good = Data("{\"ip\":\"203.0.113.2\",\"country_code\":\"DE\"}".utf8)

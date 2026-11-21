@@ -13,7 +13,7 @@ unsigned=app/build/outputs/apk/release/app-release-unsigned.apk
 [ -s "$unsigned" ] || { echo 'No unsigned Gradle output' >&2; exit 1; }
 mkdir -p release-candidate
 aligned="$archive_dir/aligned.apk"
-signed=release-candidate/diakitw-android-1.0.5.apk
+signed=release-candidate/diakitw-android-1.0.6.apk
 rm -f "$signed"
 "$ANDROID_HOME/build-tools/35.0.0/zipalign" -f -p 4 "$unsigned" "$aligned"
 "$ANDROID_HOME/build-tools/35.0.0/apksigner" sign --ks "$archive_dir/release.p12" --ks-type PKCS12 --ks-key-alias diakitw-release-101 --ks-pass env:DIAKITW_ANDROID_P12_PASSWORD --out "$signed" "$aligned"

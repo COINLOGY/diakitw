@@ -1,8 +1,8 @@
-name: Android 1.0.5 signed candidate and native map and version
+name: Android 1.0.6 signed candidate and native map and version
 
 on:
   push:
-    branches: [feat/release-105-candidate]
+    branches: [feat/release-106-candidate]
   workflow_dispatch:
 
 permissions:
@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   android-signed-candidate:
-    if: github.ref == 'refs/heads/feat/release-105-candidate'
+    if: github.ref == 'refs/heads/feat/release-106-candidate'
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
@@ -40,7 +40,7 @@ jobs:
         env:
           DIAKITW_ANDROID_P12_BASE64: ${{ secrets.DIAKITW_ANDROID_P12_BASE64 }}
           DIAKITW_ANDROID_P12_PASSWORD: ${{ secrets.DIAKITW_ANDROID_P12_PASSWORD }}
-        run: bash diakitw-android/ci/build-signed-105.sh
+        run: bash diakitw-android/ci/build-signed-106.sh
       - name: Enable KVM on disposable runner
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -53,15 +53,15 @@ jobs:
           target: google_apis
           arch: x86_64
           profile: pixel_5
-          script: bash diakitw-android/ci/run-android-105.sh
+          script: bash diakitw-android/ci/run-android-106.sh
       - name: Upload verified signed candidate and evidence (not a published release)
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: diakitw-android-1.0.5-signed-${{ github.sha }}
+          name: diakitw-android-1.0.6-signed-${{ github.sha }}
           path: |
-            diakitw-android/release-candidate/diakitw-android-1.0.5.apk
+            diakitw-android/release-candidate/diakitw-android-1.0.6.apk
             diakitw-android/release-candidate/SHA256SUMS.txt
             diakitw-android/release-candidate/source-commit.txt
-            diakitw-android/release-candidate/native-105-status.txt
+            diakitw-android/release-candidate/native-106-status.txt
           if-no-files-found: error
           retention-days: 14

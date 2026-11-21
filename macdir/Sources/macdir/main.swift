@@ -339,7 +339,7 @@ struct ContentView: View {
       .font(.caption).lineLimit(1).minimumScaleFactor(0.75)
     }
     Text("2ip через EMCx · резерв GeoJS · выход/VPN, не GPS").font(.caption2).foregroundStyle(.secondary).lineLimit(1)
-     .help("HTTPS aia.emcx.pro/diakitw-api/geo: EMCx и 2ip получают IP выхода/VPN; токен 2ip только на сервере. При ошибке — GeoJS/Cloudflare. Приблизительные страна/город, не GPS. Серверные квоты 300/день, 9000/месяц; кэш 1 ч. Строка меню работает и в фоне; debounce 2 с, минимум и период 60 с; до 8 с и 16 KiB на провайдера, без cookies/redirects. Ошибка очищает данные. Карта — только по нажатию.")
+     .help("HTTPS emcx.pro/diakitw-api/geo: EMCx и 2ip получают IP выхода/VPN; токен 2ip только на сервере. При ошибке — GeoJS/Cloudflare. Приблизительные страна/город, не GPS. Серверные квоты 300/день, 9000/месяц; кэш 1 ч. Строка меню работает и в фоне; debounce 2 с, минимум и период 60 с; до 8 с и 16 KiB на провайдера, без cookies/redirects. Ошибка очищает данные. Карта — только по нажатию.")
    }.frame(maxWidth: .infinity, alignment: .leading)
    Button("Карта") { if let url = model.egressLocation?.mapURL { DesktopActions.shared.openMap(url) } }
     .disabled(model.egressLocation?.mapURL == nil)
@@ -461,7 +461,7 @@ struct ContentView: View {
 final class AppDelegate: NSObject, NSApplicationDelegate {
  var status: ResourceStatusController?
  @objc func showAbout(_ sender: Any?) {
-  MainActor.assumeIsolated { NSApplication.shared.orderFrontStandardAboutPanel(options: [.applicationVersion: "1.0.5"]) }
+  MainActor.assumeIsolated { NSApplication.shared.orderFrontStandardAboutPanel(options: [.applicationVersion: "1.0.6"]) }
  }
  func applicationWillTerminate(_ notification: Notification) { MainActor.assumeIsolated { InternetTestWindow.shared.stop(); DiagnosticsWindow.shared.stop(); UpdateMenu.shared.stop(); status?.stop() } }
  func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
