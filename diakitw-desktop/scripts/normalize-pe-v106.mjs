@@ -11,11 +11,11 @@ assert.ok(version,'Windows file version resource required');
 const strings=version.getAllLanguagesForStringValues().map(lang=>version.getStringValues(lang));
 assert.ok(strings.some(s=>s.FileVersion==='1.0.6.106'&&s.ProductName==='diakitw'),'Preserve verified version string before rewriting fixed info');
 // lang=0 changes numeric VS_FIXEDFILEINFO only and preserves all string tables.
-version.setFileVersion(1,0,5,106,0);
+version.setFileVersion(1,0,6,106,0);
 version.outputToResourceEntries(resources.entries);
 resources.outputResource(exe);
 fs.writeFileSync(file,Buffer.from(exe.generate()));
 const fixed=RE.Resource.VersionInfo.fromEntries(PE.NtExecutableResource.from(PE.NtExecutable.from(fs.readFileSync(file))).entries)[0].fixedInfo;
 assert.equal(fixed.fileVersionMS,(1<<16));
-assert.equal(fixed.fileVersionLS,(5<<16)|106);
+assert.equal(fixed.fileVersionLS,(6<<16)|106);
 console.log('PASS Windows PE fixed version 1.0.6.106');

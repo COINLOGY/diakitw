@@ -16,7 +16,7 @@ test('106 metadata and visible version agree, with Windows PE fixed and string v
  const verify=fs.readFileSync('scripts/verify-bundles-v106.mjs','utf8');
  for(const source of [builder,pe,verify])assert.match(source,/1\.0\.6/);
  assert.match(builder,/buildVersion:'1\.0\.6\.106'/);
- assert.match(pe,/setFileVersion\(1,0,5,106,0\)/);
+ assert.match(pe,/setFileVersion\(1,0,6,106,0\)/);
  assert.match(verify,/FileVersion==='1\.0\.6\.106'/);
 });
 
