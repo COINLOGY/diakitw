@@ -2,6 +2,19 @@
   "schema": 1,
   "releases": [
     {
+      "version": "1.0.6",
+      "build": 106,
+      "channel": "preview",
+      "notes": "diakitw 1.0.6 preview: геосервис EMCx переведён на emcx.pro/diakitw-api/geo; Android — закрытие информационных окон при сворачивании, настоящая версия в User-Agent, сброс суточного лимита при смене сети; macOS — надёжный разбор ответа геосервиса и лимит 8 ГиБ; Windows PE 1.0.6.106. Desktop/macOS ставятся вручную, Android передаёт APK системному установщику. Подписи издателей Windows/macOS не получены.",
+      "assets": {
+        "android": {
+          "url": "https://github.com/COINLOGY/diakitw/releases/download/v1.0.6/diakitw-android-1.0.6.apk",
+          "size": 131855,
+          "sha256": "5feaa7d116dbe2bf314b122e387de44aaa58ec6317a0b1d99815a0906c62c8e1"
+        }
+      }
+    },
+    {
       "version": "1.0.3",
       "build": 103,
       "channel": "preview",

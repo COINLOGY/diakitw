@@ -5,12 +5,14 @@ public class FeedCheck {
   String text=Files.readString(Path.of(args[0]));
   if(args.length>1 && args[1].equals("current-feed")){
    Updates.Release offer=Updates.select(text,"preview","1.0.1",101);
-   if(offer==null||!offer.version.equals("1.0.3")||offer.build!=103)throw new AssertionError("1.0.1 must offer 1.0.3");
+   if(offer==null||!offer.version.equals("1.0.6")||offer.build!=106)throw new AssertionError("1.0.1 must offer 1.0.6");
    Updates.Release from102=Updates.select(text,"preview","1.0.2",102);
-   if(from102==null||!from102.version.equals("1.0.3")||from102.build!=103)throw new AssertionError("1.0.2 must offer 1.0.3");
-   if(Updates.select(text,"preview","1.0.3",103)!=null)throw new AssertionError("1.0.3 must be current");
+   if(from102==null||!from102.version.equals("1.0.6")||from102.build!=106)throw new AssertionError("1.0.2 must offer 1.0.6");
+   Updates.Release from105=Updates.select(text,"preview","1.0.5",105);
+   if(from105==null||!from105.version.equals("1.0.6")||from105.build!=106)throw new AssertionError("1.0.5 must offer 1.0.6");
+   if(Updates.select(text,"preview","1.0.6",106)!=null)throw new AssertionError("1.0.6 must be current");
    if(Updates.select(text,"stable","1.0.1",101)!=null)throw new AssertionError("no stable v2 release");
-   System.out.println("Android production parser 1.0.1/1.0.2 -> 1.0.3; current -> none PASS");return;
+   System.out.println("Android production parser 1.0.1/1.0.2/1.0.5 -> 1.0.6; current -> none PASS");return;
   }
   String installedVersion=args.length>1?"0.5.3":"1.0.1";int installedBuild=args.length>1?53:101;
   Updates.Release r=Updates.select(text,"preview",installedVersion,installedBuild);

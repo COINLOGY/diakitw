@@ -4,17 +4,20 @@ const {select} = require('../diakitw-desktop/app/updates.cjs');
 const feed = fs.readFileSync(process.argv[2] || 'updates/v1.json', 'utf8');
 const manifest = JSON.parse(fs.readFileSync('manifest.json', 'utf8'));
 const byId = Object.fromEntries(manifest.platforms.map(p => [p.id, p]));
+const cur = byId['mac-silicon'];
+const CV = cur.version;
+const CB = cur.build;
 for (const [platform, id] of Object.entries({'macos-arm64':'mac-silicon','macos-x86_64':'mac-intel','windows-x64':'windows','linux-x64':'linux'})) {
   const p = byId[id];
   const preview = select(feed, platform, 'preview', '0.5.5', 55);
-  assert.equal(preview?.version, '1.0.3');
-  assert.equal(preview?.build, 103);
+  assert.equal(preview?.version, CV);
+  assert.equal(preview?.build, CB);
   const expectedURL = p.url.replace('-macos-unsigned-', '-macos-');
   assert.equal(preview?.asset.url, expectedURL);
   assert.equal(preview?.asset.size, p.size_bytes);
   assert.equal(preview?.asset.sha256, p.sha256);
-  assert.equal(select(feed, platform, 'preview', '1.0.2', 102)?.version, '1.0.3');
-  assert.equal(select(feed, platform, 'preview', '1.0.3', 103), null);
+  assert.equal(select(feed, platform, 'preview', '1.0.2', 102)?.version, CV);
+  assert.equal(select(feed, platform, 'preview', CV, CB), null);
   const stable = select(feed, platform, 'stable', '0.5.4', 54);
   assert.equal(stable?.version, platform.startsWith('macos-') ? '0.5.6' : '0.5.5');
   if (platform.startsWith('macos-')) {
@@ -26,4 +29,4 @@ for (const [platform, id] of Object.entries({'macos-arm64':'mac-silicon','macos-
 assert.equal(select(feed, 'android', 'preview', '0.5.5', 55), null);
 assert.equal(select(feed, 'android', 'stable', '0.5.5', 55), null);
 assert.equal(select(feed, 'android', 'stable', '0.5.4', 54)?.version, '0.5.5');
-console.log('PASS: v1 preview 1.0.3 desktop only; stable and legacy Android remain isolated');
+console.log(`PASS: v1 preview ${CV}/${CB} desktop only; stable and legacy Android remain isolated`);

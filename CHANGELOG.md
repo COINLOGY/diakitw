@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.0.6 (106) — preview
+
+Geo API moved from the retired `aia.emcx.pro` host to `https://emcx.pro/diakitw-api/geo`
+in every client. Android: informational dialogs are dismissed in `onPause`, the HTTP
+User-Agent carries the real app version, and the 24h quota pause is cleared on network
+change. Windows PE fixed version is `1.0.6.106`. macOS: endpoint-bound response decoder,
+8 GiB update-asset bound, 22s speed-test resource timeout. iOS: battery monitoring is
+disabled in background. Android CI verifies the pinned `json-20240303.jar` SHA-256.
+Update feeds v1 (desktop/macOS) and v2 (Android) offer 1.0.6 on the preview channel.
+Details and limitations: [release/1.0.6.md](release/1.0.6.md).
+
 ## 0.5.4 (54) — preview
 
 Foreground/manual update discovery; preview default and explicit stable channel.

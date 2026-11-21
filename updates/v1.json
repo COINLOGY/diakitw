@@ -2,6 +2,34 @@
   "schema": 1,
   "releases": [
     {
+      "version": "1.0.6",
+      "build": 106,
+      "channel": "preview",
+      "notes": "diakitw 1.0.6 preview: геосервис EMCx переведён на emcx.pro/diakitw-api/geo; Android — закрытие информационных окон при сворачивании, настоящая версия в User-Agent, сброс суточного лимита при смене сети; macOS — надёжный разбор ответа геосервиса и лимит 8 ГиБ; Windows PE 1.0.6.106. Desktop/macOS ставятся вручную, Android передаёт APK системному установщику. Подписи издателей Windows/macOS не получены.",
+      "assets": {
+        "macos-arm64": {
+          "url": "https://github.com/COINLOGY/diakitw/releases/download/v1.0.6/diakitw-1.0.6-macos-arm64.dmg",
+          "size": 1645463,
+          "sha256": "65320e78eb3fe6e34141094b5f59886e9c0e941e6c690d067c5b74d38de47806"
+        },
+        "macos-x86_64": {
+          "url": "https://github.com/COINLOGY/diakitw/releases/download/v1.0.6/diakitw-1.0.6-macos-x86_64.dmg",
+          "size": 1760375,
+          "sha256": "b25f61c1b583ec44f2fbbf3700afc0450100991d1d0bd04a400ddda1b7610215"
+        },
+        "windows-x64": {
+          "url": "https://github.com/COINLOGY/diakitw/releases/download/v1.0.6/diakitw-1.0.6-windows-x64.zip",
+          "size": 158115874,
+          "sha256": "b5a0d4a3911ecc2cf30b87d2ad0b7f4f8c7efbdd4181aaaa0d646cb76ea1375c"
+        },
+        "linux-x64": {
+          "url": "https://github.com/COINLOGY/diakitw/releases/download/v1.0.6/diakitw-1.0.6-linux-x64.tar.gz",
+          "size": 124052439,
+          "sha256": "e5dee68ef37912fc2800321e7e1dd4ab6398e1b3ba6b73c6f11364ab017363c4"
+        }
+      }
+    },
+    {
       "version": "1.0.3",
       "build": 103,
       "channel": "preview",
