@@ -1,0 +1,124 @@
+name: macOS 1.0.7 build-only
+
+on:
+  push:
+    branches: [feat/release-107-candidate]
+    paths: ["macdir/**", ".github/workflows/macos-build-107.yml"]
+  workflow_dispatch:
+    inputs:
+      scope:
+        description: Full installers or focused server model/layout check
+        type: choice
+        options: [full, unsigned, server-model, layout]
+        default: full
+
+
+permissions:
+  contents: read
+
+concurrency:
+  group: macos-107-build-only
+  cancel-in-progress: false
+
+jobs:
+  build:
+    # Standard Apple Silicon runner; free for public repositories, NOT -large/-xlarge.
+    runs-on: xcode-27 # Official standard public-preview label, actions/runner-images#14404.
+    timeout-minutes: 90
+    defaults:
+      run:
+        shell: bash
+        working-directory: macdir
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_27.2.app/Contents/Developer
+      PYTHONDONTWRITEBYTECODE: '1'
+      MACOSX_DEPLOYMENT_TARGET: '14.0'
+    steps:
+      - name: Checkout reviewed source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4, verified upstream ref
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Focused server model check
+        if: inputs.scope == 'server-model'
+        timeout-minutes: 3
+
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/.ci-scratch" evidence/diakitw-1.0.7
+          export TMPDIR="$(cd "$GITHUB_WORKSPACE/.ci-scratch" && pwd -P)"
+          { xcodebuild -version; swift --version; sysctl -n hw.logicalcpu; python3 Tests/test_server_management_model.py "$TMPDIR"; } 2>&1 | tee evidence/diakitw-1.0.7/server-model.log
+      - name: Focused rendered layout check
+        if: inputs.scope == 'layout'
+        timeout-minutes: 5
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/.ci-scratch" evidence/diakitw-1.0.7
+          export TMPDIR="$(cd "$GITHUB_WORKSPACE/.ci-scratch" && pwd -P)"
+          { xcodebuild -version; swift --version; python3 Tests/check_layout.py 1.0.7; } 2>&1 | tee evidence/diakitw-1.0.7/layout.log
+      - name: Prepare ephemeral Developer ID and notary credentials
+        if: inputs.scope == 'full'
+        env:
+          MACDIR_DEVELOPER_ID: ${{ secrets.MACDIR_DEVELOPER_ID }}
+          MACDIR_SIGNING_P12_BASE64: ${{ secrets.MACDIR_SIGNING_P12_BASE64 }}
+          MACDIR_SIGNING_P12_PASSWORD: ${{ secrets.MACDIR_SIGNING_P12_PASSWORD }}
+          MACDIR_NOTARY_KEY_BASE64: ${{ secrets.MACDIR_NOTARY_KEY_BASE64 }}
+          MACDIR_NOTARY_KEY_ID: ${{ secrets.MACDIR_NOTARY_KEY_ID }}
+          MACDIR_NOTARY_ISSUER: ${{ secrets.MACDIR_NOTARY_ISSUER }}
+        run: bash setup-signing-ci.sh
+      - name: Build both thin architectures and verify installers
+        if: inputs.scope == 'full' || github.event_name == 'push' || inputs.scope == 'unsigned'
+        env:
+          MACDIR_SIGNING_MODE: ${{ (github.event_name == 'push' || inputs.scope == 'unsigned') && 'adhoc' || 'signed' }}
+          MACDIR_DEVELOPER_ID: ${{ inputs.scope == 'full' && secrets.MACDIR_DEVELOPER_ID || '' }}
+        run: bash ci-build.sh
+      - name: Upload Apple Silicon DMG (not a Release)
+        if: inputs.scope == 'full'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4, verified upstream ref
+        with:
+          name: diakitw-1.0.7-macos-arm64
+          path: macdir/dist/diakitw-1.0.7-macos-arm64.dmg
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
+      - name: Upload Intel DMG (not a Release)
+        if: inputs.scope == 'full'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: diakitw-1.0.7-macos-x86_64
+          path: macdir/dist/diakitw-1.0.7-macos-x86_64.dmg
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
+      - name: Upload unsigned Apple Silicon DMG (not a Release)
+        if: github.event_name == 'push' || inputs.scope == 'unsigned'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: diakitw-1.0.7-macos-unsigned-arm64
+          path: macdir/dist/diakitw-1.0.7-macos-unsigned-arm64.dmg
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
+      - name: Upload unsigned Intel DMG (not a Release)
+        if: github.event_name == 'push' || inputs.scope == 'unsigned'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: diakitw-1.0.7-macos-unsigned-x86_64
+          path: macdir/dist/diakitw-1.0.7-macos-unsigned-x86_64.dmg
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
+      - name: Upload bounded verification evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: diakitw-1.0.7-macos-evidence
+          path: |
+            macdir/evidence/**/*.log
+            macdir/evidence/**/*.json
+            macdir/evidence/**/*.txt
+            macdir/evidence/**/*.png
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Remove ephemeral signing credentials
+        if: always() && inputs.scope == 'full'
+        run: bash cleanup-signing-ci.sh

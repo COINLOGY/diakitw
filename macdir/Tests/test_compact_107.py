@@ -7,13 +7,14 @@ MAIN = (ROOT / 'Sources/macdir/main.swift').read_text()
 RESOURCES = (ROOT / 'Sources/MacdirCore/Resources.swift').read_text()
 GEO = (ROOT / 'Sources/MacdirCore/EgressLocation.swift').read_text()
 
-class Compact106(unittest.TestCase):
+class Compact107(unittest.TestCase):
     def test_real_cycle_count_never_substitutes_a_fixture(self):
         self.assertIn('batteryCycles: Int?', RESOURCES)
         self.assertIn('IORegistryEntryCreateCFProperty', RESOURCES)
         self.assertIn('AppleSmartBattery', RESOURCES)
         self.assertIn('s.batteryCycles = BatteryCycles.read()', RESOURCES)
-        self.assertIn('model.snapshot.batteryCycles', MAIN)
+        self.assertNotIn('model.snapshot.batteryCycles', MAIN)
+        self.assertNotIn('БАТАРЕЯ · ЗАРЯД', MAIN)
         self.assertNotIn('1_227', MAIN)
         self.assertNotIn('1227', MAIN)
 

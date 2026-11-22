@@ -34,7 +34,7 @@ s=s.replace('TrafficChart(history: model.trafficHistory, range: $model.trafficRa
 s=s.replace('diskGauge.frame(width: 240)', 'diskGauge.layoutProbe("disk-gauge").frame(width: 240)')
 s=s.replace('VStack(spacing: 8) { diskGauge;', 'VStack(spacing: 8) { diskGauge.layoutProbe("disk-gauge");')
 s=s.replace('DiskCapacityOverview(snapshot: model.snapshot, scan: model.result)', 'DiskCapacityOverview(snapshot: model.snapshot, scan: model.result).layoutProbe("disk-overview")')
-for title, label in [('ПРОЦЕССОР', 'resource-cpu'), ('ПАМЯТЬ', 'resource-memory'), ('SWAP', 'resource-swap'), ('БАТАРЕЯ · ЗАРЯД', 'resource-battery')]:
+for title, label in [('ПРОЦЕССОР', 'resource-cpu'), ('ПАМЯТЬ', 'resource-memory'), ('SWAP', 'resource-swap')]:
     lines=s.splitlines(keepends=True)
     matches=[i for i, line in enumerate(lines) if 'GaugeTile(' in line and 'title: "'+title+'"' in line]
     assert len(matches)==1, (title, matches)

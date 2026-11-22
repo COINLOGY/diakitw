@@ -231,7 +231,7 @@ struct ContentView: View {
                     .background(Theme.panel, in: RoundedRectangle(cornerRadius: 18))
                 UpdateSection(checker: updates)
                 }
-                Text("1.0.6 · iOS · build 106").font(.caption2).foregroundStyle(Theme.muted)
+                Text("1.0.7 · iOS · build 107").font(.caption2).foregroundStyle(Theme.muted)
             }.padding(16).frame(maxWidth: 1000)
                 .frame(maxWidth: .infinity)
         }

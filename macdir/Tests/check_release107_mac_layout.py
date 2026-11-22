@@ -11,8 +11,8 @@ class DashboardLayoutTests(unittest.TestCase):
         dashboard = MAIN.split('private func dashboard(viewport: CGSize)', 1)[1].split('\nfinal class AppDelegate:', 1)[0]
         resources = MAIN.split('private func compactResources(', 1)[1].split('private var compactNetwork:', 1)[0]
         self.assertLess(resources.index('title: "ПРОЦЕССОР"'), resources.index('title: "SWAP"'))
-        self.assertLess(resources.index('title: "SWAP"'), resources.index('title: "БАТАРЕЯ · ЗАРЯД"'))
-        self.assertIn('model.snapshot.batteryCycles', resources)
+        self.assertNotIn('title: "БАТАРЕЯ', resources)
+        self.assertNotIn('model.snapshot.batteryCycles', resources)
         self.assertLess(dashboard.index('compactResources(viewportWidth:'), dashboard.index('compactNetwork'))
         self.assertLess(dashboard.index('compactNetwork'), dashboard.index('compactDisk'))
         self.assertLess(dashboard.index('compactDisk'), dashboard.index('if let current = model.current'))
@@ -36,7 +36,7 @@ class DashboardLayoutTests(unittest.TestCase):
 
     def test_native_probe_covers_order_and_multiple_widths(self):
         harness = (ROOT / 'Tests/render_layout.swift').read_text()
-        for name in ('resource-cpu', 'resource-battery', 'network-rx', 'network-tx',
+        for name in ('resource-cpu', 'network-rx', 'network-tx',
                      'chart', 'disk-gauge', 'disk-overview', 'table', 'map'):
             self.assertIn('layoutFrames["' + name + '"]', harness)
         self.assertIn('for (width, height) in [(1440, 1200)', harness)

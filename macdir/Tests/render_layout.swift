@@ -95,7 +95,7 @@ MainActor.assumeIsolated {
     // Production dashboard has .padding(14); available width comes from the actual clip.
     let available = clipInHost.insetBy(dx: 14, dy: 0)
     if !fillsHorizontally(content, available) || !fillsHorizontally(row, available) { failures.append(size+": dashboard/grid must fill actual available content") }
-    let gauges = layoutFrames.filter { ["resource-cpu", "resource-memory", "resource-swap", "resource-battery"].contains($0.key) }.map(\.value)
+    let gauges = layoutFrames.filter { ["resource-cpu", "resource-memory", "resource-swap"].contains($0.key) }.map(\.value)
     let occupied = gauges.reduce(CGRect.null) { $0.union($1) }
     if occupied.minX < row.minX - 1 || occupied.maxX > row.maxX + 1 { failures.append(size+": gauges leave the row") }
    } else { failures.append(size+": missing content geometry probes") }
@@ -130,13 +130,11 @@ MainActor.assumeIsolated {
    if chart.height < 84 || picker.minY < chart.maxY - 1 || disk.width < 200 || overview.width < 300 {
     failures.append(size+": chart or disk dimensions invalid")
    }
-   let resources = ["resource-cpu", "resource-memory", "resource-swap", "resource-battery"].compactMap { layoutFrames[$0] }
+   let resources = ["resource-cpu", "resource-memory", "resource-swap"].compactMap { layoutFrames[$0] }
    if resources.isEmpty || resources.contains(where: { $0.width < 230 || abs($0.height - 112) > 1 }) {
     failures.append(size+": resource gauges compressed")
    }
-   if let battery = layoutFrames["resource-battery"], battery.maxY > rx.minY + 1 {
-    failures.append(size+": battery below network")
-   }
+
   } else { failures.append(size+": missing dashboard section probes") }
   // Native offscreen geometry: row-major order and no horizontal clipping at 800px.
   let buttons = (0..<7).compactMap { layoutFrames["toolbar-\($0)"] }

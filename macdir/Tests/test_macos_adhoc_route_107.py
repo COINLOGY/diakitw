@@ -39,13 +39,13 @@ class RouteTests(unittest.TestCase):
             self.assertEqual(pkg.signature_evidence('signed')['notarized_and_stapled'], True)
 
     def test_workflow_is_build_only_and_secret_free_in_unsigned_branch(self):
-        workflow = (ROOT.parent / '.github/workflows/macos-build-106.yml').read_text()
+        workflow = (ROOT.parent / '.github/workflows/macos-build-107.yml').read_text()
         self.assertIn('options: [full, unsigned, server-model, layout]', workflow)
         self.assertIn("if: inputs.scope == 'full'", workflow)
         self.assertIn("if: inputs.scope == 'full' || github.event_name == 'push' || inputs.scope == 'unsigned'", workflow)
         self.assertIn("(github.event_name == 'push' || inputs.scope == 'unsigned') && 'adhoc'", workflow)
-        self.assertIn('diakitw-1.0.6-macos-unsigned-arm64', workflow)
-        self.assertIn('diakitw-1.0.6-macos-unsigned-x86_64', workflow)
+        self.assertIn('diakitw-1.0.7-macos-unsigned-arm64', workflow)
+        self.assertIn('diakitw-1.0.7-macos-unsigned-x86_64', workflow)
         self.assertNotIn('gh release', workflow)
 
     def test_unsigned_artifact_paths_are_separate_from_signed_outputs(self):
@@ -57,12 +57,12 @@ class RouteTests(unittest.TestCase):
             signed = pkg.artifact_paths(ROOT, arch, 'signed')
             self.assertNotEqual(unsigned['output'], signed['output'])
             self.assertNotEqual(unsigned['dmg'], signed['dmg'])
-            self.assertEqual(unsigned['dmg'].name, f'diakitw-1.0.6-macos-unsigned-{arch}.dmg')
+            self.assertEqual(unsigned['dmg'].name, f'diakitw-1.0.7-macos-unsigned-{arch}.dmg')
         with patch.dict(os.environ, {'MACDIR_SIGNING_MODE': 'adhoc', 'GITHUB_ACTIONS': ''}):
             with self.assertRaises(RuntimeError): pkg.signing_mode()
 
     def test_bundled_readme_discloses_unsigned_candidate(self):
-        readme = (ROOT / 'assets/README-diakitw-1.0.6-RU.txt').read_text()
+        readme = (ROOT / 'assets/README-diakitw-1.0.7-RU.txt').read_text()
         self.assertIn('macos-unsigned-arm64.dmg', readme)
         self.assertIn('macos-unsigned-x86_64.dmg', readme)
         self.assertIn('Gatekeeper', readme)
