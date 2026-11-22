@@ -13,4 +13,7 @@ assert 'SSH-подключение недоступно' in s and 'Пароль 
 assert 'model.appRAM' in s and 'model.networkHistory' in s
 assert 'title: "Батарея"' not in s
 assert '192.0.2.10' not in s and 'Демо-данные' not in s
+profiles = (Path(__file__).resolve().parents[1] / 'Sources/ServerProfiles.swift').read_text()
+assert 'mutating func remove(_ id: UUID) -> Bool' in profiles, 'persisted profile removal required'
+assert 'Button("Удалить профиль", role: .destructive)' in s and '.confirmationDialog(' in s, 'delete requires explicit confirmation'
 print('PASS iOS dashboard, fleet tree/list, editor and no fabricated connection')

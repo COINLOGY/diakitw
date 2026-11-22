@@ -29,5 +29,10 @@ for (host, port, login) in [("", "22", "root"), ("-bad.example", "22", "root"), 
     do { _ = try ServerProfiles.validate(name: "Valid", host: host, port: port, login: login); fatalError("accepted invalid address/port/login") }
     catch ServerProfiles.ValidationError.invalidInput { }
 }
+expect(store.remove(other), "selected profile deleted")
+expect(store.selection == nil && store.profiles.count == 1, "removed selection returns to root")
+expect(ServerProfiles(defaults: defaults).profiles.map(\.id) == [id], "removal persists without touching other profiles")
+expect(!store.remove(other), "missing ID cannot delete another profile")
+expect(store.remove(id) && ServerProfiles(defaults: defaults).profiles.isEmpty, "last profile can be removed")
 expect(!ServerProfiles.supportsSSH, "no unimplemented connection path")
 print("PASS server profiles, validation, selection, persistence, unavailable metrics/SSH")

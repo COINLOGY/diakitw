@@ -139,6 +139,7 @@ struct ContentView: View {
     @State private var treeOpen = true
     @State private var editing = false
     @State private var editID: UUID?
+    @State private var confirmDelete = false
     @State private var profileName = ""
     @State private var profileHost = ""
     @State private var profilePort = "22"
@@ -378,12 +379,23 @@ struct ContentView: View {
                             editing = false
                         } catch { profileError = "Проверьте название, IP/домен, порт 1–65535 и логин." }
                     }
+                    if editID != nil {
+                        Button("Удалить профиль", role: .destructive) { confirmDelete = true }
+                    }
                 } footer: {
                     Text("Сохраняются только адрес и подписи на этом устройстве. Подключение и сбор метрик отключены.")
                 }
             }.navigationTitle(editID == nil ? "Добавить сервер" : "Изменить сервер")
                 .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Отмена") { editing = false } } }
         }.preferredColorScheme(.dark)
+            .confirmationDialog("Удалить профиль с устройства?", isPresented: $confirmDelete) {
+                Button("Удалить", role: .destructive) {
+                    if let id = editID { fleet.remove(id); editing = false }
+                }
+                Button("Отмена", role: .cancel) { }
+            } message: {
+                Text("Удаляется только сохранённый адрес. Сам сервер не затрагивается.")
+            }
     }
     static let helpText = """
     RAM — резидентная память только процесса diakitw (mach_task_basic_info). Доля рассчитана от физической RAM устройства, а не от лимита приложения. Общая занятость RAM, системный CPU и SWAP на iOS здесь не измеряются.

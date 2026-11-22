@@ -65,4 +65,12 @@ struct ServerProfiles {
         selection = key
         return key
     }
+
+    @discardableResult mutating func remove(_ id: UUID) -> Bool {
+        guard let index = profiles.firstIndex(where: { $0.id == id }) else { return false }
+        profiles.remove(at: index)
+        defaults.set(try? JSONEncoder().encode(profiles), forKey: Self.key)
+        if selection == id { selection = nil }
+        return true
+    }
 }
