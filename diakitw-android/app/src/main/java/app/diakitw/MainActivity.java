@@ -30,6 +30,9 @@ import java.util.Locale;
 import java.io.*;
 import java.security.MessageDigest;
 import java.util.concurrent.*;
+import org.json.JSONArray;
+import org.json.JSONObject;
+import org.json.JSONException;
 
 public final class MainActivity extends Activity {
  static final int BG=0xff141a21,CARD=0xff1d2732,TEXT=0xffedf4fc,MUTED=0xffafbecd,BLUE=0xff4cbfff,GREEN=0xffa6e640,RED=0xffff747e,LINE=0xff354452;
@@ -119,6 +122,8 @@ public final class MainActivity extends Activity {
  Metric cpu,ram,disk; SpeedDial receive,send; ActivityChart activityChart; TextView storageDetail,folderResult; LinearLayout networkSection,storageSection;
  final TrafficRate traffic=new TrafficRate(); long previousCpu=-1,previousWall=-1; int folderGeneration; TextView summary,geoCountry,geoCity,geoCaption; MapView persistentMap; String last="Ещё не измерено";
  boolean compact,landscape; Egress ipRun; int ipGeneration;
+ ScrollView dashboardViewport,secondaryViewport;LinearLayout secondaryBody;String currentScreen="overview",selectedProfile="";boolean testPage;
+ final java.util.ArrayList<JSONObject> sshProfiles=new java.util.ArrayList<>();
  final AutoEgress autoIp=new AutoEgress();final Handler ipResults=new Handler(Looper.getMainLooper());
  ConnectivityManager connectivity;ConnectivityManager.NetworkCallback networkCallback;
  final java.util.ArrayList<IpCard> ipCards=new java.util.ArrayList<>();AlertDialog ipDialog,mapDialog,infoDialog;MapView expandedMap;TextView expandedMapCaption;
@@ -126,8 +131,8 @@ public final class MainActivity extends Activity {
  static final String IP_NOTICE="2ip через EMCx · приблизительная геолокация публичного IP, не GPS телефона. При VPN это выход сети, не доказательство работы VPN. Город и сеть показаны только при наличии данных провайдера; иногда доступна только страна.\n\nHTTPS автоматически при входе, событиях сети и примерно каждые 60 с, только пока приложение видно. Смена VPN без события ОС обнаруживается не сразу. До 4 KiB, тайм-аут 10 с. Основной GET: emcx.pro/diakitw-api/geo, без параметров и токена в приложении. EMCx и 2ip получают IP выхода; серверный кеш 1 ч, общая квота 300/день и 9000/месяц. Только при ошибке — прежний IPwho.is. Нет GPS, файлов и ID устройства. Карта встроенная: Natural Earth, public domain, масштаб 1:110m; обобщённые границы де-факто, малые территории могут отсутствовать. Нет тайлов и сетевых запросов карты. Точка только при наличии города и допустимых координат провайдера (2ip/EMCx или IPwho.is), приблизительная, не GPS. Иначе выделяется страна без точки. Провайдер видит публичный IP и может хранить журналы согласно ipwhois.io/privacy. Бесплатный endpoint: 1000 запросов/день на общий внешний IP, без гарантии доступности. При HTTP 429 — пауза 24 ч, включая перезапуск. Документация: ipwhois.io/documentation.";
  final Runnable ipTick=new Runnable(){public void run(){if(!autoIp.foreground)return;startAutoIp();main.postDelayed(this,1000);}};
  @Override public void onCreate(Bundle state){
-  super.onCreate(state);testOffline=(getApplicationInfo().flags&ApplicationInfo.FLAG_DEBUGGABLE)!=0&&getIntent().getBooleanExtra(TEST_OFFLINE,false);if(state!=null)last=state.getString("summary",last);
-  SharedPreferences prefs=getPreferences(MODE_PRIVATE);updates=new Updates.Policy(prefs.getString("updateChannel","preview"),prefs.getLong("updateSuccess",0),prefs.getLong("updateAttempt",0),prefs.getLong("updateFailure",0),System.currentTimeMillis(),!startupCheckUsed);
+  super.onCreate(state);testOffline=(getApplicationInfo().flags&ApplicationInfo.FLAG_DEBUGGABLE)!=0&&getIntent().getBooleanExtra(TEST_OFFLINE,false);if(state!=null){last=state.getString("summary",last);currentScreen=state.getString("screen","overview");selectedProfile=state.getString("profile","");}
+  SharedPreferences prefs=getPreferences(MODE_PRIVATE);loadProfiles();updates=new Updates.Policy(prefs.getString("updateChannel","preview"),prefs.getLong("updateSuccess",0),prefs.getLong("updateAttempt",0),prefs.getLong("updateFailure",0),System.currentTimeMillis(),!startupCheckUsed);
   getWindow().setStatusBarColor(BG);getWindow().setNavigationBarColor(BG);
   Configuration config=getResources().getConfiguration();
   landscape=config.orientation==Configuration.ORIENTATION_LANDSCAPE&&config.fontScale<=1.5f;compact=landscape||config.fontScale>1.3f;
@@ -148,7 +153,7 @@ public final class MainActivity extends Activity {
   LinearLayout geo=column();geo.setPadding(dp(12),dp(10),dp(12),dp(10));geo.setBackground(shape(0xff1a2a34,0xff365a6a,17));
   geoCountry=text(countryLabel(),20,TEXT);geoCountry.setTypeface(Typeface.DEFAULT,Typeface.BOLD);geo.addView(geoCountry);
   geoCity=text("",16,TEXT);geo.addView(geoCity);
-  persistentMap=new MapView(this,true);persistentMap.update(ipSnapshot,true);geo.addView(persistentMap,new LinearLayout.LayoutParams(-1,dp(landscape?140:220)));
+  persistentMap=new MapView(this,true);persistentMap.update(ipSnapshot,true);geo.addView(persistentMap,new LinearLayout.LayoutParams(-1,dp(landscape?110:145)));
   geoCaption=text(mapPrecision(),12,MUTED);geo.addView(geoCaption);if(!landscape)geo.addView(summary,new LinearLayout.LayoutParams(-1,-2));
   geo.addView(button("Источник и точность",v->showText("IP · источник и точность",IP_NOTICE)));
   metricViewport.removeView(metrics);LinearLayout dashboard=column();dashboard.setOrientation(landscape?LinearLayout.HORIZONTAL:LinearLayout.VERTICAL);dashboard.addView(metrics,landscape?new LinearLayout.LayoutParams(0,-2,1.25f):new LinearLayout.LayoutParams(-1,-2));LinearLayout.LayoutParams gp=landscape?new LinearLayout.LayoutParams(0,-2,1f):new LinearLayout.LayoutParams(-1,-2);gp.setMargins(dp(3),0,dp(3),dp(8));dashboard.addView(geo,gp);
@@ -165,9 +170,54 @@ public final class MainActivity extends Activity {
   folderResult=text("Карта файлов: выберите доступную папку. Без разрешения файлы других приложений не видны.",13,MUTED);storageSection.addView(folderResult);
   storageSection.addView(button("Выбрать папку для карты",v->pickFolder()));
   LinearLayout.LayoutParams sectionGap=new LinearLayout.LayoutParams(-1,-2);sectionGap.topMargin=dp(8);page.addView(storageSection,sectionGap);
-  metricViewport.addView(page);
+  metricViewport.addView(page);dashboardViewport=metricViewport;
   if(!landscape)root.addView(metricViewport,new LinearLayout.LayoutParams(-1,0,1));
-  Button internet=button("Тест интернета",v->openTest());styleButton(internet,true);internet.setMinHeight(dp(56));footer.addView(internet,new LinearLayout.LayoutParams(-1,-2));if(landscape){Space spacer=new Space(this);rail.addView(spacer,new LinearLayout.LayoutParams(-1,0,1));rail.addView(footer);}else root.addView(footer);setContentView(root);
+  secondaryViewport=new ScrollView(this);secondaryViewport.setFillViewport(false);secondaryBody=column();secondaryBody.setPadding(dp(3),dp(6),dp(3),dp(12));secondaryViewport.addView(secondaryBody);
+  root.addView(secondaryViewport,landscape?new LinearLayout.LayoutParams(0,-1,1):new LinearLayout.LayoutParams(-1,0,1));secondaryViewport.setVisibility(View.GONE);
+  LinearLayout navigation=new LinearLayout(this);navigation.setOrientation(landscape?LinearLayout.VERTICAL:LinearLayout.HORIZONTAL);
+  for(String label:new String[]{"Обзор","Тест интернета","Серверы"}){Button tab=button(label,v->{if(label.equals("Тест интернета"))openTestPage();else showScreen(label.equals("Обзор")?"overview":"servers");});tab.setTextSize(landscape?14:12);navigation.addView(tab,landscape?new LinearLayout.LayoutParams(-1,-2):new LinearLayout.LayoutParams(0,-2,1));}
+  footer.addView(navigation);if(landscape){Space spacer=new Space(this);rail.addView(spacer,new LinearLayout.LayoutParams(-1,0,1));rail.addView(footer);}else root.addView(footer);setContentView(root);if(!currentScreen.equals("overview"))showScreen(currentScreen);
+ }
+ // SSH profiles deliberately contain only non-secret metadata. No SSH transport or telemetry exists on Android.
+ void loadProfiles(){sshProfiles.clear();try{JSONArray saved=new JSONArray(getPreferences(MODE_PRIVATE).getString("sshProfiles","[]"));for(int i=0;i<Math.min(saved.length(),16);i++){JSONObject item=saved.optJSONObject(i);if(item!=null&&item.optString("id").length()>0)sshProfiles.add(item);}}catch(JSONException ignored){Log.w("diakitw","Invalid SSH profile metadata");}}
+ void persistProfiles(){JSONArray array=new JSONArray();for(JSONObject item:sshProfiles){JSONObject safe=new JSONObject();try{for(String field:new String[]{"id","name","host","port","user","auth"})safe.put(field,item.optString(field));array.put(safe);}catch(JSONException ignored){}}getPreferences(MODE_PRIVATE).edit().putString("sshProfiles",array.toString()).apply();}
+ JSONObject profile(String id){for(JSONObject p:sshProfiles)if(id.equals(p.optString("id")))return p;return null;}
+ void showScreen(String screen){currentScreen=screen;boolean overview=screen.equals("overview");dashboardViewport.setVisibility(overview?View.VISIBLE:View.GONE);secondaryViewport.setVisibility(overview?View.GONE:View.VISIBLE);if(!overview){if(screen.equals("servers"))renderServers();else editProfile(selectedProfile);}secondaryViewport.scrollTo(0,0);}
+ void addSecondary(String title,String detail){TextView heading=text(title,20,TEXT);heading.setTypeface(Typeface.DEFAULT,Typeface.BOLD);secondaryBody.addView(heading);TextView subtitle=text(detail,13,MUTED);subtitle.setPadding(0,dp(3),0,dp(10));secondaryBody.addView(subtitle);}
+ void renderServers(){
+  secondaryBody.removeAllViews();addSecondary("Серверы","SSH-мониторинг недоступен на Android · сохранены только адреса и имена, без подключения");
+  LinearLayout actions=new LinearLayout(this);actions.addView(button("+ Добавить",v->editProfile("")),new LinearLayout.LayoutParams(0,-2,1));actions.addView(button("Все серверы",v->{selectedProfile="";renderServers();}),new LinearLayout.LayoutParams(0,-2,1));secondaryBody.addView(actions);
+  if(sshProfiles.isEmpty()){secondaryBody.addView(text("Нет сохранённых профилей. Добавьте адрес SSH; показатели появятся только после реализации безопасного подключения.",14,MUTED));return;}
+  // Root list shows one complete unknown-metric row per saved connection; never substitute local device readings.
+  if(selectedProfile.isEmpty()||profile(selectedProfile)==null){selectedProfile="";secondaryBody.addView(text("Все серверы · "+sshProfiles.size(),16,GREEN));for(JSONObject p:sshProfiles){String id=p.optString("id");LinearLayout row=column();row.setPadding(dp(10),dp(8),dp(10),dp(8));row.setBackground(panel());row.addView(text(p.optString("name")+" · "+p.optString("host")+":"+p.optString("port"),16,TEXT));row.addView(text("CPU · Н/Д    RAM · Н/Д    SWAP · Н/Д    Диск · Н/Д",13,MUTED));row.addView(button("Открыть · "+p.optString("name"),v->{selectedProfile=id;renderServers();}));LinearLayout.LayoutParams gap=new LinearLayout.LayoutParams(-1,-2);gap.topMargin=dp(8);secondaryBody.addView(row,gap);}return;}
+  JSONObject p=profile(selectedProfile);addSecondary(p.optString("name"),p.optString("host")+":"+p.optString("port")+" · "+p.optString("user")+" · SSH не подключён");
+  secondaryBody.addView(text("CPU · Н/Д    RAM · Н/Д    SWAP · Н/Д    Диск · Н/Д",17,MUTED));
+  secondaryBody.addView(text("Показания сервера отсутствуют. Не путать с CPU и RAM телефона. Авторизация: "+p.optString("auth")+" (секрет не сохранён).",14,MUTED));
+  secondaryBody.addView(button("Изменить профиль",v->editProfile(selectedProfile)));
+ }
+ EditText profileField(LinearLayout form,String label,String value,int type){TextView caption=text(label,14,MUTED);form.addView(caption);EditText field=new EditText(this);field.setSingleLine(true);field.setText(value);field.setTextColor(TEXT);field.setHintTextColor(MUTED);field.setInputType(type);form.addView(field,new LinearLayout.LayoutParams(-1,dp(50)));return field;}
+ void editProfile(String id){
+  currentScreen="editor";dashboardViewport.setVisibility(View.GONE);secondaryViewport.setVisibility(View.VISIBLE);secondaryBody.removeAllViews();JSONObject existing=profile(id);String editing=id;addSecondary(existing==null?"Новый SSH-профиль":"Изменить SSH-профиль","Подключение недоступно. Сохраняются только название, адрес, порт, логин и тип авторизации. Не вводите реальные секреты.");
+  EditText name=profileField(secondaryBody,"Название",existing==null?"":existing.optString("name"),android.text.InputType.TYPE_CLASS_TEXT);
+  EditText host=profileField(secondaryBody,"IP или домен",existing==null?"":existing.optString("host"),android.text.InputType.TYPE_CLASS_TEXT|android.text.InputType.TYPE_TEXT_VARIATION_URI);
+  EditText port=profileField(secondaryBody,"SSH-порт",existing==null?"22":existing.optString("port"),android.text.InputType.TYPE_CLASS_NUMBER);
+  EditText user=profileField(secondaryBody,"Пользователь",existing==null?"":existing.optString("user"),android.text.InputType.TYPE_CLASS_TEXT);
+  Spinner auth=new Spinner(this);android.widget.ArrayAdapter<String> adapter=new android.widget.ArrayAdapter<>(this,android.R.layout.simple_spinner_dropdown_item,new String[]{"Пароль","Ключ"});auth.setAdapter(adapter);auth.setSelection(existing!=null&&"Ключ".equals(existing.optString("auth"))?1:0);secondaryBody.addView(auth,new LinearLayout.LayoutParams(-1,dp(50)));
+  EditText password=profileField(secondaryBody,"Пароль (не сохраняется)","",android.text.InputType.TYPE_CLASS_TEXT|android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);password.setEnabled(false);password.setHint("Недоступно без SSH backend");
+  EditText key=profileField(secondaryBody,"Ключ (не сохраняется)","",android.text.InputType.TYPE_CLASS_TEXT);key.setEnabled(false);key.setHint("Недоступно без защищённого импорта");
+  secondaryBody.addView(button("Сохранить профиль без секрета",v->saveProfile(editing,name,host,port,user,auth)));
+  secondaryBody.addView(button("Отмена",v->showScreen("servers")));
+ }
+ void saveProfile(String id,EditText name,EditText host,EditText portInput,EditText user,Spinner auth){
+  String n=name.getText().toString().trim(),h=host.getText().toString().trim(),u=user.getText().toString().trim(),raw=portInput.getText().toString().trim();int port;
+  try{port=Integer.parseInt(raw);}catch(NumberFormatException e){port=0;}
+  if(n.isEmpty()||n.length()>80){name.setError("Укажите название до 80 символов");return;}
+  if(h.length()>253||!h.matches("(?i)[a-z0-9][a-z0-9.:-]*")||h.contains("..")){host.setError("Укажите IP или домен без схемы и пробелов");return;}
+  if(port<1||port>65535){portInput.setError("Порт 1–65535");return;}
+  if(u.isEmpty()||u.length()>64||!u.matches("[a-zA-Z0-9_.-]+")){user.setError("Укажите логин SSH");return;}
+  JSONObject p=profile(id);if(p==null){if(sshProfiles.size()>=16){showText("Профили","Не более 16 профилей");return;}p=new JSONObject();sshProfiles.add(p);id=java.util.UUID.randomUUID().toString();}
+  try{p.put("id",id);p.put("name",n);p.put("host",h);p.put("port",String.valueOf(port));p.put("user",u);p.put("auth",auth.getSelectedItem().toString());}catch(JSONException ignored){return;}
+  persistProfiles();selectedProfile=id;showScreen("servers");
  }
  LinearLayout column(){LinearLayout l=new LinearLayout(this);l.setOrientation(LinearLayout.VERTICAL);return l;}
  Button button(String s,View.OnClickListener action){Button b=new Button(this);b.setText(s);b.setTextSize(16);b.setIncludeFontPadding(false);b.setAllCaps(false);b.setTypeface(Typeface.create("sans-serif-medium",Typeface.NORMAL));b.setOnClickListener(action);styleButton(b,false);return b;}
@@ -196,7 +246,7 @@ public final class MainActivity extends Activity {
  String countryLabel(){return ipSnapshot==null||ipSnapshot.country.isEmpty()?"Страна не определена":flag(ipSnapshot.country)+" "+new Locale("",ipSnapshot.country).getDisplayCountry(new Locale("ru"));}
  @Override protected void onResume(){super.onResume();if(!testOffline){updates.start(System.currentTimeMillis());main.post(updateTick);}long remaining=Math.max(0,Math.min(86400000L,getPreferences(MODE_PRIVATE).getLong("ipQuotaUntil",0)-System.currentTimeMillis()));autoIp.blockUntil(SystemClock.elapsedRealtime()+remaining);if(remaining>0){ipBadge="Лимит";ipState="Лимит IPwho.is · проверка отложена до 24 ч";renderIp();}if(!testOffline){autoIp.resume(SystemClock.elapsedRealtime());watchNetwork();main.post(ipTick);}synchronized(this){previousCpu=-1;previousWall=-1;traffic.reset();}activityChart.clear();receive.update(Double.NaN);send.update(Double.NaN);cpu.update(Double.NaN,"Только diakitw");int token=++generation;worker=Executors.newSingleThreadScheduledExecutor();worker.scheduleWithFixedDelay(()->{Sample s;synchronized(this){if(token!=generation)return;s=sample();}main.post(()->{if(token==generation){cpu.update(s.cpu,"Только diakitw");ram.update(s.ram,s.ramDetail);disk.update(s.disk,s.diskDetail);storageDetail.setText(s.diskDetail.equals("Н/Д")?"Н/Д":s.diskDetail+" · доступно "+number(s.diskAvailable/1073741824.0)+" GiB");receive.update(s.rx);send.update(s.tx);activityChart.add(s.rx,s.tx);Log.d("diakitw","sample published");}});},0,3,TimeUnit.SECONDS);}
  @Override protected void onPause(){stopUpdates();generation++;folderGeneration++;autoIp.pause();if(ipSnapshot!=null){ipBadge="Устарел";ipState="Приложение было скрыто · снимок не текущий";renderIp();}unwatchNetwork();stopIp();stopTest();if(mapDialog!=null){mapDialog.dismiss();mapDialog=null;expandedMap=null;expandedMapCaption=null;}dismissInfo();if(ipDialog!=null){ipDialog.dismiss();ipDialog=null;}if(testDialog!=null){testDialog.dismiss();testDialog=null;}if(worker!=null){worker.shutdownNow();worker=null;}main.removeCallbacksAndMessages(null);Log.i("diakitw","sampler paused; callbacks cancelled");super.onPause();}
- @Override public void onSaveInstanceState(Bundle out){out.putString("summary",test!=null?"Отменено при смене экрана":last);super.onSaveInstanceState(out);}
+ @Override public void onSaveInstanceState(Bundle out){out.putString("summary",test!=null?"Отменено при смене экрана":last);out.putString("screen",currentScreen);out.putString("profile",selectedProfile);super.onSaveInstanceState(out);}
  void stopTest(){if(test!=null){test.cancel();Log.i("diakitw","speed cancellation requested");}}
  boolean saveSpeedReport(SpeedTest.Result r){String json=SpeedReport.json(r);return getPreferences(MODE_PRIVATE).edit().putString("speedReportJson",json).putString("speedReportText",SpeedReport.text(r)).commit();}
  void showSpeedReport(){
@@ -205,6 +255,7 @@ public final class MainActivity extends Activity {
   if(!json.isEmpty())b.setPositiveButton("Поделиться JSON",(d,w)->{Intent send=new Intent(Intent.ACTION_SEND);send.setType("text/plain");send.putExtra(Intent.EXTRA_SUBJECT,"diakitw · отчёт интернета");send.putExtra(Intent.EXTRA_TEXT,json);try{startActivity(Intent.createChooser(send,"Экспорт отчёта JSON"));}catch(RuntimeException e){showText("Отчёт","Не удалось открыть экспорт");}});
   dismissInfo();AlertDialog d=b.show();d.getWindow().setBackgroundDrawable(panel());infoDialog=d;
  }
+ void openTestPage(){testPage=true;openTest();if(testDialog==null)testPage=false;}
  void openTest(){
   if(testDialog!=null&&testDialog.isShowing())return;
   if(test!=null){showText("Тест интернета","Предыдущий тест завершается. Дождитесь остановки соединения.");return;}
@@ -223,13 +274,13 @@ public final class MainActivity extends Activity {
   Button report=button("Последний отчёт / JSON",v->showSpeedReport());content.addView(report);
   ProgressBar progress=new ProgressBar(this,null,android.R.attr.progressBarStyleHorizontal);progress.setIndeterminateTintList(ColorStateList.valueOf(BLUE));progress.setIndeterminate(false);progress.setMax(100);progress.setVisibility(View.GONE);content.addView(progress);
   ScrollView scroll=new ScrollView(this);scroll.setFillViewport(false);scroll.addView(content);shell.addView(scroll,new LinearLayout.LayoutParams(-1,0,1));
-  TextView warning=text("До 8 MiB ↓ + 2 MiB ↑ + HTTP/TLS; до 30 с. Платный трафик, нагрев и расход батареи; VPN влияет. Нажимая «Старт», вы соглашаетесь на тест синтетических данных.",14,MUTED);shell.addView(warning);
+  TextView warning=text("До 8 MiB ↓ + 2 MiB ↑ + HTTP/TLS; до 30 с. Платный трафик, нагрев; VPN влияет. Нажимая «Старт», вы соглашаетесь на тест синтетических данных.",14,MUTED);shell.addView(warning);
   LinearLayout actions=new LinearLayout(this);actions.setBaselineAligned(false);actions.setPadding(0,dp(4),0,0);
   Button start=button("Старт",null),stop=button("Стоп",null);styleButton(start,true);stop.setEnabled(false);
   LinearLayout.LayoutParams startParams=new LinearLayout.LayoutParams(0,-2,1);startParams.setMargins(0,0,dp(10),0);actions.addView(start,startParams);actions.addView(stop,new LinearLayout.LayoutParams(0,-2,1));Button details=button("?",v->speedHelp());details.setContentDescription("Справка о тесте, IP и карта");LinearLayout.LayoutParams detailsParams=new LinearLayout.LayoutParams(dp(48),dp(48));detailsParams.setMargins(dp(6),0,0,0);actions.addView(details,detailsParams);shell.addView(actions);
   AlertDialog dialog=new AlertDialog.Builder(this).setView(shell).create();testDialog=dialog;
-  dialog.setOnDismissListener(d->{stopTest();testGeneration++;testDialog=null;});dialog.show();dialog.getWindow().setBackgroundDrawable(panel());
-  android.util.DisplayMetrics dm=getResources().getDisplayMetrics();dialog.getWindow().setLayout(Math.min(dm.widthPixels-dp(24),dp(840)),Math.min(dm.heightPixels-dp(24),dp(580)));
+  dialog.setOnDismissListener(d->{stopTest();testGeneration++;testDialog=null;testPage=false;});dialog.show();dialog.getWindow().setBackgroundDrawable(panel());
+  android.util.DisplayMetrics dm=getResources().getDisplayMetrics();dialog.getWindow().setLayout(testPage?dm.widthPixels:Math.min(dm.widthPixels-dp(24),dp(840)),testPage?dm.heightPixels-dp(40):Math.min(dm.heightPixels-dp(24),dp(580)));
   stop.setOnClickListener(v->{stopTest();status.setText("Отмена · ожидание завершения соединения");stop.setEnabled(false);});
   View.OnClickListener begin=v->{if(testOffline)return;if(testDialog==null||!testDialog.isShowing())return;if(test!=null||SpeedTest.BUSY.get()){status.setText("Предыдущий тест ещё завершается");return;}stopIp();int token=++testGeneration;SpeedTest run=new SpeedTest();test=run;start.setEnabled(false);stop.setEnabled(true);report.setEnabled(false);progress.setVisibility(View.VISIBLE);status.setText("Подключение…");status.setOnClickListener(null);progress.setProgress(0);down.update(Double.NaN);up.update(Double.NaN);latency.setText("HTTP RTT · — мс");
    Thread thread=new Thread(()->{SpeedTest.Result r=run.run(new SpeedTest.Progress(){public void update(String phase){main.post(()->{if(token==testGeneration&&test==run&&!run.cancelled)status.setText(phase);});}public void measured(boolean upload,long bytes,long nanos){main.post(()->{if(token!=testGeneration||test!=run||run.cancelled)return;(upload?up:down).update(SpeedTest.mbps(bytes,nanos));progress.setProgress((int)(100*bytes/(upload?SpeedTest.UPLOAD:SpeedTest.DOWNLOAD)));});}});boolean saved=saveSpeedReport(r);Log.i("diakitw","speed worker finished: "+r.status);speedResults.post(()->{if(test==run)test=null;if(token!=testGeneration||testDialog!=dialog)return;last=format(r);updateSummary();down.update(r.down);up.update(r.up);latency.setText(SpeedReport.latency(r));status.setText(r.status);if(!saved)status.append(" · отчёт не сохранён");status.setOnClickListener(detailsView->showSpeedReport());status.setMinHeight(dp(48));progress.setVisibility(View.GONE);start.setEnabled(true);stop.setEnabled(false);report.setEnabled(true);});},"speed-test");thread.setDaemon(true);thread.start();
