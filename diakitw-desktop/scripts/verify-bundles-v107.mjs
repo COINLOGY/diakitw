@@ -6,8 +6,9 @@ function sourceFiles(dir='app',prefix=''){
     return entry.isDirectory()?sourceFiles(absolute,relative+'/'):[relative];
   }).sort();
 }
-// Electron Packager omits the app-root npm lockfile from app.asar.
-const expected=sourceFiles().filter(file=>file!=='package-lock.json');
+// Electron Packager omits the app-root lockfile and native node-gyp object intermediates.
+// Keep checking native .node binaries and all runtime JavaScript byte-for-byte.
+const expected=sourceFiles().filter(file=>file!=='package-lock.json'&&!/^node_modules\/.+\/build\/.+\.o$/.test(file));
 assert.ok(expected.includes('node_modules/ssh2/lib/client.js'),'SSH client must be installed in the packaged app');
 for(const platform of ['win32','linux']){
   const root=`bundles-v107/diakitw-${platform}-x64`,archive=root+'/resources/app.asar';
