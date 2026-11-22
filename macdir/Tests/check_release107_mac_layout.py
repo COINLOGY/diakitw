@@ -34,6 +34,11 @@ class DashboardLayoutTests(unittest.TestCase):
         self.assertIn('snapshot.validatedDiskFree', overview)
         self.assertNotIn('bytes(snapshot.diskFree)', overview)
 
+    def test_diagnostics_fixture_is_written_in_the_107_evidence_directory(self):
+        harness = (ROOT / 'Tests/render_diagnostics.swift').read_text()
+        self.assertIn(r'evidence/diakitw-1.0.7/\(suffix)', harness)
+        self.assertNotIn('evidence/diakitw-1.0.6/', harness)
+
     def test_native_probe_covers_order_and_multiple_widths(self):
         harness = (ROOT / 'Tests/render_layout.swift').read_text()
         for name in ('resource-cpu', 'network-rx', 'network-tx',

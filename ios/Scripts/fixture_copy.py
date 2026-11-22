@@ -41,8 +41,8 @@ p.write_text(p.read_text().replace('updates = UpdateChecker()', 'updates = Updat
 # deleting, shrinking or rearranging any production view. No speed run is started.
 p=dst/'Sources/DiakitwApp.swift'
 text=p.read_text().replace('        ScrollView {\n            VStack(alignment: .leading, spacing: 12) {', '        ScrollViewReader { proxy in\n        ScrollView {\n            VStack(alignment: .leading, spacing: 12) {', 1)
-needle='        }\n    }\n    static let helpText'
-replacement='        }\n        .onAppear { DispatchQueue.main.asyncAfter(deadline: .now() + 1) { proxy.scrollTo("speed-controls", anchor: .bottom) } }\n        }\n    }\n    static let helpText'
+needle='        }\n    }\n    private func metric'
+replacement='        }\n        .onAppear { DispatchQueue.main.asyncAfter(deadline: .now() + 1) { proxy.scrollTo("speed-controls", anchor: .bottom) } }\n        }\n    }\n    private func metric'
 assert needle in text
 p.write_text(text.replace(needle, replacement, 1))
 print('Created unshipped fixture copy; all production transport disabled')

@@ -44,4 +44,7 @@ assert "1.0.7 unsigned compile/tests (no upload)" in workflow
 assert "timeout-minutes: 50" in workflow
 assert "actions/upload-artifact" not in workflow
 assert "bash ios/Scripts/ci-build.sh" in workflow
+fixture = (root / "Scripts/fixture_copy.py").read_text()
+assert "    private func metric" in fixture, "fixture scroll wrapper must close inside body, before methods"
+assert "    static let helpText" not in fixture, "fixture wrapper must not consume the profile editor"
 print("PASS iOS 1.0.7/107 metadata, updater, unsigned build-only contract")
