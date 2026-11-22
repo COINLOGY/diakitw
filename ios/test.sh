@@ -13,6 +13,10 @@ swiftc -j 2 -swift-version 5 Sources/NetworkPolicy.swift Tests/ProxyTests.swift 
 swiftc -j 2 -swift-version 5 Sources/BoundedTransfer.swift Tests/TransportTests.swift -o .build/transport-tests
 .build/transport-tests
 swiftc -frontend -parse Sources/*.swift
+cp Tests/ServerProfilesTests.swift "$TMPDIR/main.swift"
+swiftc -j 2 -swift-version 5 Sources/ServerProfiles.swift "$TMPDIR/main.swift" -o .build/server-profiles-tests
+.build/server-profiles-tests
+python3 Tests/test_server_ui.py
 python3 Scripts/test_monitor_host.py
 plutil -lint Info.plist PrivacyInfo.xcprivacy diakitw.xcodeproj/project.pbxproj
 python3 Scripts/validate_project.py

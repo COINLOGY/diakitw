@@ -14,8 +14,8 @@ for key,obj in objects.items():
 app=next(o for o in objects.values() if o['isa']=='PBXNativeTarget' and o['name']=='diakitw')
 sources=next(objects[i] for i in app['buildPhases'] if objects[i]['isa']=='PBXSourcesBuildPhase')
 paths=[objects[objects[b]['fileRef']]['path'] for b in sources['files']]
-assert len(paths)==7
-assert set(paths)=={'Sources/'+n+'.swift' for n in ['Dial','NetworkPolicy','BoundedTransfer','Monitor','DiakitwApp','UpdateChecker','UpdateSection']}
+assert len(paths)==8
+assert set(paths)=={'Sources/'+n+'.swift' for n in ['Dial','NetworkPolicy','BoundedTransfer','Monitor','DiakitwApp','UpdateChecker','UpdateSection','ServerProfiles']}
 assert all(p.startswith('Sources/') for p in paths)
 assert not any('Tests' in p for p in paths)
 info=plistlib.loads((root/'Info.plist').read_bytes())
@@ -26,4 +26,4 @@ for ref in scheme.iter('BuildableReference'): assert ref.attrib['BlueprintIdenti
 for path in (root/'Assets.xcassets').rglob('Contents.json'):
     for image in json.loads(path.read_text()).get('images',[]):
         assert (path.parent/image['filename']).is_file()
-print('PASS: Xcode graph, all file references, 7 app sources, scheme, version, ATS, assets (static only)')
+print('PASS: Xcode graph, all file references, 8 app sources, scheme, version, ATS, assets (static only)')
