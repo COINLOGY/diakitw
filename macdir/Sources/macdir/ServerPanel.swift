@@ -3,6 +3,7 @@ import MacdirCore
 
 @MainActor final class ServersModel: ObservableObject {
  @Published var section = 0
+ @Published var selectedServerID: String?
  @Published var configs: [ServerConfig] = []
  @Published var states: [String: ServerState] = [:]
  @Published var selections: [String: String] = [:]
@@ -29,6 +30,15 @@ import MacdirCore
  @Published var draftIdentity = ""
  @Published var draftDomain = ""
  @Published var draftIP = ""
+ // Keep the on-disk user@host representation; expose separate editable endpoint fields.
+ var draftUser: String {
+  get { String(draftTarget.split(separator: "@", omittingEmptySubsequences: false).first ?? "") }
+  set { draftTarget = newValue + "@" + draftHost }
+ }
+ var draftHost: String {
+  get { String(draftTarget.split(separator: "@", omittingEmptySubsequences: false).dropFirst().joined(separator: "@")) }
+  set { draftTarget = draftUser + "@" + newValue }
+ }
  var canManage: Bool { snapshot != nil }
  private func apply(_ value: ServerConfigStore.Snapshot) {
   let encoder = JSONEncoder(); encoder.outputFormatting = [.sortedKeys]
@@ -44,12 +54,13 @@ import MacdirCore
    }
   }
   snapshot = value; configs = value.configs; configError = nil
+  if let selectedServerID, new[selectedServerID] == nil { self.selectedServerID = nil }
  }
  func reload() {
   do { apply(try store.load()) }
   catch {
    requests.values.flatMap { $0 }.forEach { $0.cancel() }; requests = [:]
-   snapshot = nil; configs = []; generations = [:]
+   snapshot = nil; configs = []; generations = [:]; selectedServerID = nil
    states = [:]; selections = [:]; inFlight = []; hardwareInFlight = []
    configError = (error as? LocalizedError)?.errorDescription ?? "Не удалось прочитать servers.json."
   }
@@ -82,7 +93,7 @@ import MacdirCore
     try ServerPasswordStore.save(draftPassword, for: config, helper: ServerAskpass.helperPath); created = config
    }
    let updated = try editing == nil ? store.add(config, expected: snapshot) : store.update(config, expected: snapshot)
-   apply(updated); created = nil; managementError = nil
+   apply(updated); selectedServerID = config.id; created = nil; managementError = nil
    // Only the old exact app-owned credential; never an SSH key or another server's entry.
    if let old = editing, old.passwordReference != nil, old.passwordReference != reference {
     do { try ServerPasswordStore.delete(old) }
@@ -206,9 +217,10 @@ private func serverTime(_ epoch: Double?) -> String {
 
 struct ServerPanel: View {
  @ObservedObject var model: ServersModel
+ @State private var treeExpanded = true
  var body: some View {
   ScrollView {
-   VStack(alignment: .leading, spacing: 18) {
+   VStack(alignment: .leading, spacing: 14) {
     HStack {
      Label("Серверы", systemImage: "server.rack").font(.largeTitle.bold())
      Spacer()
@@ -218,18 +230,61 @@ struct ServerPanel: View {
     }
     if let error = model.configError { Text(error).foregroundStyle(.orange).textSelection(.enabled) }
     if let error = model.managementError, !model.adding { Text(error).foregroundStyle(.orange) }
-    if model.configs.isEmpty { Text("Добавьте сервер с готовым SSH-доступом. Ключи и конфигурация не входят в приложение.").foregroundStyle(.secondary) }
     TimelineView(.periodic(from: .now, by: 1)) { context in
-     VStack(spacing: 18) {
-      ForEach(model.configs) { config in
-       HStack {
-        Text(config.name + " · " + config.target + ":" + String(config.port)).font(.caption).foregroundStyle(.secondary)
-        Spacer()
-        Button("Настройки") { model.beginEdit(config) }.controlSize(.small)
-        Button("Удалить из мониторинга", role: .destructive) { model.removing = config }.controlSize(.small)
+     HStack(alignment: .top, spacing: 14) {
+      VStack(alignment: .leading, spacing: 9) {
+       Text("Серверы · \(model.configs.count) / 16").font(.headline)
+       Button {
+        model.selectedServerID = nil
+       } label: {
+        Label("Все серверы", systemImage: "square.stack.3d.up")
+         .frame(maxWidth: .infinity, alignment: .leading)
+       }.buttonStyle(.bordered).tint(model.selectedServerID == nil ? .green : .secondary)
+        .accessibilityAddTraits(model.selectedServerID == nil ? [.isSelected] : [])
+       DisclosureGroup("Подключения", isExpanded: $treeExpanded) {
+        ForEach(model.configs) { config in
+         let state = model.states[config.id] ?? ServerState()
+         Button { model.selectedServerID = config.id } label: {
+          HStack(spacing: 7) {
+           Circle().fill(state.current(now: context.date.timeIntervalSince1970) == nil ? Color.orange : Color.green)
+            .frame(width: 8, height: 8)
+           VStack(alignment: .leading, spacing: 2) {
+            Text(config.name).lineLimit(1)
+            Text(config.headerAddress + ":" + String(config.port)).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+           }
+           Spacer(minLength: 0)
+          }.frame(maxWidth: .infinity, alignment: .leading)
+         }.buttonStyle(.bordered).tint(model.selectedServerID == config.id ? .green : .secondary)
+          .accessibilityAddTraits(model.selectedServerID == config.id ? [.isSelected] : [])
+        }
        }
-       ServerHostPanel(config: config, state: model.states[config.id] ?? ServerState(), hardware: model.hardwareCache.snapshot(config), hardwareLabel: model.hardwareCache.label(config, now: context.date.timeIntervalSince1970), now: context.date.timeIntervalSince1970, busy: model.inFlight.contains(config.id), selection: Binding(get: { model.selections[config.id] ?? "" }, set: { model.select($0, for: config.id) }))
-      }
+       if model.configs.isEmpty { Text("Добавьте сервер с готовым SSH-доступом.").font(.caption).foregroundStyle(.secondary) }
+      }.padding(12).frame(width: 235, alignment: .topLeading)
+       .background(.quaternary.opacity(0.25), in: RoundedRectangle(cornerRadius: 12))
+      VStack(alignment: .leading, spacing: 12) {
+       if let id = model.selectedServerID, let config = model.configs.first(where: { $0.id == id }) {
+        HStack {
+         Text("Выбранное подключение").font(.headline)
+         Spacer()
+         Button("Изменить") { model.beginEdit(config) }
+         Button("Удалить из мониторинга", role: .destructive) { model.removing = config }
+        }
+        ServerHostPanel(config: config, state: model.states[config.id] ?? ServerState(), hardware: model.hardwareCache.snapshot(config), hardwareLabel: model.hardwareCache.label(config, now: context.date.timeIntervalSince1970), now: context.date.timeIntervalSince1970, busy: model.inFlight.contains(config.id), selection: Binding(get: { model.selections[config.id] ?? "" }, set: { model.select($0, for: config.id) }))
+       } else {
+        HStack {
+         Text("Все серверы").font(.title2.bold())
+         Spacer()
+         Text("На связи: \(model.configs.filter { model.states[$0.id]?.current(now: context.date.timeIntervalSince1970) != nil }.count) / \(model.configs.count)").font(.caption).foregroundStyle(.secondary)
+        }
+        ForEach(model.configs) { config in
+         ServerFleetRow(config: config, state: model.states[config.id] ?? ServerState(), now: context.date.timeIntervalSince1970) {
+          model.selectedServerID = config.id
+         }
+        }
+        if model.configs.isEmpty { Text("Сохранённых подключений пока нет. Нажмите «Добавить сервер».").foregroundStyle(.secondary) }
+        Text("Показатели каждого сервера отдельно; проценты разных машин не складываются.").font(.caption).foregroundStyle(.secondary)
+       }
+      }.frame(maxWidth: .infinity, alignment: .topLeading)
      }
     }
     Text("CPU: дельта за 1 с по всем ядрам · RAM: MemTotal − MemAvailable · диск: / · трафик одного интерфейса, без суммы мостов. Старше 90 с — Н/Д. При скрытии вкладки текущие SSH-запросы отменяются.")
@@ -246,6 +301,43 @@ struct ServerPanel: View {
  }
 }
 
+private struct ServerFleetRow: View {
+ let config: ServerConfig
+ let state: ServerState
+ let now: Double
+ let open: () -> Void
+ var body: some View {
+  let sample = state.current(now: now)
+  Button(action: open) {
+   VStack(alignment: .leading, spacing: 8) {
+    HStack(spacing: 8) {
+     VStack(alignment: .leading, spacing: 3) {
+      Text(config.name).font(.headline).lineLimit(1)
+      Text(config.target + ":" + String(config.port)).font(.caption.monospaced()).foregroundStyle(.secondary).lineLimit(1)
+     }.frame(maxWidth: .infinity, alignment: .leading)
+     Text(sample == nil ? (state.error?.rawValue ?? "Нет свежих данных") : "На связи")
+      .font(.caption).foregroundStyle(sample == nil ? Color.orange : Color.green).lineLimit(1)
+     Image(systemName: "chevron.right").foregroundStyle(.secondary)
+    }
+    HStack(spacing: 8) {
+     metric("CPU", MetricPresentation.percent(sample?.cpuPercent))
+     metric("RAM", measuredPercent(sample?.memoryUsed, sample?.memoryTotal))
+     metric("SWAP", measuredPercent(sample?.swapUsed, sample?.swapTotal))
+     metric("Диск /", measuredPercent(sample?.diskUsed, sample?.diskTotal))
+     Spacer(minLength: 0)
+    }
+   }.padding(10).frame(maxWidth: .infinity, alignment: .leading)
+    .background(.quaternary.opacity(0.25), in: RoundedRectangle(cornerRadius: 10))
+  }.buttonStyle(.plain).accessibilityLabel(config.name + ", " + (sample == nil ? "Нет свежих данных" : "На связи"))
+ }
+ private func metric(_ title: String, _ value: String) -> some View {
+  VStack(alignment: .leading, spacing: 2) {
+   Text(title).font(.caption2).foregroundStyle(.secondary)
+   Text(value).font(.caption.monospacedDigit())
+  }.frame(width: 58, alignment: .leading)
+ }
+}
+
 private struct ServerAddSheet: View {
  @ObservedObject var model: ServersModel
  var body: some View {
@@ -253,8 +345,9 @@ private struct ServerAddSheet: View {
    Text(model.editing == nil ? "Добавить сервер" : "Настройки сервера").font(.title2.bold())
    Form {
     TextField("Название", text: $model.draftName)
-    TextField("SSH: логин@хост", text: $model.draftTarget)
-    TextField("SSH порт (1–65535)", text: $model.draftPort)
+    TextField("IP-адрес или домен SSH", text: Binding(get: { model.draftHost }, set: { model.draftHost = $0 }))
+    TextField("Логин SSH", text: Binding(get: { model.draftUser }, set: { model.draftUser = $0 }))
+    TextField("SSH-порт (1–65535)", text: $model.draftPort)
     Picker("Аутентификация", selection: $model.draftAuthentication) {
      Text("SSH-ключ / ssh-agent").tag(ServerConfig.Authentication.key)
      Text("Логин и пароль").tag(ServerConfig.Authentication.password)
@@ -280,7 +373,7 @@ private struct ServerAddSheet: View {
     Spacer()
     Button("Отмена", role: .cancel) { model.draftPassword = ""; model.adding = false; model.managementError = nil }.keyboardShortcut(.cancelAction)
     Button(model.editing == nil ? "Добавить и начать мониторинг" : "Сохранить настройки") { model.addServer() }
-     .disabled(model.draftName.isEmpty || model.draftTarget.isEmpty || (try? ServerConfig.parsePort(model.draftPort)) == nil)
+     .disabled(model.draftName.isEmpty || model.draftHost.isEmpty || model.draftUser.isEmpty || (try? ServerConfig.parsePort(model.draftPort)) == nil)
    }
   }.padding(24).frame(width: 640)
    .onDisappear { model.draftPassword = "" }
@@ -342,6 +435,7 @@ private struct ServerHostPanel: View {
       .foregroundStyle(["active", "running"].contains(service.state) ? Color.green : Color.secondary)
     } }.font(.caption)
    } else { Text("Службы: Н/Д").font(.caption).foregroundStyle(.secondary) }
+   if sample != nil && state.cpuHistory.contains(where: { $0 != nil }) {
    HStack {
     Text("CPU · последние 60 опросов\n0–100 % · пропуски не соединяются").font(.caption2).foregroundStyle(.secondary)
     Canvas { context, size in
@@ -354,6 +448,7 @@ private struct ServerHostPanel: View {
      context.stroke(path, with: .color(.blue), lineWidth: 1.5)
     }.frame(height: 28).accessibilityLabel("История реально измеренной загрузки CPU")
    }
+   } else { Text("История CPU: Н/Д · нет свежих измерений").font(.caption).foregroundStyle(.secondary) }
   }.padding(16).background(.quaternary.opacity(0.25), in: RoundedRectangle(cornerRadius: 16))
  }
 }
