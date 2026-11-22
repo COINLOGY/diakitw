@@ -24,10 +24,10 @@ test('compact layout groups existing measured resources with network, then disk 
  assert.match(html,/<div class="monitor">[\s\S]*?id="metrics"[\s\S]*?class="network"[\s\S]*?<\/div><section id="disk-section"/);
  assert.match(html,/id="disk-map"[^>]*>[\s\S]*?недоступен/);
  for(const id of ['internet-test','diagnostics','terminal','tasks','cache','root','choose-folder','tools-menu','interface','rx-gauge','tx-gauge','history','disk-capacity','egress-flag'])assert.ok(html.includes(`id="${id}"`),id);
- assert.doesNotMatch(html,/Серверы|APFS|циклов|Крупнейшие 100|treemap/);
+ assert.doesNotMatch(html.split('<div id="overview-view">')[1].split('<section id="servers-view"')[0],/APFS|циклов|Крупнейшие 100|treemap|Батарея/);
  assert.match(css,/\.monitor\s*\{[^}]*grid-template-columns:\s*minmax\(0,7fr\)\s+minmax\(0,5fr\)/);
  assert.match(css,/@media\s*\(max-width:.*?\)[\s\S]*?\.monitor\s*\{grid-template-columns:1fr\}/);
- assert.match(css,/#metrics\s*\{[^}]*grid-template-columns:repeat\(4,minmax\(0,1fr\)\)/);
+ assert.match(css,/#metrics\s*\{[^}]*grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);
  assert.match(css,/\.toolbar\s*\{[^}]*flex-wrap:wrap/);
  assert.match(renderer,/const flag=countryFlag\(s\)/);
 });
