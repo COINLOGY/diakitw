@@ -194,6 +194,7 @@ public final class MainActivity extends Activity {
   secondaryBody.addView(text("CPU · Н/Д    RAM · Н/Д    SWAP · Н/Д    Диск · Н/Д",17,MUTED));
   secondaryBody.addView(text("Показания сервера отсутствуют. Не путать с CPU и RAM телефона. Авторизация: "+p.optString("auth")+" (секрет не сохранён).",14,MUTED));
   secondaryBody.addView(button("Изменить профиль",v->editProfile(selectedProfile)));
+  secondaryBody.addView(button("Удалить профиль",v->confirmDeleteProfile(selectedProfile)));
  }
  EditText profileField(LinearLayout form,String label,String value,int type){TextView caption=text(label,14,MUTED);form.addView(caption);EditText field=new EditText(this);field.setSingleLine(true);field.setText(value);field.setTextColor(TEXT);field.setHintTextColor(MUTED);field.setInputType(type);form.addView(field,new LinearLayout.LayoutParams(-1,dp(50)));return field;}
  void editProfile(String id){
@@ -206,6 +207,7 @@ public final class MainActivity extends Activity {
   EditText password=profileField(secondaryBody,"Пароль (не сохраняется)","",android.text.InputType.TYPE_CLASS_TEXT|android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);password.setEnabled(false);password.setHint("Недоступно без SSH backend");
   EditText key=profileField(secondaryBody,"Ключ (не сохраняется)","",android.text.InputType.TYPE_CLASS_TEXT);key.setEnabled(false);key.setHint("Недоступно без защищённого импорта");
   secondaryBody.addView(button("Сохранить профиль без секрета",v->saveProfile(editing,name,host,port,user,auth)));
+  if(existing!=null)secondaryBody.addView(button("Удалить профиль",v->confirmDeleteProfile(editing)));
   secondaryBody.addView(button("Отмена",v->showScreen("servers")));
  }
  void saveProfile(String id,EditText name,EditText host,EditText portInput,EditText user,Spinner auth){
@@ -218,6 +220,19 @@ public final class MainActivity extends Activity {
   JSONObject p=profile(id);if(p==null){if(sshProfiles.size()>=16){showText("Профили","Не более 16 профилей");return;}p=new JSONObject();sshProfiles.add(p);id=java.util.UUID.randomUUID().toString();}
   try{p.put("id",id);p.put("name",n);p.put("host",h);p.put("port",String.valueOf(port));p.put("user",u);p.put("auth",auth.getSelectedItem().toString());}catch(JSONException ignored){return;}
   persistProfiles();selectedProfile=id;showScreen("servers");
+ }
+ void confirmDeleteProfile(String id){
+  JSONObject selected=profile(id);if(selected==null)return;
+  new AlertDialog.Builder(this).setTitle("Удалить профиль?")
+   .setMessage("Удалить «"+selected.optString("name")+"» с этого устройства? Подключение к серверу не затрагивается.")
+   .setPositiveButton("Удалить",(dialog,which)->deleteProfile(id))
+   .setNegativeButton("Отмена",null).show();
+ }
+ void deleteProfile(String id){
+  if(!Profiles.remove(sshProfiles,id))return;
+  persistProfiles();
+  selectedProfile="";
+  showScreen("servers");
  }
  LinearLayout column(){LinearLayout l=new LinearLayout(this);l.setOrientation(LinearLayout.VERTICAL);return l;}
  Button button(String s,View.OnClickListener action){Button b=new Button(this);b.setText(s);b.setTextSize(16);b.setIncludeFontPadding(false);b.setAllCaps(false);b.setTypeface(Typeface.create("sans-serif-medium",Typeface.NORMAL));b.setOnClickListener(action);styleButton(b,false);return b;}
