@@ -1,6 +1,6 @@
 const {app,BrowserWindow,ipcMain,protocol,session,net,Menu,shell,dialog}=require('electron');const path=require('node:path');const {pathToFileURL}=require('node:url');const {Collector}=require('./collector.cjs');const {Sampler,validSender,allowedRequest}=require('./lifecycle.cjs');
 protocol.registerSchemesAsPrivileged([{scheme:'diakitw',privileges:{standard:true,secure:true,supportFetchAPI:true}}]);
-const {ProfileStore,ServerMonitor}=require('./servers.cjs');
+const {ProfileStore,ServerMonitor,saveServerSession}=require('./servers.cjs');
 const {internetTest}=require('./internet-test.cjs');const {diagnose}=require('./diagnostics.cjs');const {Egress,lookupEgress}=require('./egress.cjs');const {mapURL}=require('./geo.cjs');const {resolveTool}=require('./tools.cjs');const {dispatch}=require('./actions.cjs');
 function boot({collector=new Collector(),onWindow=()=>{},userData,lookup=lookupEgress}={}){
  if(userData)app.setPath('userData',userData);
@@ -37,7 +37,7 @@ function boot({collector=new Collector(),onWindow=()=>{},userData,lookup=lookupE
   try{
    if(command==='list')return{ok:true,profiles:serverStore.list()};
    if(command==='browse-key'){const result=await dialog.showOpenDialog(win,{title:'Выберите закрытый SSH-ключ',properties:['openFile']});return{ok:true,path:result.canceled?'':result.filePaths[0]};}
-   if(command==='save'){if(!payload||typeof payload!=='object')throw Error('Неверный профиль');const profile=serverStore.save(payload);if(payload.password&&profile.auth==='password')serverPasswords.set(profile.id,String(payload.password));else if(profile.auth!=='password')serverPasswords.delete(profile.id);serverMonitor.reset(profile.id);serverLast.delete(profile.id);return{ok:true,profile};}
+   if(command==='save'){if(!payload||typeof payload!=='object')throw Error('Неверный профиль');const profile=saveServerSession(serverStore,serverPasswords,payload);serverMonitor.reset(profile.id);serverLast.delete(profile.id);return{ok:true,profile};}
    const id=typeof payload?.id==='string'?payload.id:'';const profile=serverStore.list().find(p=>p.id===id);if(!profile)throw Error('Профиль не найден');
    if(command==='remove'){serverStore.remove(id);serverPasswords.delete(id);serverMonitor.reset(id);serverLast.delete(id);return{ok:true};}
    if(!win.isVisible()||win.isMinimized()||!win.isFocused())throw Error('Окно неактивно');

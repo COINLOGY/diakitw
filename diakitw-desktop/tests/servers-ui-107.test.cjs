@@ -12,3 +12,29 @@ test('SSH editor supports host, port, login, key/password, independent fingerpri
  assert.match(js,/serverCommand\('save'/);assert.match(js,/serverCommand\('sample'/);
  assert.doesNotMatch(html,/value="secret"|value="root"/);
 });
+
+test('saving an edited server clears its old reading without auto-sampling',()=>{
+ const submit=js.split("$('server-editor').addEventListener('submit'")[1].split("window.addEventListener('blur'")[0];
+ assert.match(submit,/serverReadings\.delete\(result\.profile\.id\)/);
+ assert.doesNotMatch(submit,/refreshServers\(\)/);
+ assert.match(submit,/\$\('server-password'\)\.value=''/);
+});
+test('main save IPC uses endpoint-bound session credential lifecycle',()=>{
+ assert.match(main,/saveServerSession\(serverStore,serverPasswords,payload\)/);
+});
+
+test('edited password endpoints require a newly entered password before saving',()=>{
+ const submit=js.split("$('server-editor').addEventListener('submit'")[1].split("window.addEventListener('blur'")[0];
+ assert.match(submit,/profiles\.find\(p=>p\.id===serverEditing\)/);
+ assert.match(submit,/\['host','port','user','fingerprint'\]/);
+ assert.match(submit,/!payload\.password/);
+ assert.match(submit,/\$\('server-password'\)\.focus\(\)/);
+});
+
+test('a previous SSH sample cannot restore a reading after profile edit or removal',()=>{
+ const refresh=js.split('async function refreshServers()')[1].split('function switchServerView(')[0];
+ assert.match(refresh,/const generation=serverRevision/);
+ assert.match(refresh,/if\(generation!==serverRevision\)break/);
+ const submit=js.split("$('server-editor').addEventListener('submit'")[1].split("window.addEventListener('blur'")[0];
+ assert.match(submit,/serverRevision\+\+;serverReadings\.delete\(result\.profile\.id\)/);
+});
