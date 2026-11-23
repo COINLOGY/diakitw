@@ -44,6 +44,12 @@ class DashboardLayoutTests(unittest.TestCase):
         self.assertIn("evidence/diakitw-1.0.7/transport-checks", script)
         self.assertNotIn("evidence/diakitw-1.0.6/transport-checks", script)
 
+    def test_active_gauge_guard_tracks_compact_107_without_a_battery_tile(self):
+        guard = (ROOT / 'Tests/check_gauges.py').read_text()
+        self.assertIn("main.count('GaugeTile(') == 6", guard)
+        self.assertNotIn("model.snapshot.batteryPercent' in main", guard)
+        self.assertIn("three resource, two network and one disk gauge", guard)
+
     def test_native_probe_covers_order_and_multiple_widths(self):
         harness = (ROOT / 'Tests/render_layout.swift').read_text()
         for name in ('resource-cpu', 'network-rx', 'network-tx',
