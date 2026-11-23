@@ -11,7 +11,7 @@ class FleetCompactLayout(unittest.TestCase):
         self.assertIn('GeometryReader { geometry in', row)
         self.assertIn('let side = min(', row)
         self.assertIn('.frame(width: side, height: side)', row)
-        self.assertIn('NeedleGauge(fraction: fraction)', row)
+        self.assertIn('NeedleGauge(fraction: fraction, tickLabels: ["0", "50", "100"])', row)
         for label in ('CPU', 'RAM', 'SWAP', 'Диск /'):
             self.assertIn(f'fleetGauge("{label}"', row)
         self.assertIn('ServerNetworkActivity(', row)

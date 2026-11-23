@@ -336,7 +336,7 @@ private struct ServerFleetRow: View {
  }
  private func fleetGauge(_ title: String, _ value: String, _ fraction: Double?, side: CGFloat) -> some View {
   VStack(spacing: 0) {
-   NeedleGauge(fraction: fraction).frame(height: side * 0.58)
+   NeedleGauge(fraction: fraction, tickLabels: ["0", "50", "100"]).frame(height: side * 0.58)
    Text(title).font(.system(size: 10, weight: .semibold)).foregroundStyle(.secondary).lineLimit(1)
    Text(value).font(.system(size: 14, weight: .semibold, design: .rounded)).monospacedDigit().lineLimit(1)
   }.frame(width: side, height: side)
