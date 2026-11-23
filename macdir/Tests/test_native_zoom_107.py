@@ -18,6 +18,10 @@ class NativeZoom(unittest.TestCase):
         self.assertIn("onChange(of: servers.selectedServerID)", MAIN)
         self.assertIn("servers.adding || servers.removing != nil", MAIN)
 
+    def test_control_and_command_modifiers_both_adjust_zoom(self):
+        for key in ("-", "+", "=", "0"):
+            self.assertIn(f'keyboardShortcut("{key}", modifiers: .control)', MAIN)
+
     def test_window_zoom_policy_is_pure_and_bounded(self):
         self.assertTrue(CORE.exists())
         self.assertIn("public enum WindowZoom", CORE.read_text())

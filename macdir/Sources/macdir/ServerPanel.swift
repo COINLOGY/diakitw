@@ -207,6 +207,10 @@ struct MacdirRootView: View {
     .accessibilityLabel("Увеличить масштаб")
    Button("+") { step(1) }.keyboardShortcut("=", modifiers: .command).hidden()
    Button("100 %") { resetZoom() }.keyboardShortcut("0", modifiers: .command).hidden()
+   Button("−") { step(-1) }.keyboardShortcut("-", modifiers: .control).hidden()
+   Button("+") { step(1) }.keyboardShortcut("+", modifiers: .control).hidden()
+   Button("+") { step(1) }.keyboardShortcut("=", modifiers: .control).hidden()
+   Button("100 %") { resetZoom() }.keyboardShortcut("0", modifiers: .control).hidden()
    Button("По размеру") { fit() }
   }.buttonStyle(.bordered).controlSize(.small)
    .disabled(shortcutsBlocked)
