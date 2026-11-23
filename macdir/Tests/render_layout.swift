@@ -47,7 +47,7 @@ MainActor.assumeIsolated {
  for dark in [true, false] {
  app.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
 
- for (width, height) in [(1440, 1200), (1440, 1000), (1180, 800), (1060, 740), (1060, 580), (800, 540), (800, 1400)] {
+ for (width, height) in [(1440, 1200), (2532, 1200), (1440, 1000), (1180, 800), (1060, 740), (1060, 580), (800, 540), (800, 1400)] {
   let model = Model()
   model.computerName = "Fixture Mac — синтетические данные"
   model.selectedInterface = "fixture0"
@@ -95,9 +95,16 @@ MainActor.assumeIsolated {
     // Production dashboard has .padding(14); available width comes from the actual clip.
     let available = clipInHost.insetBy(dx: 14, dy: 0)
     if !fillsHorizontally(content, available) || !fillsHorizontally(row, available) { failures.append(size+": dashboard/grid must fill actual available content") }
-    let gauges = layoutFrames.filter { ["resource-cpu", "resource-memory", "resource-swap"].contains($0.key) }.map(\.value)
-    let occupied = gauges.reduce(CGRect.null) { $0.union($1) }
-    if occupied.minX < row.minX - 1 || occupied.maxX > row.maxX + 1 { failures.append(size+": gauges leave the row") }
+    let resources = ["resource-cpu", "resource-memory", "resource-swap", "disk-gauge"].compactMap { layoutFrames[$0] }
+    if resources.count != 4 { failures.append(size+": missing one of four resource cards") }
+    else {
+     let occupied = resources.reduce(CGRect.null) { $0.union($1) }
+     if abs(occupied.minX - row.minX) > 2 || abs(occupied.maxX - row.maxX) > 2 { failures.append(size+": four resource cards do not fill row") }
+     for (index, rect) in resources.enumerated() {
+      if abs(rect.width - rect.height) > 3 || rect.width < 140 || abs(rect.minY - resources[0].minY) > 2 { failures.append(size+": resource card not square or aligned \(index)") }
+      if index > 0 && abs(rect.minX - resources[index-1].maxX - 8) > 2 { failures.append(size+": resource card spacing changed \(index)") }
+     }
+    }
    } else { failures.append(size+": missing content geometry probes") }
   } else { failures.append(size+": missing geometry scroll view") }
 
@@ -108,33 +115,30 @@ MainActor.assumeIsolated {
   print(size, layoutFrames)
   if host.bounds.width != CGFloat(width) || host.bounds.height != CGFloat(height) { failures.append(size+": host exceeds requested size") }
   // Native geometry at seven viewport sizes, both appearances, all three scrollbar styles.
-  if let resource = layoutFrames["resource-cpu"], let row = layoutFrames["gaugeRow"],
-     let rx = layoutFrames["network-rx"], let tx = layoutFrames["network-tx"],
-     let chart = layoutFrames["chart"], let disk = layoutFrames["disk-gauge"],
-     let overview = layoutFrames["disk-overview"], let table = layoutFrames["table"],
-     let map = layoutFrames["map"], let picker = layoutFrames["viewPicker"] {
-   if resource.minY < row.minY - 1 || resource.maxY > row.maxY + 1 ||
-      row.maxY > min(rx.minY, tx.minY) + 1 ||
-      max(rx.maxY, tx.maxY, chart.maxY) > min(disk.minY, overview.minY) + 1 ||
-      max(disk.maxY, overview.maxY) > min(table.minY, map.minY) + 1 ||
+  if let cpu = layoutFrames["resource-cpu"], let memory = layoutFrames["resource-memory"],
+     let swap = layoutFrames["resource-swap"], let disk = layoutFrames["disk-gauge"],
+     let row = layoutFrames["gaugeRow"], let rx = layoutFrames["network-rx"],
+     let tx = layoutFrames["network-tx"], let chart = layoutFrames["chart"],
+     let table = layoutFrames["table"], let map = layoutFrames["map"],
+     let picker = layoutFrames["viewPicker"] {
+   if !(cpu.minX < memory.minX && memory.minX < swap.minX && swap.minX < disk.minX) ||
+      abs(cpu.minY - disk.minY) > 2 || cpu.minY < row.minY - 2 || disk.maxY > row.maxY + 2 ||
+      row.maxY > min(rx.minY, tx.minY, chart.minY) + 2 ||
+      max(rx.maxY, tx.maxY, chart.maxY) > min(table.minY, map.minY) + 2 ||
       table.intersection(map).width > 1 || table.height < 300 || map.height < 300 {
-    failures.append(size+": resources/network/disk/folder order or lower panels overlap")
+    failures.append(size+": resource/network/folder order or lower panels overlap")
    }
-   if abs(rx.minY - tx.minY) > 1 || abs(rx.height - tx.height) > 1 ||
-      rx.intersection(tx).width > 1 || rx.width < 200 || tx.width < 200 ||
-      min(rx.minX, tx.minX, chart.minX, disk.minX, overview.minX) < 0 ||
-      max(rx.maxX, tx.maxX, chart.maxX, disk.maxX, overview.maxX) > CGFloat(width) {
-    failures.append(size+": network/disk clipped or two gauges not paired")
+   if abs(rx.minY - tx.minY) > 2 || abs(rx.minY - chart.minY) > 2 ||
+      abs(rx.width - rx.height) > 3 || abs(tx.width - tx.height) > 3 ||
+      abs(rx.width - cpu.width) > 3 || abs(chart.width - (rx.width * 2 + 8)) > 3 ||
+      chart.width < rx.width * 1.8 || abs(chart.height - rx.height) > 3 ||
+      abs(tx.minX - rx.maxX - 8) > 2 || abs(chart.minX - tx.maxX - 8) > 2 ||
+      max(disk.maxX, chart.maxX) > CGFloat(width) || min(disk.minX, rx.minX) < 0 {
+    failures.append(size+": network gauges must be square beside a double-width chart")
    }
-   if chart.minY < rx.maxY - 1 && chart.minX < tx.maxX - 1 { failures.append(size+": chart must follow RX/TX without overlap") }
-   if chart.height < 84 || picker.minY < chart.maxY - 1 || disk.width < 200 || overview.width < 300 {
-    failures.append(size+": chart or disk dimensions invalid")
+   if picker.minY < chart.maxY - 2 || chart.height < 140 {
+    failures.append(size+": chart controls or height invalid")
    }
-   let resources = ["resource-cpu", "resource-memory", "resource-swap"].compactMap { layoutFrames[$0] }
-   if resources.isEmpty || resources.contains(where: { $0.width < 230 || abs($0.height - 112) > 1 }) {
-    failures.append(size+": resource gauges compressed")
-   }
-
   } else { failures.append(size+": missing dashboard section probes") }
   // Native offscreen geometry: row-major order and no horizontal clipping at 800px.
   let buttons = (0..<7).compactMap { layoutFrames["toolbar-\($0)"] }
@@ -198,6 +202,52 @@ MainActor.assumeIsolated {
    window.contentView = nil
   }
  }
+  // Fleet overview: two in-memory servers, no SSH or saved configuration.
+  let fleetSecond = try! JSONDecoder().decode(ServerConfig.self, from: Data(#"{"id":"fixture-2","name":"Fixture server 2 — синтетические данные","target":"fixture2@example.invalid","role":"bot"}"#.utf8))
+  for dark in [true, false] {
+   for width in [1060, 1440] {
+    let servers = ServersModel()
+    servers.configs = [config, fleetSecond]
+    for (index, server) in servers.configs.enumerated() {
+     var state = ServerState()
+     let started = Date().timeIntervalSince1970 - 330
+     for tick in 0..<12 {
+      let payload: [String: Any] = ["schema":1, "sampled_at":started + Double(tick) * 30,
+       "cpu_percent": 15 + index * 20, "memory_total":8589934592, "memory_available":2147483648,
+       "swap_total":4294967296, "swap_free":3221225472,
+       "disk_total":274877906944, "disk_free":206158430208,
+       "network":[["name":"eth0", "rx_bytes_per_second":4000 + tick * 850, "tx_bytes_per_second":1200 + tick * 210]]]
+      let data = try! JSONSerialization.data(withJSONObject: payload)
+      state.accept(.success(try! ServerTelemetry.decode(data)))
+     }
+     servers.states[server.id] = state
+    }
+    layoutFrames = [:]
+    let view = ServerPanel(model: servers).frame(width: CGFloat(width), height: 780)
+     .environment(\.colorScheme, dark ? .dark : .light)
+     .coordinateSpace(name: "layoutHost")
+     .onPreferenceChange(LayoutFramesKey.self) { layoutFrames = $0 }
+    let host = NSHostingView(rootView: view); host.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
+    let window = NSWindow(contentRect: NSRect(x: -10000, y: -10000, width: CGFloat(width), height: 780), styleMask: [.borderless], backing: .buffered, defer: false)
+    window.contentView = host; window.orderFront(nil)
+    for _ in 0..<10 { host.layoutSubtreeIfNeeded(); RunLoop.main.run(until: Date().addingTimeInterval(0.04)) }
+    let bitmap = host.bitmapImageRepForCachingDisplay(in: host.bounds)!
+    host.effectiveAppearance.performAsCurrentDrawingAppearance { host.cacheDisplay(in: host.bounds, to: bitmap) }
+    saveFixture(bitmap, to: output.appendingPathComponent("fleet-\(width)-\(dark ? "dark" : "light").png"), dark: dark)
+    for server in servers.configs {
+     let prefix = "fleet-" + server.id + "-"
+     for label in ["cpu", "ram", "swap", "disk"] {
+      if let frame = layoutFrames[prefix + label] {
+       if abs(frame.width - frame.height) > 1 || frame.width > 109 || frame.width < 71 { failures.append("fleet square gauge " + server.id + " " + label) }
+      } else { failures.append("fleet missing gauge " + server.id + " " + label) }
+     }
+     if let chart = layoutFrames[prefix + "network"], let row = layoutFrames[prefix + "row"] {
+      if abs(chart.maxX - row.maxX) > 2 || chart.width <= row.width * 0.2 { failures.append("fleet network does not reach row edge " + server.id) }
+     } else { failures.append("fleet network geometry missing " + server.id) }
+    }
+    window.contentView = nil
+   }
+  }
  // Internet UI fixtures: models do not start traffic without explicit Start.
  for dark in [true, false] {
   app.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)

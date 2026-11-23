@@ -4,6 +4,16 @@ import Darwin
 
 public enum ServerError: String, Error { case credential = "SSH: пароль не сохранён / Связка ключей недоступна", askpass = "SSH Askpass не включён в сборку", cancelled = "SSH: отменено"; case config = "Некорректная конфигурация", unavailable = "SSH недоступен", denied = "SSH: доступ отклонён", hostKey = "SSH: проверьте ключ хоста", timeout = "SSH: время ожидания истекло", payload = "Некорректная телеметрия", probe = "Проба не найдена" }
 public struct ServerNetwork: Codable { public let name: String; public let rx: Double?; public let tx: Double? }
+public struct ServerTrafficPoint {
+ public let interface: String
+ public let sampledAt: Double
+ public let received: Double?
+ public let sent: Double?
+ public var hasMeasurement: Bool { received != nil || sent != nil }
+ public func follows(_ previous: Self) -> Bool {
+  interface == previous.interface && sampledAt > previous.sampledAt && sampledAt - previous.sampledAt <= 45
+ }
+}
 public struct ServerService: Codable { public let name: String; public let state: String }
 public struct ServerTelemetry: Codable {
  public let sampledAt: Double?
@@ -55,13 +65,20 @@ public struct ServerState {
  public private(set) var lastSuccess: ServerTelemetry?
  public private(set) var error: ServerError?
  public private(set) var cpuHistory: [Double?] = []
+ public private(set) var trafficHistory: [ServerTrafficPoint?] = []
  public init() {}
  public mutating func accept(_ result: Result<ServerTelemetry, ServerError>) {
   switch result {
-  case .success(let sample): lastSuccess = sample; error = nil; cpuHistory.append(sample.cpuPercent)
-  case .failure(let failure): error = failure; cpuHistory.append(nil)
+  case .success(let sample):
+   lastSuccess = sample; error = nil; cpuHistory.append(sample.cpuPercent)
+   if let name = sample.preferredInterface, let sampledAt = sample.sampledAt,
+      let net = sample.network.first(where: { $0.name == name }) {
+    trafficHistory.append(ServerTrafficPoint(interface: name, sampledAt: sampledAt, received: net.rx, sent: net.tx))
+   } else { trafficHistory.append(nil) }
+  case .failure(let failure): error = failure; cpuHistory.append(nil); trafficHistory.append(nil)
   }
   cpuHistory = Array(cpuHistory.suffix(60))
+  trafficHistory = Array(trafficHistory.suffix(60))
  }
  public func current(now: Double = Date().timeIntervalSince1970) -> ServerTelemetry? { guard error == nil, let lastSuccess, lastSuccess.isFresh(now: now) else { return nil }; return lastSuccess }
 }

@@ -319,22 +319,73 @@ private struct ServerFleetRow: View {
       .font(.caption).foregroundStyle(sample == nil ? Color.orange : Color.green).lineLimit(1)
      Image(systemName: "chevron.right").foregroundStyle(.secondary)
     }
-    HStack(spacing: 8) {
-     metric("CPU", MetricPresentation.percent(sample?.cpuPercent))
-     metric("RAM", measuredPercent(sample?.memoryUsed, sample?.memoryTotal))
-     metric("SWAP", measuredPercent(sample?.swapUsed, sample?.swapTotal))
-     metric("Диск /", measuredPercent(sample?.diskUsed, sample?.diskTotal))
-     Spacer(minLength: 0)
-    }
+    GeometryReader { geometry in
+     let side = min(108, max(72, (geometry.size.width - 32) / 7))
+     HStack(spacing: 8) {
+      fleetGauge("CPU", MetricPresentation.percent(sample?.cpuPercent), GaugeScale.fraction(sample?.cpuPercent, maximum: 100), side: side)
+      fleetGauge("RAM", measuredPercent(sample?.memoryUsed, sample?.memoryTotal), GaugeScale.fraction(sample?.memoryUsed, maximum: sample?.memoryTotal), side: side)
+      fleetGauge("SWAP", measuredPercent(sample?.swapUsed, sample?.swapTotal), GaugeScale.fraction(sample?.swapUsed, maximum: sample?.swapTotal), side: side)
+      fleetGauge("Диск /", measuredPercent(sample?.diskUsed, sample?.diskTotal), GaugeScale.fraction(sample?.diskUsed, maximum: sample?.diskTotal), side: side)
+      ServerNetworkActivity(state: state, sample: sample)
+       .frame(maxWidth: .infinity).frame(height: side)
+     }.frame(maxWidth: .infinity, alignment: .leading)
+    }.frame(height: 108)
    }.padding(10).frame(maxWidth: .infinity, alignment: .leading)
     .background(.quaternary.opacity(0.25), in: RoundedRectangle(cornerRadius: 10))
   }.buttonStyle(.plain).accessibilityLabel(config.name + ", " + (sample == nil ? "Нет свежих данных" : "На связи"))
  }
- private func metric(_ title: String, _ value: String) -> some View {
-  VStack(alignment: .leading, spacing: 2) {
-   Text(title).font(.caption2).foregroundStyle(.secondary)
-   Text(value).font(.caption.monospacedDigit())
-  }.frame(width: 58, alignment: .leading)
+ private func fleetGauge(_ title: String, _ value: String, _ fraction: Double?, side: CGFloat) -> some View {
+  VStack(spacing: 0) {
+   NeedleGauge(fraction: fraction).frame(height: side * 0.58)
+   Text(title).font(.system(size: 10, weight: .semibold)).foregroundStyle(.secondary).lineLimit(1)
+   Text(value).font(.system(size: 14, weight: .semibold, design: .rounded)).monospacedDigit().lineLimit(1)
+  }.frame(width: side, height: side)
+   .background(InstrumentTheme.panel, in: RoundedRectangle(cornerRadius: 9))
+   .accessibilityElement(children: .ignore).accessibilityLabel(title + ": " + value)
+ }
+}
+
+private struct ServerNetworkActivity: View {
+ let state: ServerState
+ let sample: ServerTelemetry?
+ var body: some View {
+  let name = sample?.preferredInterface
+  let readings = state.trafficHistory.map { point in point?.interface == name ? point : nil }
+  let rxMax = readings.compactMap { $0?.received }.max() ?? 0
+  let txMax = readings.compactMap { $0?.sent }.max() ?? 0
+  let scale = max(1, max(rxMax, txMax))
+  VStack(alignment: .leading, spacing: 4) {
+   HStack(spacing: 6) {
+    Text("Активность сети · " + (name ?? "Н/Д")).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+    Spacer(minLength: 0)
+    NetworkRateValue(value: sample?.network.first(where: { $0.name == name })?.rx, direction: "↓", size: 11)
+     .foregroundStyle(InstrumentTheme.lime)
+    NetworkRateValue(value: sample?.network.first(where: { $0.name == name })?.tx, direction: "↑", size: 11)
+     .foregroundStyle(InstrumentTheme.cyan)
+   }
+   if sample != nil && name != nil && readings.contains(where: { $0?.hasMeasurement == true }) {
+    Canvas { context, size in
+     for incoming in [true, false] {
+      var path = Path(); var previous: ServerTrafficPoint?
+      for (index, point) in readings.enumerated() {
+       guard let point, let value = incoming ? point.received : point.sent else { previous = nil; continue }
+       let x = size.width * Double(index) / Double(max(1, readings.count - 1))
+       let y = size.height * (1 - min(1, value / scale))
+       let position = CGPoint(x: x, y: y)
+       if let previous, point.follows(previous) { path.addLine(to: position) } else { path.move(to: position) }
+       previous = point
+       context.fill(Path(ellipseIn: CGRect(x: x - 1.5, y: y - 1.5, width: 3, height: 3)),
+        with: .color(incoming ? InstrumentTheme.lime : InstrumentTheme.cyan))
+      }
+      context.stroke(path, with: .color(incoming ? InstrumentTheme.lime : InstrumentTheme.cyan), lineWidth: 1.5)
+     }
+    }.frame(maxWidth: .infinity, maxHeight: .infinity)
+     .accessibilityLabel("История реально измеренной активности сети: приём и передача")
+   } else {
+    Text("Нет свежих данных сети").font(.caption2).foregroundStyle(.secondary)
+     .frame(maxWidth: .infinity, maxHeight: .infinity)
+   }
+  }.frame(maxWidth: .infinity)
  }
 }
 

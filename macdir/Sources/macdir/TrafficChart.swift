@@ -5,6 +5,7 @@ import MacdirCore
 struct TrafficChart: View {
  let history: TrafficHistory
  @Binding var range: TrafficRange
+ var expanded = false
  private let receiveColor = Color(red: 0.65, green: 0.90, blue: 0.25)
  private let sendColor = Color(red: 0.30, green: 0.75, blue: 1.0)
  private var scaleLabel: String {
@@ -17,7 +18,8 @@ struct TrafficChart: View {
  var body: some View {
   VStack(spacing: 3) {
    HStack(spacing: 8) {
-    Text(scaleLabel).monospacedDigit().lineLimit(1)
+    if expanded { Text("Сетевая активность").fontWeight(.semibold).lineLimit(1) }
+    Text(scaleLabel).monospacedDigit().lineLimit(1).minimumScaleFactor(0.75)
     Spacer(minLength: 0)
     Picker("Период графика", selection: $range) {
      ForEach(TrafficRange.allCases, id: \.self) { Text($0.label).tag($0) }
@@ -58,7 +60,7 @@ struct TrafficChart: View {
      }
     }
    }
-   .frame(height: 46)
+   .frame(height: expanded ? nil : 46).frame(maxHeight: expanded ? .infinity : nil)
    // A dark plotting surface keeps the requested lime/cyan readable in both themes.
    .background(Color(red: 0.08, green: 0.10, blue: 0.13), in: RoundedRectangle(cornerRadius: 4))
    .clipShape(RoundedRectangle(cornerRadius: 4))
@@ -72,7 +74,7 @@ struct TrafficChart: View {
     Text(range.tickLabels[1]); Spacer(minLength: 0)
     Text(range.tickLabels[2])
    }.font(.system(size: 9)).foregroundStyle(.secondary)
-  }.frame(height: 84)
+  }.frame(height: expanded ? nil : 84)
    .accessibilityElement(children: .contain)
    .accessibilityLabel("Трафик \(history.interface ?? ""): приём — зелёный, отправка — голубой; \(scaleLabel)")
    .help("Приём ↓ — зелёный, отправка ↑ — голубой. Общая автошкала скорости, не загрузка канала. Время относительно последнего замера. Пропуски и паузы более 3 с — разрывы. История до 1 ч с момента выбора интерфейса; смена интерфейса очищает историю.")

@@ -31,6 +31,7 @@ python3 Tests/check_updates_wiring.py
 python3 Tests/test_release_107_mac.py
 python3 Tests/check_release107_mac_layout.py
 python3 Tests/test_compact_107.py
+python3 Tests/test_approved_square_107.py
 python3 Tests/test_macos_adhoc_route_107.py
 python3 Tests/check_update_prompt.py
 mkdir -p evidence/diakitw-1.0.7
@@ -67,6 +68,9 @@ python3 Tests/check_traffic_ui.py
 python3 Tests/check_internet_ui.py
 python3 Tests/test_server_probe.py
 python3 Tests/check_servers_ui.py
+python3 Tests/test_fleet_compact_107.py
+swiftc -j 2 -parse-as-library Tests/fleet_traffic_checks.swift -I .build/release/Modules .build/release/MacdirCore.build/*.o -o evidence/diakitw-1.0.7/fleet-traffic-checks
+evidence/diakitw-1.0.7/fleet-traffic-checks
 python3 Tests/check_mac_identity.py
 python3 Tests/check_geo_wiring.py
 python3 Tests/check_geo_transport.py

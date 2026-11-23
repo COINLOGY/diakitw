@@ -8,10 +8,10 @@ assert 'if let fraction' in s, 'unavailable telemetry must not draw a zero needl
 assert 'duration: 0.25' in s and 'accessibilityReduceMotion' in s
 assert 'GaugeScale.angle' in s and 'Canvas' in s
 main = (root / 'Sources/macdir/main.swift').read_text()
-# 1.0.7 deliberately uses three compact resource dials; the native layout probe
-# covers their positions across narrow/wide viewports and light/dark appearances.
-assert main.count('GaugeTile(') == 6, 'three resource, two network and one disk gauge'
-for title in ('ПРОЦЕССОР', 'ПАМЯТЬ', 'SWAP'):
+# Four square resources including disk, followed by two square network dials.
+# Native probes check alignment and the long chart at narrow/wide widths.
+assert main.count('GaugeTile(') == 6, 'four resource including disk and two network gauges'
+for title in ('ПРОЦЕССОР', 'ПАМЯТЬ', 'SWAP', 'ДИСК · ЗАНЯТО'):
  assert any('GaugeTile(' in line and 'title: "'+title+'"' in line for line in main.splitlines())
 assert 'model.snapshot.diskOccupied' in main
 assert '.popover(isPresented: $model.showCapacity)' in main

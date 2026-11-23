@@ -30,10 +30,9 @@ for index, (old, new) in enumerate([
 s=s.replace('networkSelector; networkInstruments', 'networkSelector.layoutProbe("network-selector"); networkInstruments')
 s=s.replace('receiveGauge(scale: scale, labels: labels)', 'receiveGauge(scale: scale, labels: labels).layoutProbe("network-rx")')
 s=s.replace('sendGauge(scale: scale, labels: labels)', 'sendGauge(scale: scale, labels: labels).layoutProbe("network-tx")')
-s=s.replace('TrafficChart(history: model.trafficHistory, range: $model.trafficRange)', 'TrafficChart(history: model.trafficHistory, range: $model.trafficRange).layoutProbe("chart")')
-s=s.replace('diskGauge.frame(width: 240)', 'diskGauge.layoutProbe("disk-gauge").frame(width: 240)')
-s=s.replace('VStack(spacing: 8) { diskGauge;', 'VStack(spacing: 8) { diskGauge.layoutProbe("disk-gauge");')
-s=s.replace('DiskCapacityOverview(snapshot: model.snapshot, scan: model.result)', 'DiskCapacityOverview(snapshot: model.snapshot, scan: model.result).layoutProbe("disk-overview")')
+s=s.replace('TrafficChart(history: model.trafficHistory, range: $model.trafficRange, expanded: true)', 'TrafficChart(history: model.trafficHistory, range: $model.trafficRange, expanded: true).layoutProbe("chart")')
+assert s.count('     diskGauge\n') == 1
+s=s.replace('     diskGauge\n', '     diskGauge.layoutProbe("disk-gauge")\n', 1)
 for title, label in [('ПРОЦЕССОР', 'resource-cpu'), ('ПАМЯТЬ', 'resource-memory'), ('SWAP', 'resource-swap')]:
     lines=s.splitlines(keepends=True)
     matches=[i for i, line in enumerate(lines) if 'GaugeTile(' in line and 'title: "'+title+'"' in line]
@@ -45,7 +44,7 @@ s=s.replace('}.frame(minWidth: 450)', '}.frame(minWidth: 450).layoutProbe("table
 s=s.replace('}.padding(.leading, 12).frame(minWidth: 290)', '}.padding(.leading, 12).frame(minWidth: 290).layoutProbe("map")')
 # Probe only the unshipped copy; preserve production padding and proposals.
 for old, new in [
-    ('   }\n  }\n }\n private var compactNetwork:', '   }.layoutProbe("gaugeRow")\n  }\n }\n private var compactNetwork:'),
+    ('    }\n   }\n  }\n private var compactNetwork:', '    }.layoutProbe("gaugeRow")\n   }\n  }\n private var compactNetwork:'),
     ('  }.padding(14).frame(maxWidth: .infinity)', '  }.layoutProbe("dashboardContent").padding(14).frame(maxWidth: .infinity).layoutProbe("dashboardDocument")'),
 ]:
     assert s.count(old) == 1, 'layout probe anchor changed: ' + old
@@ -56,6 +55,13 @@ for f in list((p/'Sources/MacdirCore').glob('*.swift'))+list((p/'Sources/macdir'
     text=s if f.name=='main.swift' else f.read_text()
     if f.name=='ServerPanel.swift':
         text=text.replace('private struct ServerHostPanel:', 'struct ServerHostPanel:').replace('private func measuredPercent(', 'func measuredPercent(').replace('private func measuredPair(', 'func measuredPair(')
+        text=text.replace('private struct ServerFleetRow:', 'struct ServerFleetRow:')
+        lines=text.splitlines(keepends=True)
+        for label, token in [('cpu','fleetGauge("CPU"'),('ram','fleetGauge("RAM"'),('swap','fleetGauge("SWAP"'),('disk','fleetGauge("Диск /"')]:
+            matches=[i for i,line in enumerate(lines) if token in line]
+            assert len(matches)==1,(label,matches)
+            i=matches[0];lines[i]=lines[i].rstrip('\n')+'.layoutProbe("fleet-" + config.id + "-'+label+'")\n'
+        text=''.join(lines).replace('ServerNetworkActivity(state: state, sample: sample)\n', 'ServerNetworkActivity(state: state, sample: sample).layoutProbe("fleet-" + config.id + "-network")\n', 1).replace('}.frame(height: 108)\n', '}.frame(height: 108).layoutProbe("fleet-" + config.id + "-row")\n', 1)
     if f.name=='NeedleGauge.swift':
         text=text.replace('.help(explanation ?? detail)', '.help(explanation ?? detail).layoutProbe("gauge-" + title)')
     text=text.replace('import MacdirCore\n','').replace('MacdirCore.Scanner','Scanner')

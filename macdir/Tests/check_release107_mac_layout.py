@@ -7,20 +7,25 @@ MAIN = (ROOT / 'Sources/macdir/main.swift').read_text()
 
 
 class DashboardLayoutTests(unittest.TestCase):
-    def test_resources_network_disk_folder_order_and_real_rates(self):
+    def test_four_square_resources_long_network_and_folder_order(self):
         dashboard = MAIN.split('private func dashboard(viewport: CGSize)', 1)[1].split('\nfinal class AppDelegate:', 1)[0]
         resources = MAIN.split('private func compactResources(', 1)[1].split('private var compactNetwork:', 1)[0]
-        self.assertLess(resources.index('title: "ПРОЦЕССОР"'), resources.index('title: "SWAP"'))
+        for first, second in zip(('ПРОЦЕССОР', 'ПАМЯТЬ', 'SWAP'), ('ПАМЯТЬ', 'SWAP', 'diskGauge')):
+            a = 'title: "' + first + '"' if first != 'diskGauge' else first
+            b = 'title: "' + second + '"' if second != 'diskGauge' else second
+            self.assertLess(resources.index(a), resources.index(b))
         self.assertNotIn('title: "БАТАРЕЯ', resources)
-        self.assertNotIn('model.snapshot.batteryCycles', resources)
+        self.assertIn('count: 4', resources)
+        self.assertIn('square: true', resources)
         self.assertLess(dashboard.index('compactResources(viewportWidth:'), dashboard.index('compactNetwork'))
-        self.assertLess(dashboard.index('compactNetwork'), dashboard.index('compactDisk'))
-        self.assertLess(dashboard.index('compactDisk'), dashboard.index('if let current = model.current'))
-        disk = MAIN.split('private var compactDisk:', 1)[1].split('private func dashboard(', 1)[0]
-        self.assertLess(disk.index('diskGauge.frame'), disk.index('DiskCapacityOverview('))
+        self.assertLess(dashboard.index('compactNetwork'), dashboard.index('if let current = model.current'))
+        self.assertNotIn('compactDisk', dashboard)
+        self.assertNotIn('DiskCapacityOverview(', dashboard)
         instruments = MAIN.split('private var networkInstruments:', 1)[1].split('private var diskGauge:', 1)[0]
         self.assertLess(instruments.index('receiveGauge(scale:'), instruments.index('sendGauge(scale:'))
         self.assertLess(instruments.index('sendGauge(scale:'), instruments.index('TrafficChart(history:'))
+        self.assertIn('side * 2 + 8', instruments)
+        self.assertIn('expanded: true', instruments)
         self.assertIn('selectedNetwork?.received', instruments)
         self.assertIn('selectedNetwork?.sent', instruments)
         self.assertIn('model.trafficHistory.scale(in: model.trafficRange)', instruments)
@@ -48,20 +53,21 @@ class DashboardLayoutTests(unittest.TestCase):
         guard = (ROOT / 'Tests/check_gauges.py').read_text()
         self.assertIn("main.count('GaugeTile(') == 6", guard)
         self.assertNotIn("model.snapshot.batteryPercent' in main", guard)
-        self.assertIn("three resource, two network and one disk gauge", guard)
+        self.assertIn("four resource including disk and two network gauges", guard)
 
     def test_native_probe_covers_order_and_multiple_widths(self):
         harness = (ROOT / 'Tests/render_layout.swift').read_text()
-        for name in ('resource-cpu', 'network-rx', 'network-tx',
-                     'chart', 'disk-gauge', 'disk-overview', 'table', 'map'):
+        for name in ('resource-cpu', 'resource-memory', 'resource-swap', 'disk-gauge',
+                     'network-rx', 'network-tx', 'chart', 'table', 'map'):
             self.assertIn('layoutFrames["' + name + '"]', harness)
         self.assertIn('for (width, height) in [(1440, 1200)', harness)
+        self.assertIn('(2532, 1200)', harness)
         self.assertIn('(800, 540)', harness)
-        self.assertIn('resources/network/disk/folder order', harness)
+        self.assertTrue('resource/network/folder order or lower panels overlap' in harness, 'native order assertion missing')
         probe = (ROOT / 'Tests/check_layout.py').read_text()
         self.assertIn('layoutProbe("network-rx")', probe)
         self.assertIn('layoutProbe("network-tx")', probe)
-        self.assertIn('layoutProbe("disk-overview")', probe)
+        self.assertIn('layoutProbe("disk-gauge")', probe)
 
 
 if __name__ == '__main__':

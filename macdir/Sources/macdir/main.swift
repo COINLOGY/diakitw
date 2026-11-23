@@ -247,29 +247,24 @@ struct ContentView: View {
   }
  }
 
- private var networkInstruments: some View {
-  let scale = model.trafficHistory.scale(in: model.trafficRange)
-  let labels = NetworkSpeedScale.labels(maximum: scale)
-  return ViewThatFits(in: .horizontal) {
-   HStack(alignment: .center, spacing: 10) {
-    receiveGauge(scale: scale, labels: labels).frame(minWidth: 210)
-    sendGauge(scale: scale, labels: labels).frame(minWidth: 210)
-    TrafficChart(history: model.trafficHistory, range: $model.trafficRange).frame(minWidth: 280, maxWidth: .infinity)
-   }
-   VStack(spacing: 10) {
-    HStack(spacing: 10) {
-     receiveGauge(scale: scale, labels: labels)
-     sendGauge(scale: scale, labels: labels)
+  private var networkInstruments: some View {
+   let scale = model.trafficHistory.scale(in: model.trafficRange)
+   let labels = NetworkSpeedScale.labels(maximum: scale)
+   return GeometryReader { grid in
+    let side = max(0, (grid.size.width - 24) / 4)
+    HStack(alignment: .top, spacing: 8) {
+     receiveGauge(scale: scale, labels: labels).frame(width: side, height: side)
+     sendGauge(scale: scale, labels: labels).frame(width: side, height: side)
+     TrafficChart(history: model.trafficHistory, range: $model.trafficRange, expanded: true)
+      .frame(width: side * 2 + 8, height: side)
     }
-    TrafficChart(history: model.trafficHistory, range: $model.trafficRange).frame(maxWidth: .infinity)
-   }
-  }.fixedSize(horizontal: false, vertical: true)
- }
+   }.aspectRatio(4, contentMode: .fit)
+  }
  private func receiveGauge(scale: Double, labels: [String]) -> some View {
-  GaugeTile(symbol: "arrow.down", title: "ПРИЁМ", value: NetworkPresentation(selectedNetwork?.received).text + " ↓", detail: selectedInterface + " · 0–" + labels[2] + "/с", fraction: GaugeScale.fraction(selectedNetwork?.received, maximum: scale), neutral: true, networkRate: selectedNetwork?.received, networkDirection: "↓", tickLabels: labels, directionColor: InstrumentTheme.lime)
+  GaugeTile(symbol: "arrow.down", title: "ПРИЁМ", value: NetworkPresentation(selectedNetwork?.received).text + " ↓", detail: selectedInterface + " · 0–" + labels[2] + "/с", fraction: GaugeScale.fraction(selectedNetwork?.received, maximum: scale), neutral: true, networkRate: selectedNetwork?.received, networkDirection: "↓", tickLabels: labels, directionColor: InstrumentTheme.lime, square: true)
  }
  private func sendGauge(scale: Double, labels: [String]) -> some View {
-  GaugeTile(symbol: "arrow.up", title: "ОТДАЧА", value: NetworkPresentation(selectedNetwork?.sent).text + " ↑", detail: selectedInterface + " · 0–" + labels[2] + "/с", fraction: GaugeScale.fraction(selectedNetwork?.sent, maximum: scale), neutral: true, networkRate: selectedNetwork?.sent, networkDirection: "↑", tickLabels: labels, directionColor: InstrumentTheme.cyan)
+  GaugeTile(symbol: "arrow.up", title: "ОТДАЧА", value: NetworkPresentation(selectedNetwork?.sent).text + " ↑", detail: selectedInterface + " · 0–" + labels[2] + "/с", fraction: GaugeScale.fraction(selectedNetwork?.sent, maximum: scale), neutral: true, networkRate: selectedNetwork?.sent, networkDirection: "↑", tickLabels: labels, directionColor: InstrumentTheme.cyan, square: true)
  }
 
  var body: some View {
@@ -299,7 +294,7 @@ struct ContentView: View {
  }
  private var diskGauge: some View {
   Button { model.showCapacity.toggle() } label: {
-   GaugeTile(symbol: "internaldrive", title: "ДИСК · ЗАНЯТО", value: MetricPresentation.utilization(model.snapshot.diskOccupied, total: model.snapshot.diskTotal), detail: MetricPresentation.usedTotal(model.snapshot.diskOccupied, total: model.snapshot.diskTotal), fraction: GaugeScale.fraction(model.snapshot.diskOccupied.map(Double.init), maximum: model.snapshot.diskTotal.map(Double.init)), explanation: "APFS: занято в общем пуле, не сумма папок. Нажмите для точных байтов.")
+   GaugeTile(symbol: "internaldrive", title: "ДИСК · ЗАНЯТО", value: MetricPresentation.utilization(model.snapshot.diskOccupied, total: model.snapshot.diskTotal), detail: MetricPresentation.usedTotal(model.snapshot.diskOccupied, total: model.snapshot.diskTotal), fraction: GaugeScale.fraction(model.snapshot.diskOccupied.map(Double.init), maximum: model.snapshot.diskTotal.map(Double.init)), explanation: "APFS: занято в общем пуле, не сумма папок. Нажмите для точных байтов.", square: true)
   }.buttonStyle(.plain)
    .popover(isPresented: $model.showCapacity) { Text(model.snapshot.diskDetail).font(.system(.body, design: .monospaced)).textSelection(.enabled).padding(20) }
  }
@@ -347,30 +342,19 @@ struct ContentView: View {
   }.padding(10).background(InstrumentTheme.panel, in: RoundedRectangle(cornerRadius: 12))
    .textSelection(.enabled)
  }
- private func compactResources(viewportWidth: CGFloat) -> some View {
-  VStack(alignment: .leading, spacing: 7) {
-   Text("Ресурсы").font(.headline)
-   LazyVGrid(columns: Array(repeating: GridItem(.flexible(minimum: 220), spacing: 8), count: viewportWidth >= 1040 ? 4 : 2), spacing: 8) {
-    GaugeTile(symbol: "cpu", title: "ПРОЦЕССОР", value: MetricPresentation.percent(model.snapshot.cpu), detail: "\(ProcessInfo.processInfo.processorCount) логических ядер", fraction: GaugeScale.fraction(model.snapshot.cpu, maximum: 100))
-    GaugeTile(symbol: "memorychip", title: "ПАМЯТЬ", value: MetricPresentation.utilization(model.snapshot.memoryUsed, total: model.snapshot.memoryTotal), detail: MetricPresentation.usedTotal(model.snapshot.memoryUsed, total: model.snapshot.memoryTotal), fraction: GaugeScale.fraction(model.snapshot.memoryUsed.map(Double.init), maximum: Double(model.snapshot.memoryTotal)), explanation: "Активная + wired + сжатая память; GiB = 2³⁰ байт")
-    GaugeTile(symbol: "arrow.left.arrow.right", title: "SWAP", value: MetricPresentation.utilization(model.snapshot.swap, total: model.snapshot.swapTotal), detail: MetricPresentation.usedTotal(model.snapshot.swap, total: model.snapshot.swapTotal), fraction: GaugeScale.fraction(model.snapshot.swap.map(Double.init), maximum: model.snapshot.swapTotal.map(Double.init)), explanation: MetricPresentation.swapExplanation)
+  private func compactResources(viewportWidth: CGFloat) -> some View {
+   VStack(alignment: .leading, spacing: 7) {
+    Text("Ресурсы").font(.headline)
+    LazyVGrid(columns: Array(repeating: GridItem(.flexible(minimum: 140), spacing: 8), count: 4), spacing: 8) {
+     GaugeTile(symbol: "cpu", title: "ПРОЦЕССОР", value: MetricPresentation.percent(model.snapshot.cpu), detail: "\(ProcessInfo.processInfo.processorCount) логических ядер", fraction: GaugeScale.fraction(model.snapshot.cpu, maximum: 100), square: true)
+     GaugeTile(symbol: "memorychip", title: "ПАМЯТЬ", value: MetricPresentation.utilization(model.snapshot.memoryUsed, total: model.snapshot.memoryTotal), detail: MetricPresentation.usedTotal(model.snapshot.memoryUsed, total: model.snapshot.memoryTotal), fraction: GaugeScale.fraction(model.snapshot.memoryUsed.map(Double.init), maximum: Double(model.snapshot.memoryTotal)), explanation: "Активная + wired + сжатая память; GiB = 2³⁰ байт", square: true)
+     GaugeTile(symbol: "arrow.left.arrow.right", title: "SWAP", value: MetricPresentation.utilization(model.snapshot.swap, total: model.snapshot.swapTotal), detail: MetricPresentation.usedTotal(model.snapshot.swap, total: model.snapshot.swapTotal), fraction: GaugeScale.fraction(model.snapshot.swap.map(Double.init), maximum: model.snapshot.swapTotal.map(Double.init)), explanation: MetricPresentation.swapExplanation, square: true)
+     diskGauge
+    }
    }
   }
- }
  private var compactNetwork: some View {
   VStack(alignment: .leading, spacing: 7) { networkSelector; networkInstruments }
- }
- private var compactDisk: some View {
-  VStack(alignment: .leading, spacing: 7) {
-   Text("Диск").font(.headline)
-   ViewThatFits(in: .horizontal) {
-    HStack(alignment: .top, spacing: 8) {
-     diskGauge.frame(width: 240)
-     DiskCapacityOverview(snapshot: model.snapshot, scan: model.result).frame(maxWidth: .infinity)
-    }
-    VStack(spacing: 8) { diskGauge; DiskCapacityOverview(snapshot: model.snapshot, scan: model.result) }
-   }
-  }
  }
  private func dashboard(viewport: CGSize) -> some View {
   VStack(alignment: .leading, spacing: 9) {
@@ -382,7 +366,6 @@ struct ContentView: View {
    compactIdentity
    compactResources(viewportWidth: viewport.width)
    compactNetwork
-   compactDisk
    if model.scanning {
     TimelineView(.periodic(from: .now, by: 1)) { context in
      HStack {

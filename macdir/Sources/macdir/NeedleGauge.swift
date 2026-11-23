@@ -116,26 +116,57 @@ struct GaugeTile: View {
  var directionColor: Color = InstrumentTheme.lime
  var amountOnly = false
  var explanation: String?
+ var square = false
+
+ @ViewBuilder private var dial: some View {
+  if amountOnly {
+   Image(systemName: symbol).font(.system(size: 30, weight: .light)).foregroundStyle(.secondary)
+  } else {
+   NeedleGauge(fraction: fraction, battery: battery, neutral: neutral, upperLabel: upperLabel,
+               tickLabels: tickLabels, directionColor: directionColor)
+  }
+ }
+
  var body: some View {
   let network = NetworkPresentation(networkRate)
-  HStack(spacing: 4) {
-   VStack(alignment: .leading, spacing: 5) {
-    Label(title, systemImage: symbol).font(.system(size: 10, weight: .semibold)).foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.75)
-    if neutral {
-     NetworkRateValue(value: networkRate, direction: networkDirection, size: 16)
-      .foregroundStyle(network.available ? directionColor : Color.secondary)
-    } else {
-     Text(value).font(.system(size: 22, weight: .semibold, design: .rounded)).foregroundStyle(gaugeColor(fraction, battery: battery)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.65)
-    }
-    Text(detail).font(.system(size: 10)).foregroundStyle(.secondary).lineLimit(2).frame(minHeight: 22, alignment: .topLeading)
-   }.frame(maxWidth: .infinity, alignment: .leading)
-   if amountOnly {
-    Image(systemName: symbol).font(.system(size: 30, weight: .light)).foregroundStyle(.secondary).frame(width: 100, height: 88)
+  Group {
+   if square {
+    GeometryReader { geo in
+     let side = min(geo.size.width, geo.size.height)
+     VStack(spacing: 0) {
+      dial.frame(width: max(0, side - 16), height: max(0, side * 0.59))
+      Label(title, systemImage: symbol).font(.system(size: 11, weight: .semibold))
+       .foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.75)
+      if neutral {
+       NetworkRateValue(value: networkRate, direction: networkDirection, size: 16)
+        .foregroundStyle(network.available ? directionColor : Color.secondary)
+      } else {
+       Text(value).font(.system(size: min(27, side * 0.14), weight: .semibold, design: .rounded))
+        .foregroundStyle(gaugeColor(fraction, battery: battery))
+        .monospacedDigit().lineLimit(1).minimumScaleFactor(0.65)
+      }
+      Text(detail).font(.system(size: 10)).foregroundStyle(.secondary)
+       .lineLimit(2).multilineTextAlignment(.center).frame(height: 24, alignment: .top)
+     }.frame(width: side, height: side, alignment: .center)
+      .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }.aspectRatio(1, contentMode: .fit)
    } else {
-    NeedleGauge(fraction: fraction, battery: battery, neutral: neutral, upperLabel: upperLabel, tickLabels: tickLabels, directionColor: directionColor).frame(width: 100, height: 88)
+    HStack(spacing: 4) {
+     VStack(alignment: .leading, spacing: 5) {
+      Label(title, systemImage: symbol).font(.system(size: 10, weight: .semibold)).foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.75)
+      if neutral {
+       NetworkRateValue(value: networkRate, direction: networkDirection, size: 16)
+        .foregroundStyle(network.available ? directionColor : Color.secondary)
+      } else {
+       Text(value).font(.system(size: 22, weight: .semibold, design: .rounded))
+        .foregroundStyle(gaugeColor(fraction, battery: battery)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.65)
+      }
+      Text(detail).font(.system(size: 10)).foregroundStyle(.secondary).lineLimit(2).frame(minHeight: 22, alignment: .topLeading)
+     }.frame(maxWidth: .infinity, alignment: .leading)
+     dial.frame(width: 100, height: 88)
+    }.frame(maxWidth: .infinity, alignment: .leading).frame(height: 88).padding(12)
    }
-  }.frame(maxWidth: .infinity, alignment: .leading).frame(height: 88).padding(12)
-   .background(InstrumentTheme.panel, in: RoundedRectangle(cornerRadius: 14))
+  }.background(InstrumentTheme.panel, in: RoundedRectangle(cornerRadius: 14))
    .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(.primary.opacity(0.06)))
    .accessibilityElement(children: .ignore)
    .accessibilityLabel(title)
