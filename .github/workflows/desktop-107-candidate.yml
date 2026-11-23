@@ -25,7 +25,7 @@ jobs:
       - name: Test and build portable candidates
         run: |
           npm ci --no-audit --no-fund
-          npm ci --prefix app --omit=dev --no-audit --no-fund
+          npm ci --prefix app --omit=dev --omit=optional --ignore-scripts --no-audit --no-fund
           npm test
           mkdir -p evidence/v107 dist
           node scripts/build-v107.mjs win32

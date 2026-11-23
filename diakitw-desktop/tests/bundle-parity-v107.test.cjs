@@ -24,3 +24,19 @@ test('node-gyp object intermediates are not expected in the distributable ASAR',
   for(const platform of ['win32','linux'])assert.ok(!report[platform].files.includes('node_modules/ssh2/build/obj.target/parity-object-test.o'));
  }finally{fs.unlinkSync(object);}
 });
+
+test('desktop CI omits optional host-native SSH accelerators for cross-platform bundles',()=>{
+  const workflow=fs.readFileSync('../.github/workflows/desktop-107-candidate.yml','utf8');
+  assert.match(workflow,/npm ci --prefix app --omit=dev --omit=optional --ignore-scripts --no-audit --no-fund/);
+  const ssh=require('../app/node_modules/ssh2');
+  assert.equal(typeof ssh.Client,'function','SSH uses its portable implementation without optional native accelerators');
+});
+
+test('required SSH native binding is absent from installed runtime dependencies',()=>{
+  const path=require('node:path');const found=[];
+  const scan=(dir)=>{for(const entry of fs.readdirSync(dir,{withFileTypes:true})){
+    const file=path.join(dir,entry.name);if(entry.isDirectory())scan(file);else if(entry.name.endsWith('.node'))found.push(file);
+  }};
+  scan('app/node_modules');
+  assert.deepEqual(found,[],'cross-target portable bundles cannot contain host-native .node bindings');
+});
