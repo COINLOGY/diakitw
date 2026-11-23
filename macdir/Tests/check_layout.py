@@ -70,7 +70,7 @@ for f in list((p/'Sources/MacdirCore').glob('*.swift'))+list((p/'Sources/macdir'
         text=''.join(lines)
         for chart in ['load', 'network']:
             token = ('ServerLoadActivity' if chart == 'load' else 'ServerNetworkActivity') + '(state: state, sample: sample, now: now, range: range)\n'
-            assert text.count(token) == 1, token
+            assert text.count(token) == (2 if chart == "load" else 1), token
             text=text.replace(token, token.rstrip('\n')+'.layoutProbe("fleet-" + config.id + "-'+chart+'")\n', 1)
         text=text.replace('}.frame(height: 108)\n', '}.frame(height: 108).layoutProbe("fleet-" + config.id + "-row")\n', 1)
     if f.name=='NeedleGauge.swift':
