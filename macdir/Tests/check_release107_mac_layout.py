@@ -39,6 +39,11 @@ class DashboardLayoutTests(unittest.TestCase):
         self.assertIn(r'evidence/diakitw-1.0.7/\(suffix)', harness)
         self.assertNotIn('evidence/diakitw-1.0.6/', harness)
 
+    def test_geo_transport_fixture_links_in_the_107_evidence_directory(self):
+        script = (ROOT / 'Tests/check_geo_transport.py').read_text()
+        self.assertIn("evidence/diakitw-1.0.7/transport-checks", script)
+        self.assertNotIn("evidence/diakitw-1.0.6/transport-checks", script)
+
     def test_native_probe_covers_order_and_multiple_widths(self):
         harness = (ROOT / 'Tests/render_layout.swift').read_text()
         for name in ('resource-cpu', 'network-rx', 'network-tx',

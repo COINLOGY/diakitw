@@ -57,6 +57,11 @@ class Release107(unittest.TestCase):
         self.assertIn('Entry map hidden', (ANDROID / 'app/src/androidTest/java/app/diakitw/EntryProbe.java').read_text())
         self.assertIn('a.persistentMap.getHeight()*(a.landscape?.5:.75),"Map hidden below initial viewport visible="', probe)
 
+    def test_offline_update_jar_fetch_retries_transient_rate_limit(self):
+        script = (ANDROID / 'ci/run-update-tests.sh').read_text()
+        self.assertIn('curl --retry 5 --retry-delay 3 --retry-max-time 150 -fLsS --max-time 60', script)
+        self.assertIn('sha256sum -c -', script)
+
     def test_safe_failure_summary_has_allowlisted_line_not_ip(self):
         import subprocess, sys, tempfile
         with tempfile.TemporaryDirectory() as directory:
