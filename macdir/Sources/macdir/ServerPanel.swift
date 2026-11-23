@@ -570,10 +570,10 @@ private struct ServerHostPanel: View {
      .foregroundStyle(sample != nil ? Color.green : Color.secondary)
    }
    HStack(spacing: 10) {
-    GaugeTile(symbol: "cpu", title: "CPU", value: MetricPresentation.percent(sample?.cpuPercent), detail: "Логические ядра: " + (hardware?.cpuCount.map { String(format: "%.0f", $0) } ?? "Н/Д"), fraction: GaugeScale.fraction(sample?.cpuPercent, maximum: 100))
-    GaugeTile(symbol: "memorychip", title: "RAM", value: measuredPercent(sample?.memoryUsed, sample?.memoryTotal), detail: measuredPair(sample?.memoryUsed, sample?.memoryTotal), fraction: GaugeScale.fraction(sample?.memoryUsed, maximum: sample?.memoryTotal), explanation: "MemTotal − MemAvailable; GiB = 2³⁰ байт")
-    GaugeTile(symbol: "arrow.left.arrow.right", title: "SWAP", value: measuredPercent(sample?.swapUsed, sample?.swapTotal), detail: measuredPair(sample?.swapUsed, sample?.swapTotal), fraction: GaugeScale.fraction(sample?.swapUsed, maximum: sample?.swapTotal), explanation: MetricPresentation.swapExplanation)
-    GaugeTile(symbol: "internaldrive", title: "ДИСК /", value: measuredPercent(sample?.diskUsed, sample?.diskTotal), detail: measuredPair(sample?.diskUsed, sample?.diskTotal) + "\nКорневая файловая система", fraction: GaugeScale.fraction(sample?.diskUsed, maximum: sample?.diskTotal))
+    GaugeTile(symbol: "cpu", title: "CPU", value: MetricPresentation.percent(sample?.cpuPercent), detail: "Логические ядра: " + (hardware?.cpuCount.map { String(format: "%.0f", $0) } ?? "Н/Д"), fraction: GaugeScale.fraction(sample?.cpuPercent, maximum: 100), tickLabels: [])
+    GaugeTile(symbol: "memorychip", title: "RAM", value: measuredPercent(sample?.memoryUsed, sample?.memoryTotal), detail: measuredPair(sample?.memoryUsed, sample?.memoryTotal), fraction: GaugeScale.fraction(sample?.memoryUsed, maximum: sample?.memoryTotal), tickLabels: [], explanation: "MemTotal − MemAvailable; GiB = 2³⁰ байт")
+    GaugeTile(symbol: "arrow.left.arrow.right", title: "SWAP", value: measuredPercent(sample?.swapUsed, sample?.swapTotal), detail: measuredPair(sample?.swapUsed, sample?.swapTotal), fraction: GaugeScale.fraction(sample?.swapUsed, maximum: sample?.swapTotal), tickLabels: [], explanation: MetricPresentation.swapExplanation)
+    GaugeTile(symbol: "internaldrive", title: "ДИСК /", value: measuredPercent(sample?.diskUsed, sample?.diskTotal), detail: measuredPair(sample?.diskUsed, sample?.diskTotal) + "\nКорневая файловая система", fraction: GaugeScale.fraction(sample?.diskUsed, maximum: sample?.diskTotal), tickLabels: [])
    }
    HStack {
     Picker("Интерфейс", selection: $selection) {

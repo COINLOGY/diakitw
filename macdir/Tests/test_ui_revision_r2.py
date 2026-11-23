@@ -11,6 +11,11 @@ class NativeRevisionChecks(unittest.TestCase):
         self.assertIn('interface: selection', detail)
         self.assertIn('traffic(for: name, in: range, now: now)', chart)
 
+    def test_detail_gauges_omit_large_numeric_tick_labels(self):
+        detail = panel.split("private struct ServerHostPanel:", 1)[1]
+        gauges = detail.split("   HStack(spacing: 10) {", 1)[1].split("   HStack {", 1)[0]
+        self.assertEqual(gauges.count("tickLabels: []"), 4)
+
     def test_both_charts_label_time_axis(self):
         load = panel.split('private struct ServerLoadActivity:', 1)[1].split('private struct ServerNetworkActivity:', 1)[0]
         network = panel.split('private struct ServerNetworkActivity:', 1)[1].split('private struct ServerAddSheet:', 1)[0]
