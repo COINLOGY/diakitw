@@ -69,6 +69,8 @@ python3 Tests/check_internet_ui.py
 python3 Tests/test_server_probe.py
 python3 Tests/check_servers_ui.py
 python3 Tests/test_fleet_compact_107.py
+python3 Tests/test_native_zoom_107.py
+python3 Tests/test_ui_revision_r2.py
 swiftc -j 2 -parse-as-library Tests/fleet_traffic_checks.swift -I .build/release/Modules .build/release/MacdirCore.build/*.o -o evidence/diakitw-1.0.7/fleet-traffic-checks
 evidence/diakitw-1.0.7/fleet-traffic-checks
 python3 Tests/check_mac_identity.py

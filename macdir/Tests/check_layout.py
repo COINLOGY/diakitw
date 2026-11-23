@@ -54,6 +54,12 @@ files=[]
 for f in list((p/'Sources/MacdirCore').glob('*.swift'))+list((p/'Sources/macdir').glob('*.swift')):
     text=s if f.name=='main.swift' else f.read_text()
     if f.name=='ServerPanel.swift':
+        text=text.replace('if servers.section == 0 { ContentView(model: model) }',
+                          'if servers.section == 0 { ContentView(model: model).layoutProbe("zoom-dashboard") }')
+        text=text.replace('    }\n    .frame(width: geometry.size.width / CGFloat(zoom), height: geometry.size.height / CGFloat(zoom), alignment: .top)',
+                          '     Color.clear.frame(width: 100, height: 1).layoutProbe("zoom-marker")\n    }\n    .frame(width: geometry.size.width / CGFloat(zoom), height: geometry.size.height / CGFloat(zoom), alignment: .top)')
+        text=text.replace('.frame(maxWidth: .infinity, alignment: .trailing).padding(.horizontal, 12).padding(.vertical, 5)',
+                          '.frame(maxWidth: .infinity, alignment: .trailing).padding(.horizontal, 12).padding(.vertical, 5).layoutProbe("zoom-toolbar")')
         text=text.replace('private struct ServerHostPanel:', 'struct ServerHostPanel:').replace('private func measuredPercent(', 'func measuredPercent(').replace('private func measuredPair(', 'func measuredPair(')
         text=text.replace('private struct ServerFleetRow:', 'struct ServerFleetRow:')
         lines=text.splitlines(keepends=True)
@@ -61,7 +67,12 @@ for f in list((p/'Sources/MacdirCore').glob('*.swift'))+list((p/'Sources/macdir'
             matches=[i for i,line in enumerate(lines) if token in line]
             assert len(matches)==1,(label,matches)
             i=matches[0];lines[i]=lines[i].rstrip('\n')+'.layoutProbe("fleet-" + config.id + "-'+label+'")\n'
-        text=''.join(lines).replace('ServerNetworkActivity(state: state, sample: sample)\n', 'ServerNetworkActivity(state: state, sample: sample).layoutProbe("fleet-" + config.id + "-network")\n', 1).replace('}.frame(height: 108)\n', '}.frame(height: 108).layoutProbe("fleet-" + config.id + "-row")\n', 1)
+        text=''.join(lines)
+        for chart in ['load', 'network']:
+            token = ('ServerLoadActivity' if chart == 'load' else 'ServerNetworkActivity') + '(state: state, sample: sample, now: now, range: range)\n'
+            assert text.count(token) == 1, token
+            text=text.replace(token, token.rstrip('\n')+'.layoutProbe("fleet-" + config.id + "-'+chart+'")\n', 1)
+        text=text.replace('}.frame(height: 108)\n', '}.frame(height: 108).layoutProbe("fleet-" + config.id + "-row")\n', 1)
     if f.name=='NeedleGauge.swift':
         text=text.replace('.help(explanation ?? detail)', '.help(explanation ?? detail).layoutProbe("gauge-" + title)')
     text=text.replace('import MacdirCore\n','').replace('MacdirCore.Scanner','Scanner')

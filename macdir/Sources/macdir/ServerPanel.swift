@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 import MacdirCore
 
 @MainActor final class ServersModel: ObservableObject {
@@ -180,16 +181,58 @@ import MacdirCore
 struct MacdirRootView: View {
  @ObservedObject var model: Model
  @StateObject private var servers = ServersModel()
+ @State private var zoom = 1.0
+ @State private var viewport = CGSize.zero
 
+ private var editingText: Bool {
+  NSApp.keyWindow?.firstResponder is NSTextView || NSApp.keyWindow?.firstResponder is NSTextField
+ }
+ private var shortcutsBlocked: Bool { servers.adding || servers.removing != nil }
+ private func fit() {
+  let server = servers.section == 1
+  zoom = WindowZoom.fit(width: viewport.width, height: viewport.height,
+   minimumWidth: server && servers.selectedServerID == nil ? 1440 : 1180,
+   minimumHeight: server ? 780 : 800)
+ }
+ private func resize(_ size: CGSize) { viewport = size; fit() }
+ private func step(_ direction: Int) { if !editingText && !shortcutsBlocked { zoom = WindowZoom.step(zoom, direction: direction) } }
+ private func resetZoom() { if !editingText && !shortcutsBlocked { zoom = 1 } }
+ private var zoomToolbar: some View {
+  HStack(spacing: 6) {
+   Button("−") { step(-1) }.keyboardShortcut("-", modifiers: .command)
+    .accessibilityLabel("Уменьшить масштаб")
+   Button("\(Int((zoom * 100).rounded())) %") { resetZoom() }
+    .accessibilityLabel("Сброс масштаба до 100 %")
+   Button("+") { step(1) }.keyboardShortcut("+", modifiers: .command)
+    .accessibilityLabel("Увеличить масштаб")
+   Button("+") { step(1) }.keyboardShortcut("=", modifiers: .command).hidden()
+   Button("100 %") { resetZoom() }.keyboardShortcut("0", modifiers: .command).hidden()
+   Button("По размеру") { fit() }
+  }.buttonStyle(.bordered).controlSize(.small)
+   .disabled(shortcutsBlocked)
+   .frame(maxWidth: .infinity, alignment: .trailing).padding(.horizontal, 12).padding(.vertical, 5)
+ }
  var body: some View {
   VStack(spacing: 0) {
-   Picker("Раздел", selection: $servers.section) { Text("Этот Mac").tag(0); Text("Серверы").tag(1) }
-    .pickerStyle(.segmented).frame(width: 300).padding(.top, 12)
-   if servers.section == 0 { ContentView(model: model) }
-   else { ServerPanel(model: servers).frame(minWidth: 1060, minHeight: 740) }
+   zoomToolbar
+   GeometryReader { geometry in
+    VStack(spacing: 0) {
+     Picker("Раздел", selection: $servers.section) { Text("Этот Mac").tag(0); Text("Серверы").tag(1) }
+      .pickerStyle(.segmented).frame(width: 300).padding(.top, 12)
+     if servers.section == 0 { ContentView(model: model) }
+     else { ServerPanel(model: servers).frame(minWidth: 1060, minHeight: 740) }
+    }
+    .frame(width: geometry.size.width / CGFloat(zoom), height: geometry.size.height / CGFloat(zoom), alignment: .top)
+    .scaleEffect(CGFloat(zoom), anchor: .topLeading)
+    .frame(width: geometry.size.width, height: geometry.size.height, alignment: .topLeading)
+    .onAppear { resize(geometry.size) }
+    .onChange(of: geometry.size) { _, size in resize(size) }
+   }
   }
   .tint(.cyan).controlSize(.large)
-  .onChange(of: servers.section) { _, new in servers.setVisible(new == 1 && NSApp.isActive) }
+  .onChange(of: servers.section) { _, new in fit(); servers.setVisible(new == 1 && NSApp.isActive) }
+  .onChange(of: servers.selectedServerID) { _, _ in fit() }
+  .onReceive(NotificationCenter.default.publisher(for: NSWindow.didChangeScreenNotification)) { _ in fit() }
   .onAppear { servers.setVisible(servers.section == 1 && NSApp.isActive) }
   .onReceive(NotificationCenter.default.publisher(for: NSApplication.didResignActiveNotification)) { _ in servers.setVisible(false) }
   .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in servers.setVisible(servers.section == 1) }
@@ -218,6 +261,7 @@ private func serverTime(_ epoch: Double?) -> String {
 struct ServerPanel: View {
  @ObservedObject var model: ServersModel
  @State private var treeExpanded = true
+ @State private var historyRange: ServerHistoryRange = .fiveMinutes
  var body: some View {
   ScrollView {
    VStack(alignment: .leading, spacing: 14) {
@@ -266,18 +310,20 @@ struct ServerPanel: View {
         HStack {
          Text("Выбранное подключение").font(.headline)
          Spacer()
+         historyPicker
          Button("Изменить") { model.beginEdit(config) }
          Button("Удалить из мониторинга", role: .destructive) { model.removing = config }
         }
-        ServerHostPanel(config: config, state: model.states[config.id] ?? ServerState(), hardware: model.hardwareCache.snapshot(config), hardwareLabel: model.hardwareCache.label(config, now: context.date.timeIntervalSince1970), now: context.date.timeIntervalSince1970, busy: model.inFlight.contains(config.id), selection: Binding(get: { model.selections[config.id] ?? "" }, set: { model.select($0, for: config.id) }))
+        ServerHostPanel(config: config, state: model.states[config.id] ?? ServerState(), hardware: model.hardwareCache.snapshot(config), hardwareLabel: model.hardwareCache.label(config, now: context.date.timeIntervalSince1970), now: context.date.timeIntervalSince1970, busy: model.inFlight.contains(config.id), range: historyRange, selection: Binding(get: { model.selections[config.id] ?? "" }, set: { model.select($0, for: config.id) }))
        } else {
         HStack {
          Text("Все серверы").font(.title2.bold())
          Spacer()
+         historyPicker
          Text("На связи: \(model.configs.filter { model.states[$0.id]?.current(now: context.date.timeIntervalSince1970) != nil }.count) / \(model.configs.count)").font(.caption).foregroundStyle(.secondary)
         }
         ForEach(model.configs) { config in
-         ServerFleetRow(config: config, state: model.states[config.id] ?? ServerState(), now: context.date.timeIntervalSince1970) {
+         ServerFleetRow(config: config, state: model.states[config.id] ?? ServerState(), now: context.date.timeIntervalSince1970, range: historyRange) {
           model.selectedServerID = config.id
          }
         }
@@ -299,12 +345,18 @@ struct ServerPanel: View {
    Text("\(config.name) · \(config.target)\nТолько из локального мониторинга. Сервер, службы, SSH-ключи, config и known_hosts не изменяются. Сохранённый пароль только этой записи diakitw будет удалён из Связки ключей. SSH-запрос отменяется.")
   }
  }
+ private var historyPicker: some View {
+  Picker("Период истории", selection: $historyRange) {
+   ForEach(ServerHistoryRange.allCases, id: \.self) { Text($0.label).tag($0) }
+  }.pickerStyle(.segmented).fixedSize().accessibilityLabel("Период истории")
+ }
 }
 
 private struct ServerFleetRow: View {
  let config: ServerConfig
  let state: ServerState
  let now: Double
+ let range: ServerHistoryRange
  let open: () -> Void
  var body: some View {
   let sample = state.current(now: now)
@@ -320,13 +372,15 @@ private struct ServerFleetRow: View {
      Image(systemName: "chevron.right").foregroundStyle(.secondary)
     }
     GeometryReader { geometry in
-     let side = min(108, max(72, (geometry.size.width - 32) / 7))
+     let side = min(108, max(72, (geometry.size.width - 40) / 9))
      HStack(spacing: 8) {
       fleetGauge("CPU", MetricPresentation.percent(sample?.cpuPercent), GaugeScale.fraction(sample?.cpuPercent, maximum: 100), side: side)
       fleetGauge("RAM", measuredPercent(sample?.memoryUsed, sample?.memoryTotal), GaugeScale.fraction(sample?.memoryUsed, maximum: sample?.memoryTotal), side: side)
       fleetGauge("SWAP", measuredPercent(sample?.swapUsed, sample?.swapTotal), GaugeScale.fraction(sample?.swapUsed, maximum: sample?.swapTotal), side: side)
       fleetGauge("Диск /", measuredPercent(sample?.diskUsed, sample?.diskTotal), GaugeScale.fraction(sample?.diskUsed, maximum: sample?.diskTotal), side: side)
-      ServerNetworkActivity(state: state, sample: sample)
+      ServerLoadActivity(state: state, sample: sample, now: now, range: range)
+       .frame(maxWidth: .infinity).frame(height: side)
+      ServerNetworkActivity(state: state, sample: sample, now: now, range: range)
        .frame(maxWidth: .infinity).frame(height: side)
      }.frame(maxWidth: .infinity, alignment: .leading)
     }.frame(height: 108)
@@ -336,7 +390,7 @@ private struct ServerFleetRow: View {
  }
  private func fleetGauge(_ title: String, _ value: String, _ fraction: Double?, side: CGFloat) -> some View {
   VStack(spacing: 0) {
-   NeedleGauge(fraction: fraction, tickLabels: ["0", "50", "100"]).frame(height: side * 0.58)
+   NeedleGauge(fraction: fraction, tickLabels: []).frame(height: side * 0.58)
    Text(title).font(.system(size: 10, weight: .semibold)).foregroundStyle(.secondary).lineLimit(1)
    Text(value).font(.system(size: 14, weight: .semibold, design: .rounded)).monospacedDigit().lineLimit(1)
   }.frame(width: side, height: side)
@@ -345,12 +399,67 @@ private struct ServerFleetRow: View {
  }
 }
 
+private struct ServerLoadActivity: View {
+ let state: ServerState
+ let sample: ServerTelemetry?
+ let now: Double
+ var range: ServerHistoryRange = .fiveMinutes
+ var body: some View {
+  let readings = state.load(in: range, now: now)
+  VStack(alignment: .leading, spacing: 4) {
+   Text("История нагрузки · CPU").font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+   if sample != nil && readings.contains(where: { $0?.percent != nil }) {
+    Canvas { context, size in
+     var path = Path(); var previous: ServerLoadPoint?
+     for point in readings {
+      guard let point, let value = point.percent else { previous = nil; continue }
+      let x = size.width * (point.sampledAt - (now - range.seconds)) / range.seconds
+      let y = size.height * (1 - value / 100)
+      let position = CGPoint(x: x, y: y)
+      if let previous, point.follows(previous) { path.addLine(to: position) } else { path.move(to: position) }
+      previous = point
+      context.fill(Path(ellipseIn: CGRect(x: x - 1.5, y: y - 1.5, width: 3, height: 3)), with: .color(InstrumentTheme.lime))
+     }
+     context.stroke(path, with: .color(InstrumentTheme.lime), lineWidth: 1.5)
+    }.frame(maxWidth: .infinity, maxHeight: .infinity)
+     .accessibilityLabel("История реально измеренной загрузки CPU")
+   } else {
+    Text("История CPU: Н/Д").font(.caption2).foregroundStyle(.secondary)
+     .frame(maxWidth: .infinity, maxHeight: .infinity)
+   }
+   ServerHistoryAxis(range: range, now: now)
+  }.frame(maxWidth: .infinity)
+ }
+}
+
+private struct ServerHistoryAxis: View {
+ let range: ServerHistoryRange
+ let now: Double
+ private func clock(_ time: Double) -> String {
+  guard time.isFinite, time >= 0, time < 4_102_444_800 else { return "—" }
+  let components = Calendar.current.dateComponents([.hour, .minute], from: Date(timeIntervalSince1970: time))
+  return String(format: "%02d:%02d", components.hour ?? 0, components.minute ?? 0)
+ }
+ var body: some View {
+  HStack(spacing: 1) {
+   Text(clock(now - range.seconds))
+   Spacer(minLength: 1)
+   Text(clock(now))
+  }.font(.system(size: 8, weight: .medium, design: .monospaced))
+   .foregroundStyle(.secondary).lineLimit(1)
+   .accessibilityLabel("Время от " + clock(now - range.seconds) + " до " + clock(now))
+ }
+}
+
 private struct ServerNetworkActivity: View {
  let state: ServerState
  let sample: ServerTelemetry?
+ let now: Double
+ var range: ServerHistoryRange = .fiveMinutes
+ var interface: String? = nil
  var body: some View {
-  let name = sample?.preferredInterface
-  let readings = state.trafficHistory.map { point in point?.interface == name ? point : nil }
+  let name = interface ?? sample?.preferredInterface
+  let readings = state.traffic(for: name, in: range, now: now)
   let rxMax = readings.compactMap { $0?.received }.max() ?? 0
   let txMax = readings.compactMap { $0?.sent }.max() ?? 0
   let scale = max(1, max(rxMax, txMax))
@@ -367,9 +476,9 @@ private struct ServerNetworkActivity: View {
     Canvas { context, size in
      for incoming in [true, false] {
       var path = Path(); var previous: ServerTrafficPoint?
-      for (index, point) in readings.enumerated() {
+      for point in readings {
        guard let point, let value = incoming ? point.received : point.sent else { previous = nil; continue }
-       let x = size.width * Double(index) / Double(max(1, readings.count - 1))
+       let x = size.width * (point.sampledAt - (now - range.seconds)) / range.seconds
        let y = size.height * (1 - min(1, value / scale))
        let position = CGPoint(x: x, y: y)
        if let previous, point.follows(previous) { path.addLine(to: position) } else { path.move(to: position) }
@@ -385,6 +494,7 @@ private struct ServerNetworkActivity: View {
     Text("Нет свежих данных сети").font(.caption2).foregroundStyle(.secondary)
      .frame(maxWidth: .infinity, maxHeight: .infinity)
    }
+   ServerHistoryAxis(range: range, now: now)
   }.frame(maxWidth: .infinity)
  }
 }
@@ -439,6 +549,7 @@ private struct ServerHostPanel: View {
  let hardwareLabel: String
  let now: Double
  let busy: Bool
+ var range: ServerHistoryRange = .fiveMinutes
  @Binding var selection: String
  private var sample: ServerTelemetry? { state.current(now: now) }
  private var network: ServerNetwork? { sample?.network.first { $0.name == selection } }
@@ -486,20 +597,11 @@ private struct ServerHostPanel: View {
       .foregroundStyle(["active", "running"].contains(service.state) ? Color.green : Color.secondary)
     } }.font(.caption)
    } else { Text("Службы: Н/Д").font(.caption).foregroundStyle(.secondary) }
-   if sample != nil && state.cpuHistory.contains(where: { $0 != nil }) {
-   HStack {
-    Text("CPU · последние 60 опросов\n0–100 % · пропуски не соединяются").font(.caption2).foregroundStyle(.secondary)
-    Canvas { context, size in
-     var path = Path(); var connected = false
-     for (i, value) in state.cpuHistory.enumerated() {
-      guard let value else { connected = false; continue }
-      let point = CGPoint(x: size.width * Double(i) / 59, y: size.height * (1 - value / 100))
-      if connected { path.addLine(to: point) } else { path.move(to: point) }; connected = true
-     }
-     context.stroke(path, with: .color(.blue), lineWidth: 1.5)
-    }.frame(height: 28).accessibilityLabel("История реально измеренной загрузки CPU")
-   }
-   } else { Text("История CPU: Н/Д · нет свежих измерений").font(.caption).foregroundStyle(.secondary) }
+   HStack(spacing: 10) {
+    ServerLoadActivity(state: state, sample: sample, now: now, range: range)
+    ServerNetworkActivity(state: state, sample: sample, now: now, range: range, interface: selection)
+   }.frame(height: 150)
+
   }.padding(16).background(.quaternary.opacity(0.25), in: RoundedRectangle(cornerRadius: 16))
  }
 }

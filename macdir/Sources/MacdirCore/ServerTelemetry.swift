@@ -14,6 +14,20 @@ public struct ServerTrafficPoint {
   interface == previous.interface && sampledAt > previous.sampledAt && sampledAt - previous.sampledAt <= 45
  }
 }
+public enum ServerHistoryRange: Int, CaseIterable, Sendable {
+ case minute = 60, fiveMinutes = 300, fifteenMinutes = 900, hour = 3600
+ public var seconds: Double { Double(rawValue) }
+ public var label: String {
+  switch self { case .minute: return "1 мин"; case .fiveMinutes: return "5 мин"; case .fifteenMinutes: return "15 мин"; case .hour: return "60 мин" }
+ }
+}
+public struct ServerLoadPoint {
+ public let sampledAt: Double
+ public let percent: Double?
+ public func follows(_ previous: Self) -> Bool {
+  sampledAt > previous.sampledAt && sampledAt - previous.sampledAt <= 45
+ }
+}
 public struct ServerService: Codable { public let name: String; public let state: String }
 public struct ServerTelemetry: Codable {
  public let sampledAt: Double?
@@ -65,20 +79,69 @@ public struct ServerState {
  public private(set) var lastSuccess: ServerTelemetry?
  public private(set) var error: ServerError?
  public private(set) var cpuHistory: [Double?] = []
+ public private(set) var loadHistory: [ServerLoadPoint?] = []
  public private(set) var trafficHistory: [ServerTrafficPoint?] = []
+ private var trafficByInterface: [String: [ServerTrafficPoint?]] = [:]
  public init() {}
  public mutating func accept(_ result: Result<ServerTelemetry, ServerError>) {
+  let previousCount = trafficHistory.count
   switch result {
   case .success(let sample):
    lastSuccess = sample; error = nil; cpuHistory.append(sample.cpuPercent)
+   if let sampledAt = sample.sampledAt { loadHistory.append(ServerLoadPoint(sampledAt: sampledAt, percent: sample.cpuPercent)) }
+   else { loadHistory.append(nil) }
    if let name = sample.preferredInterface, let sampledAt = sample.sampledAt,
       let net = sample.network.first(where: { $0.name == name }) {
     trafficHistory.append(ServerTrafficPoint(interface: name, sampledAt: sampledAt, received: net.rx, sent: net.tx))
    } else { trafficHistory.append(nil) }
-  case .failure(let failure): error = failure; cpuHistory.append(nil); trafficHistory.append(nil)
+  case .failure(let failure): error = failure; cpuHistory.append(nil); loadHistory.append(nil); trafficHistory.append(nil)
   }
-  cpuHistory = Array(cpuHistory.suffix(60))
-  trafficHistory = Array(trafficHistory.suffix(60))
+  // Keep a separate measured history for each selected interface. Every poll,
+  // including a failed probe, adds a nil slot so a line cannot bridge a gap.
+  for name in Array(trafficByInterface.keys) {
+   var history = trafficByInterface[name] ?? []
+   history.append(nil)
+   trafficByInterface[name] = history
+  }
+  if case .success(let sample) = result, let sampledAt = sample.sampledAt {
+   for net in sample.network {
+    var history = trafficByInterface[net.name] ?? Array(repeating: nil, count: previousCount + 1)
+    history[history.count - 1] = ServerTrafficPoint(interface: net.name, sampledAt: sampledAt, received: net.rx, sent: net.tx)
+    trafficByInterface[net.name] = history
+   }
+  }
+  for name in Array(trafficByInterface.keys) {
+   let bounded = Array((trafficByInterface[name] ?? []).suffix(121))
+   if bounded.compactMap({ $0 }).isEmpty { trafficByInterface.removeValue(forKey: name) }
+   else { trafficByInterface[name] = bounded }
+  }
+  cpuHistory = Array(cpuHistory.suffix(121))
+  trafficHistory = Array(trafficHistory.suffix(121))
+  loadHistory = Array(loadHistory.suffix(121))
+ }
+ // Keep nil slots: unsuccessful probes and missing measurements are discontinuities.
+ public func load(in range: ServerHistoryRange, now: Double) -> [ServerLoadPoint?] {
+  guard now.isFinite else { return [] }
+  let first = loadHistory.firstIndex { $0.map { $0.sampledAt >= now - range.seconds } ?? false } ?? loadHistory.count
+  return loadHistory.dropFirst(first).map { point in
+   guard let point, point.sampledAt >= now - range.seconds, point.sampledAt <= now else { return nil }
+   return point
+  }
+ }
+ public func traffic(in range: ServerHistoryRange, now: Double) -> [ServerTrafficPoint?] {
+  filteredTraffic(trafficHistory, in: range, now: now)
+ }
+ public func traffic(for name: String?, in range: ServerHistoryRange, now: Double) -> [ServerTrafficPoint?] {
+  guard let name, let history = trafficByInterface[name] else { return [] }
+  return filteredTraffic(history, in: range, now: now)
+ }
+ private func filteredTraffic(_ history: [ServerTrafficPoint?], in range: ServerHistoryRange, now: Double) -> [ServerTrafficPoint?] {
+  guard now.isFinite else { return [] }
+  let first = history.firstIndex { $0.map { $0.sampledAt >= now - range.seconds } ?? false } ?? history.count
+  return history.dropFirst(first).map { point in
+   guard let point, point.sampledAt >= now - range.seconds, point.sampledAt <= now else { return nil }
+   return point
+  }
  }
  public func current(now: Double = Date().timeIntervalSince1970) -> ServerTelemetry? { guard error == nil, let lastSuccess, lastSuccess.isFresh(now: now) else { return nil }; return lastSuccess }
 }

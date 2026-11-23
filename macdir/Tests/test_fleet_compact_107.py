@@ -11,7 +11,7 @@ class FleetCompactLayout(unittest.TestCase):
         self.assertIn('GeometryReader { geometry in', row)
         self.assertIn('let side = min(', row)
         self.assertIn('.frame(width: side, height: side)', row)
-        self.assertIn('NeedleGauge(fraction: fraction, tickLabels: ["0", "50", "100"])', row)
+        self.assertIn('NeedleGauge(fraction: fraction, tickLabels: [])', row)
         for label in ('CPU', 'RAM', 'SWAP', 'Диск /'):
             self.assertIn(f'fleetGauge("{label}"', row)
         self.assertIn('ServerNetworkActivity(', row)
@@ -19,7 +19,7 @@ class FleetCompactLayout(unittest.TestCase):
 
     def test_chart_uses_real_bounded_traffic_samples_and_hides_stale(self):
         self.assertIn('trafficHistory', core)
-        self.assertIn('Array(trafficHistory.suffix(60))', core)
+        self.assertIn('Array(trafficHistory.suffix(121))', core)
         self.assertIn('trafficHistory.append(nil)', core)
         self.assertIn('$0?.hasMeasurement == true', row)
         self.assertIn('point.follows(previous)', row)
@@ -29,11 +29,30 @@ class FleetCompactLayout(unittest.TestCase):
         self.assertIn('Canvas {', row)
         self.assertIn('context.fill(Path(ellipseIn:', row)
 
+    def test_load_history_uses_timestamps_and_period_not_poll_indices(self):
+        self.assertIn("public enum ServerHistoryRange:", core)
+        self.assertIn("public struct ServerLoadPoint", core)
+        self.assertIn("sampledAt: sampledAt, percent: sample.cpuPercent", core)
+        self.assertIn("public func load(in range: ServerHistoryRange, now: Double)", core)
+        self.assertIn("public func traffic(in range: ServerHistoryRange, now: Double)", core)
+
+    def test_fleet_and_detail_show_load_before_network_with_visible_period(self):
+        fleet = row.split("private struct ServerFleetRow:", 1)[-1].split("private struct ServerNetworkActivity:", 1)[0]
+        self.assertIn("ServerLoadActivity(", fleet)
+        self.assertLess(fleet.index("ServerLoadActivity("), fleet.index("ServerNetworkActivity("))
+        self.assertIn("Период истории", view)
+        self.assertIn("ForEach(ServerHistoryRange.allCases", view)
+        detail = view.split("private struct ServerHostPanel:", 1)[1]
+        self.assertLess(detail.index("ServerLoadActivity("), detail.index("ServerNetworkActivity("))
+        self.assertIn("История нагрузки", view)
+
     def test_native_geometry_checks_both_server_rows(self):
         renderer = (root / 'Tests/render_layout.swift').read_text()
         instrument = (root / 'Tests/check_layout.py').read_text()
         self.assertIn('for server in servers.configs {', renderer)
         self.assertIn('fleet-" + config.id + "-', instrument)
+        self.assertIn('prefix + "load"', renderer)
+        self.assertIn("for chart in ['load', 'network']:", instrument)
 
 if __name__ == '__main__':
     unittest.main()

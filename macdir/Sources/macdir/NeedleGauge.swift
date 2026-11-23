@@ -89,13 +89,13 @@ struct NeedleGauge: View {
     } else {
      Text("Н/Д").font(.caption).foregroundStyle(.secondary).position(x: center.x, y: center.y - 18)
     }
-    ForEach(0..<3) { i in
+    if labels.count == 3 { ForEach(0..<3) { i in
      let box = geometry.labelBox(i)
      Text(labels[i]).font(.system(size: 10, weight: .semibold, design: .monospaced))
       .lineLimit(1).minimumScaleFactor(0.75)
       .frame(width: box.width, height: box.height)
       .position(x: box.midX, y: box.midY)
-    }
+    } }
    }.foregroundStyle(.primary.opacity(0.85))
   }.accessibilityHidden(true)
  }

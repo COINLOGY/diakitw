@@ -70,7 +70,7 @@ MainActor.assumeIsolated {
   model.current = root; model.crumbs = [root]; model.rows = root.children; model.tiles = Array(root.children.prefix(8))
   model.result = ScanResult(root: root); model.elapsed = "2.0 с"
   layoutFrames = [:]
-  let view = MacdirRootView(model: model).layoutProbe("hostRoot").coordinateSpace(name: "layoutHost").environment(\.colorScheme, dark ? .dark : .light).onPreferenceChange(LayoutFramesKey.self) { layoutFrames = $0 }
+  let view = ContentView(model: model).layoutProbe("hostRoot").coordinateSpace(name: "layoutHost").environment(\.colorScheme, dark ? .dark : .light).onPreferenceChange(LayoutFramesKey.self) { layoutFrames = $0 }
   let host = NSHostingView(rootView: view)
   host.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
   let window = NSWindow(contentRect: NSRect(x: -10000, y: -10000, width: width, height: height), styleMask: [.borderless], backing: .buffered, defer: false)
@@ -114,7 +114,7 @@ MainActor.assumeIsolated {
   } else { failures.append(size+": no bitmap") }
   print(size, layoutFrames)
   if host.bounds.width != CGFloat(width) || host.bounds.height != CGFloat(height) { failures.append(size+": host exceeds requested size") }
-  // Native geometry at seven viewport sizes, both appearances, all three scrollbar styles.
+  // Native geometry across intermediate and small viewport sizes, both appearances, all three scrollbar styles.
   if let cpu = layoutFrames["resource-cpu"], let memory = layoutFrames["resource-memory"],
      let swap = layoutFrames["resource-swap"], let disk = layoutFrames["disk-gauge"],
      let row = layoutFrames["gaugeRow"], let rx = layoutFrames["network-rx"],
@@ -179,6 +179,34 @@ MainActor.assumeIsolated {
   print(failures.isEmpty ? "PASS: rendered first-page layout " + styleName : "FAIL: rendered first-page layout " + styleName)
   exit(failures.isEmpty ? 0 : 1)
  }
+ // Root zoom path also renders at small and intermediate widths; no SSH or disk scan.
+ for width in [800, 1060, 1180] {
+  let rootModel = Model()
+  layoutFrames = [:]
+  let zoomView = MacdirRootView(model: rootModel).frame(width: CGFloat(width), height: 600)
+   .coordinateSpace(name: "layoutHost")
+   .onPreferenceChange(LayoutFramesKey.self) { layoutFrames = $0 }
+  let root = NSHostingView(rootView: zoomView)
+  let window = NSWindow(contentRect: NSRect(x: -10000, y: -10000, width: CGFloat(width), height: 600), styleMask: [.borderless], backing: .buffered, defer: false)
+  window.contentView = root; window.orderFront(nil)
+  for _ in 0..<8 { root.layoutSubtreeIfNeeded(); RunLoop.main.run(until: Date().addingTimeInterval(0.04)) }
+  if root.bounds.width != CGFloat(width) { failures.append("zoom root exceeds viewport \(width)") }
+  if let dashboard = layoutFrames["zoom-dashboard"], let marker = layoutFrames["zoom-marker"],
+     let toolbar = layoutFrames["zoom-toolbar"] {
+   let expected = WindowZoom.fit(width: Double(width), height: 600 - Double(toolbar.height),
+     minimumWidth: 1180, minimumHeight: 800)
+   if abs(marker.width - CGFloat(100 * expected)) > 2 || dashboard.minX < -2 ||
+      dashboard.maxX > CGFloat(width) + 2 || dashboard.minY < toolbar.maxY - 2 ||
+      dashboard.minY >= 600 || dashboard.width <= 0 {
+    failures.append("zoom dashboard clipped or scale incorrect \(width)")
+   }
+  } else { failures.append("zoom dashboard clipped: missing native probes \(width)") }
+  if let bitmap = root.bitmapImageRepForCachingDisplay(in: root.bounds) {
+   root.effectiveAppearance.performAsCurrentDrawingAppearance { root.cacheDisplay(in: root.bounds, to: bitmap) }
+   saveFixture(bitmap, to: output.appendingPathComponent("zoom-root-\(width).png"))
+  } else { failures.append("zoom root no bitmap \(width)") }
+  window.contentView = nil; rootModel.stop()
+ }
  // Actual server panel, in-memory telemetry only; no ServersModel or SSH.
  let config = try! JSONDecoder().decode(ServerConfig.self, from: Data(#"{"id":"fixture","name":"Fixture server — синтетические данные","target":"fixture@example.invalid","role":"agent"}"#.utf8))
  for dark in [true, false] {
@@ -205,7 +233,7 @@ MainActor.assumeIsolated {
   // Fleet overview: two in-memory servers, no SSH or saved configuration.
   let fleetSecond = try! JSONDecoder().decode(ServerConfig.self, from: Data(#"{"id":"fixture-2","name":"Fixture server 2 — синтетические данные","target":"fixture2@example.invalid","role":"bot"}"#.utf8))
   for dark in [true, false] {
-   for width in [1060, 1440] {
+   for width in [1060, 1180, 1440] {
     let servers = ServersModel()
     servers.configs = [config, fleetSecond]
     for (index, server) in servers.configs.enumerated() {
@@ -241,9 +269,11 @@ MainActor.assumeIsolated {
        if abs(frame.width - frame.height) > 1 || frame.width > 109 || frame.width < 71 { failures.append("fleet square gauge " + server.id + " " + label) }
       } else { failures.append("fleet missing gauge " + server.id + " " + label) }
      }
-     if let chart = layoutFrames[prefix + "network"], let row = layoutFrames[prefix + "row"] {
-      if abs(chart.maxX - row.maxX) > 2 || chart.width <= row.width * 0.2 { failures.append("fleet network does not reach row edge " + server.id) }
-     } else { failures.append("fleet network geometry missing " + server.id) }
+     if let load = layoutFrames[prefix + "load"], let chart = layoutFrames[prefix + "network"], let row = layoutFrames[prefix + "row"] {
+      if load.minX < row.minX || chart.maxX > row.maxX + 2 || load.maxX > chart.minX + 2 || chart.width < 80 || load.width < 80 {
+       failures.append("fleet load/network order, visibility or overlap " + server.id)
+      }
+     } else { failures.append("fleet load/network geometry missing " + server.id) }
     }
     window.contentView = nil
    }
