@@ -41,12 +41,15 @@ class FleetCompactLayout(unittest.TestCase):
         self.assertLess(row.index('Spacer(minLength: 14)'), row.index('ServerLoadActivity('))
         # Trend lines are smoothed curves through the real samples, not a polyline.
         self.assertIn('func smoothPath', view)
-        self.assertIn('path.addCurve(to: CGPoint(x: p2.x, y: clamp(p2.y)),', view)
+        # Монотонная кубика без перехлёста: кривая не выходит за соседние точки.
+        self.assertIn('path.addCurve(to: CGPoint(x: points[index + 1].x, y: clamp(points[index + 1].y)),', view)
+        self.assertIn('tangent[index] = slope[index - 1] * slope[index] <= 0 ? 0', view)
         self.assertIn('dropToZero', view)
         # Сплошная линия от нуля: до первого замера и после последнего участок
         # идёт по базовой линии, пустых мест на графике нет.
-        self.assertIn('pts.insert(CGPoint(x: 0, y: fillY)', view)
-        self.assertIn('pts.append(CGPoint(x: Double(size.width), y: fillY)', view)
+        # Края держат крайние замеры: слева первое значение, справа последнее.
+        self.assertIn('pts.insert(CGPoint(x: 0, y: firstSampleY), at: 0)', view)
+        self.assertIn('pts.append(CGPoint(x: Double(size.width), y: lastSampleY))', view)
         # Пропуск заполняется половиной последнего максимума (среднее между
         # нулём и пиком), а не нулём и не разрывом.
         self.assertIn('(1 - (peak / 2) / 100)', view)

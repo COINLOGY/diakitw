@@ -451,10 +451,10 @@ private struct ServerFleetRow: View {
  }
 }
 
-/// Catmull-Rom through the real samples: keeps every measured point, removes
-/// the polyline kinks so the trend reads as a line, not a zigzag.
-/// `clampHeight` keeps the interpolated controls inside the plot, so a dip to
-/// zero never paints outside the chart box.
+/// Monotone cubic through the real samples: no kinks and, unlike Catmull-Rom,
+/// no overshoot — the curve never leaves the range of its neighbouring points,
+/// so a single spike cannot bend back into a loop.
+/// `clampHeight` keeps every control point inside the plot.
 private func smoothPath(_ points: [CGPoint], clampHeight: CGFloat? = nil) -> Path {
  var path = Path()
  guard let first = points.first else { return path }
@@ -464,12 +464,40 @@ private func smoothPath(_ points: [CGPoint], clampHeight: CGFloat? = nil) -> Pat
  }
  path.move(to: CGPoint(x: first.x, y: clamp(first.y)))
  guard points.count > 1 else { return path }
- for index in 0..<(points.count - 1) {
-  let p0 = points[max(0, index - 1)], p1 = points[index]
-  let p2 = points[index + 1], p3 = points[min(points.count - 1, index + 2)]
-  path.addCurve(to: CGPoint(x: p2.x, y: clamp(p2.y)),
-                control1: CGPoint(x: p1.x + (p2.x - p0.x) / 6, y: clamp(p1.y + (p2.y - p0.y) / 6)),
-                control2: CGPoint(x: p2.x - (p3.x - p1.x) / 6, y: clamp(p2.y - (p3.y - p1.y) / 6)))
+ guard points.count > 2 else {
+  path.addLine(to: CGPoint(x: points[1].x, y: clamp(points[1].y)))
+  return path
+ }
+ let count = points.count
+ var slope = [CGFloat](repeating: 0, count: count - 1)
+ for index in 0..<(count - 1) {
+  let dx = points[index + 1].x - points[index].x
+  slope[index] = dx == 0 ? 0 : (points[index + 1].y - points[index].y) / dx
+ }
+ var tangent = [CGFloat](repeating: 0, count: count)
+ tangent[0] = slope[0]
+ tangent[count - 1] = slope[count - 2]
+ for index in 1..<(count - 1) {
+  tangent[index] = slope[index - 1] * slope[index] <= 0 ? 0 : (slope[index - 1] + slope[index]) / 2
+ }
+ // Fritsch–Carlson: ограничиваем наклоны, иначе на пике кривая загибается.
+ for index in 0..<(count - 1) where slope[index] != 0 {
+  let a = tangent[index] / slope[index], b = tangent[index + 1] / slope[index]
+  let norm = a * a + b * b
+  if norm > 9 {
+   let scale = 3 / norm.squareRoot()
+   tangent[index] = scale * a * slope[index]
+   tangent[index + 1] = scale * b * slope[index]
+  }
+ }
+ for index in 0..<(count - 1) {
+  let dx = points[index + 1].x - points[index].x
+  guard dx != 0 else { path.addLine(to: CGPoint(x: points[index + 1].x, y: clamp(points[index + 1].y))); continue }
+  path.addCurve(to: CGPoint(x: points[index + 1].x, y: clamp(points[index + 1].y)),
+                control1: CGPoint(x: points[index].x + dx / 3,
+                                  y: clamp(points[index].y + tangent[index] * dx / 3)),
+                control2: CGPoint(x: points[index + 1].x - dx / 3,
+                                  y: clamp(points[index + 1].y - tangent[index + 1] * dx / 3)))
  }
  return path
 }
@@ -523,11 +551,17 @@ private struct ServerLoadActivity: View {
      let peak = readings.compactMap { $0?.percent }.max() ?? 0
      let fillY = max(0, Double(size.height) * (1 - (peak / 2) / 100))
      func zero(_ x: Double) { pts.append(CGPoint(x: x, y: fillY)) }
+     var firstSampleX: Double?
+     var firstSampleY: Double = 0
+     var lastSampleX: Double = 0
+     var lastSampleY: Double = 0
      for point in readings {
       guard let point, let value = point.percent else { dropToZero = true; continue }
       let x = Double(size.width) * ((point.sampledAt - (now - range.seconds)) / range.seconds)
       let y = Double(size.height) * (1 - value / 100)
       let position = CGPoint(x: x, y: y)
+      if firstSampleX == nil { firstSampleX = x; firstSampleY = y }
+      lastSampleX = x; lastSampleY = y
       if dropToZero {
        zero(Double(pts.last?.x ?? 0)); zero(x); dropToZero = false
       } else if let previous, !point.follows(previous) {
@@ -538,13 +572,13 @@ private struct ServerLoadActivity: View {
       context.fill(Path(ellipseIn: CGRect(x: x - 1.5, y: y - 1.5, width: 3, height: 3)), with: .color(InstrumentTheme.lime))
      }
      if dropToZero { zero(Double(size.width)) }
-     // До первого замера и после последнего линия идёт по средней линии,
-     // поэтому на графике нет пустых участков.
-     if let firstX = pts.first?.x, firstX > 1 {
-      pts.insert(CGPoint(x: 0, y: fillY), at: 0)
+     // Края тянутся за крайними замерами: слева — первым значением, справа —
+     // последним. Линия не «догоняет» данные и не проваливается к середине.
+     if let firstX = firstSampleX, firstX > 1 {
+      pts.insert(CGPoint(x: 0, y: firstSampleY), at: 0)
      }
-     if !dropToZero, let lastX = pts.last?.x, lastX < size.width - 1 {
-      pts.append(CGPoint(x: Double(size.width), y: fillY))
+     if !dropToZero, lastSampleX < Double(size.width) - 1 {
+      pts.append(CGPoint(x: Double(size.width), y: lastSampleY))
      }
      if pts.count > 1 {
       context.stroke(smoothPath(pts, clampHeight: size.height), with: .color(InstrumentTheme.lime), lineWidth: 1.5)
@@ -624,11 +658,17 @@ private struct ServerNetworkActivity: View {
       let seriesPeak = readings.compactMap { incoming ? $0?.received : $0?.sent }.max() ?? 0
       let fillY = max(0, Double(size.height) * (1 - min(1, (seriesPeak / 2) / scale)))
       func zero(_ x: Double) { pts.append(CGPoint(x: x, y: fillY)) }
+      var firstSampleX: Double?
+      var firstSampleY: Double = 0
+      var lastSampleX: Double = 0
+      var lastSampleY: Double = 0
       for point in readings {
        guard let point, let value = incoming ? point.received : point.sent else { dropToZero = true; continue }
        let x = Double(size.width) * ((point.sampledAt - (now - range.seconds)) / range.seconds)
        let y = Double(size.height) * (1 - min(1, value / scale))
        let position = CGPoint(x: x, y: y)
+       if firstSampleX == nil { firstSampleX = x; firstSampleY = y }
+       lastSampleX = x; lastSampleY = y
        if dropToZero {
         zero(Double(pts.last?.x ?? 0)); zero(x); dropToZero = false
        } else if let previous, !point.follows(previous) {
@@ -640,12 +680,12 @@ private struct ServerNetworkActivity: View {
         with: .color(color))
       }
       if dropToZero { zero(Double(size.width)) }
-      // Та же непрерывность для приёма и отдачи по краям окна.
-      if let firstX = pts.first?.x, firstX > 1 {
-       pts.insert(CGPoint(x: 0, y: fillY), at: 0)
+      // Та же непрерывность для приёма и отдачи: края держат крайние значения.
+      if let firstX = firstSampleX, firstX > 1 {
+       pts.insert(CGPoint(x: 0, y: firstSampleY), at: 0)
       }
-      if !dropToZero, let lastX = pts.last?.x, lastX < size.width - 1 {
-       pts.append(CGPoint(x: Double(size.width), y: fillY))
+      if !dropToZero, lastSampleX < Double(size.width) - 1 {
+       pts.append(CGPoint(x: Double(size.width), y: lastSampleY))
       }
       if pts.count > 1 {
        context.stroke(smoothPath(pts, clampHeight: size.height), with: .color(color), lineWidth: 1.5)
