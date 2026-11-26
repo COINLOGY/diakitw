@@ -56,8 +56,10 @@ for f in list((p/'Sources/MacdirCore').glob('*.swift'))+list((p/'Sources/macdir'
     if f.name=='ServerPanel.swift':
         text=text.replace('if servers.section == 0 { ContentView(model: model) }',
                           'if servers.section == 0 { ContentView(model: model).layoutProbe("zoom-dashboard") }')
-        text=text.replace('    }\n    .frame(width: geometry.size.width / CGFloat(zoom), height: geometry.size.height / CGFloat(zoom), alignment: .top)',
-                          '     Color.clear.frame(width: 100, height: 1).layoutProbe("zoom-marker")\n    }\n    .frame(width: geometry.size.width / CGFloat(zoom), height: geometry.size.height / CGFloat(zoom), alignment: .top)')
+        zoom_anchor = '    }\n    .frame(width: logical.width, height: logical.height, alignment: .top)'
+        assert text.count(zoom_anchor) == 1, 'zoom probe anchor changed: ' + zoom_anchor
+        text=text.replace(zoom_anchor,
+                          '     Color.clear.frame(width: 100, height: 1).layoutProbe("zoom-marker")\n' + zoom_anchor)
         text=text.replace('.frame(maxWidth: .infinity, alignment: .trailing).padding(.horizontal, 12).padding(.vertical, 5)',
                           '.frame(maxWidth: .infinity, alignment: .trailing).padding(.horizontal, 12).padding(.vertical, 5).layoutProbe("zoom-toolbar")')
         text=text.replace('private struct ServerHostPanel:', 'struct ServerHostPanel:').replace('private func measuredPercent(', 'func measuredPercent(').replace('private func measuredPair(', 'func measuredPair(')
