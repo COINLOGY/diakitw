@@ -18,7 +18,7 @@ export MACDIR_TEST_SCRATCH="$GITHUB_WORKSPACE/.ci-scratch"
 mkdir -p "$MACDIR_TEST_SCRATCH" evidence/diakitw-1.0.7
 export TMPDIR="$(cd "$MACDIR_TEST_SCRATCH" && pwd -P)"
 {
-  printf 'Commit: %s\nRunner: %s / %s\n' "$GITHUB_SHA" "$RUNNER_OS" "$RUNNER_ARCH"
+  printf 'Commit: %s\nRunner: %s / %s\n' "$GITHUB_SHA" "${RUNNER_OS:-local}" "${RUNNER_ARCH:-$(uname -m)}"
   sw_vers
   xcodebuild -version
   swift --version
