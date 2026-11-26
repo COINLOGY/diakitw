@@ -266,7 +266,10 @@ MainActor.assumeIsolated {
      let prefix = "fleet-" + server.id + "-"
      for label in ["cpu", "ram", "swap", "disk"] {
       if let frame = layoutFrames[prefix + label] {
-       if abs(frame.width - frame.height) > 1 || frame.width > 109 || frame.width < 71 { failures.append("fleet square gauge " + server.id + " " + label) }
+       if abs(frame.width - frame.height) > 1 || frame.width > 109 || frame.width < 71 {
+        failures.append("fleet square gauge " + server.id + " " + label + " " +
+         String(Int(frame.width)) + "x" + String(Int(frame.height)))
+       }
       } else { failures.append("fleet missing gauge " + server.id + " " + label) }
      }
      if let load = layoutFrames[prefix + "load"], let chart = layoutFrames[prefix + "network"], let row = layoutFrames[prefix + "row"] {

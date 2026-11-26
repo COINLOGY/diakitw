@@ -390,7 +390,7 @@ private struct ServerFleetRow: View {
      Image(systemName: "chevron.right").foregroundStyle(.secondary)
     }
     GeometryReader { geometry in
-     let side = min(96, max(72, (geometry.size.width - 40) / 12))
+     let side = min(96, max(72, (geometry.size.width - 40) / 10))
      let interface = sample?.preferredInterface
      let traffic = state.traffic(for: interface, in: range, now: now)
      let peaks = traffic.compactMap { $0?.received } + traffic.compactMap { $0?.sent }
@@ -426,7 +426,7 @@ private struct ServerFleetRow: View {
    Text(title).font(.system(size: 10, weight: .semibold)).foregroundStyle(.secondary).lineLimit(1)
    Text(value).font(.system(size: direction == nil ? 14 : 12, weight: .semibold, design: .rounded))
     .monospacedDigit().lineLimit(1).minimumScaleFactor(0.7)
-  }.frame(width: side, height: side)
+  }.frame(width: side, height: side).fixedSize()
    .background(InstrumentTheme.panel, in: RoundedRectangle(cornerRadius: 9))
    .accessibilityElement(children: .ignore).accessibilityLabel(title + ": " + value)
  }
