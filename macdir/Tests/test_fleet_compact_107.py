@@ -21,6 +21,10 @@ class FleetCompactLayout(unittest.TestCase):
         for label in ('CPU', 'RAM', 'SWAP', 'Диск /', 'Приём ↓', 'Отдача ↑'):
             self.assertIn(f'fleetGauge("{label}"', row)
         self.assertIn('shortRate(', row)
+        self.assertIn('compact: true', row)
+        self.assertIn('detail: coreCount(sample)', row)
+        self.assertIn('detail: gibPair(', row)
+        self.assertIn('drawChartGrid(context, size: size)', view)
         # The two charts start after the six dials, shifted right by a spacer.
         self.assertIn('Spacer(minLength: 14)', row)
         self.assertLess(row.index('Отдача ↑'), row.index('Spacer(minLength: 14)'))

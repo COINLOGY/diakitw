@@ -72,10 +72,10 @@ for f in list((p/'Sources/MacdirCore').glob('*.swift'))+list((p/'Sources/macdir'
         text=''.join(lines)
         for chart in ['load', 'network']:
             if chart == 'load':
-                token = 'ServerLoadActivity(state: state, sample: sample, now: now, range: range)\n'
-                expected = 2
+                token = 'ServerLoadActivity(state: state, sample: sample, now: now, range: range, compact: true)\n'
+                expected = 1
             else:
-                token = 'ServerNetworkActivity(state: state, sample: sample, now: now, range: range, showRates: false)\n'
+                token = 'ServerNetworkActivity(state: state, sample: sample, now: now, range: range, compact: true)\n'
                 expected = 1
             assert text.count(token) == expected, token
             text=text.replace(token, token.rstrip('\n')+'.layoutProbe("fleet-" + config.id + "-'+chart+'")\n', 1)

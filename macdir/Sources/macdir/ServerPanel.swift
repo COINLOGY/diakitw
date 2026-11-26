@@ -392,16 +392,16 @@ private struct ServerFleetRow: View {
      let rx = sample?.network.first(where: { $0.name == interface })?.rx
      let tx = sample?.network.first(where: { $0.name == interface })?.tx
      HStack(spacing: 8) {
-      fleetGauge("CPU", MetricPresentation.percent(sample?.cpuPercent), GaugeScale.fraction(sample?.cpuPercent, maximum: 100), side: side)
-      fleetGauge("RAM", measuredPercent(sample?.memoryUsed, sample?.memoryTotal), GaugeScale.fraction(sample?.memoryUsed, maximum: sample?.memoryTotal), side: side)
-      fleetGauge("SWAP", measuredPercent(sample?.swapUsed, sample?.swapTotal), GaugeScale.fraction(sample?.swapUsed, maximum: sample?.swapTotal), side: side)
-      fleetGauge("Диск /", measuredPercent(sample?.diskUsed, sample?.diskTotal), GaugeScale.fraction(sample?.diskUsed, maximum: sample?.diskTotal), side: side)
-      fleetGauge("Приём ↓", shortRate(rx), GaugeScale.fraction(rx, maximum: trafficMax), side: side, direction: InstrumentTheme.lime)
-      fleetGauge("Отдача ↑", shortRate(tx), GaugeScale.fraction(tx, maximum: trafficMax), side: side, direction: InstrumentTheme.cyan)
+      fleetGauge("CPU", MetricPresentation.percent(sample?.cpuPercent), GaugeScale.fraction(sample?.cpuPercent, maximum: 100), side: side, detail: coreCount(sample))
+      fleetGauge("RAM", measuredPercent(sample?.memoryUsed, sample?.memoryTotal), GaugeScale.fraction(sample?.memoryUsed, maximum: sample?.memoryTotal), side: side, detail: gibPair(sample?.memoryUsed, sample?.memoryTotal))
+      fleetGauge("SWAP", measuredPercent(sample?.swapUsed, sample?.swapTotal), GaugeScale.fraction(sample?.swapUsed, maximum: sample?.swapTotal), side: side, detail: gibPair(sample?.swapUsed, sample?.swapTotal))
+      fleetGauge("Диск /", measuredPercent(sample?.diskUsed, sample?.diskTotal), GaugeScale.fraction(sample?.diskUsed, maximum: sample?.diskTotal), side: side, detail: gibPair(sample?.diskUsed, sample?.diskTotal))
+      fleetGauge("Приём ↓", shortRate(rx), GaugeScale.fraction(rx, maximum: trafficMax), side: side, direction: InstrumentTheme.lime, detail: "макс " + shortRate(peaks.max()))
+      fleetGauge("Отдача ↑", shortRate(tx), GaugeScale.fraction(tx, maximum: trafficMax), side: side, direction: InstrumentTheme.cyan, detail: "макс " + shortRate(peaks.max()))
       Spacer(minLength: 14)
-      ServerLoadActivity(state: state, sample: sample, now: now, range: range)
+      ServerLoadActivity(state: state, sample: sample, now: now, range: range, compact: true)
        .frame(maxWidth: .infinity).frame(height: side)
-      ServerNetworkActivity(state: state, sample: sample, now: now, range: range, showRates: false)
+      ServerNetworkActivity(state: state, sample: sample, now: now, range: range, compact: true)
        .frame(maxWidth: .infinity).frame(height: side)
      }.frame(maxWidth: .infinity, alignment: .leading)
     }.frame(height: 108)
@@ -410,23 +410,37 @@ private struct ServerFleetRow: View {
   }.buttonStyle(.plain).accessibilityLabel(config.name + ", " + (sample == nil ? "Нет свежих данных" : "На связи"))
  }
  private func fleetGauge(_ title: String, _ value: String, _ fraction: Double?, side: CGFloat,
-                         direction: Color? = nil) -> some View {
+                         direction: Color? = nil, detail: String? = nil) -> some View {
   VStack(spacing: 0) {
    NeedleGauge(fraction: fraction, neutral: direction != nil, tickLabels: [],
                directionColor: direction ?? InstrumentTheme.lime, gutter: 8, needleBase: 8)
-    .frame(height: side * 0.58)
-   Text(title).font(.system(size: 10, weight: .semibold)).foregroundStyle(.secondary).lineLimit(1)
-   Text(value).font(.system(size: direction == nil ? 14 : 12, weight: .semibold, design: .rounded))
-    .monospacedDigit().lineLimit(1).minimumScaleFactor(0.7)
+    .frame(height: side * 0.46)
+   Text(title).font(.system(size: 9, weight: .semibold)).foregroundStyle(.secondary).lineLimit(1)
+   Text(value).font(.system(size: direction == nil ? 13 : 11, weight: .semibold, design: .rounded))
+    .monospacedDigit().lineLimit(1).minimumScaleFactor(0.65)
+   Text(detail ?? " ").font(.system(size: 8, weight: .medium, design: .monospaced))
+    .foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.65)
   }.frame(width: side, height: side).fixedSize()
    .background(InstrumentTheme.panel, in: RoundedRectangle(cornerRadius: 9))
-   .accessibilityElement(children: .ignore).accessibilityLabel(title + ": " + value)
+   .accessibilityElement(children: .ignore).accessibilityLabel(title + ": " + value + (detail.map { ", " + $0 } ?? ""))
  }
  /// Short byte rate for the mini dials: "2.6 К/с", not "2.6 KiB/с".
  private func shortRate(_ value: Double?) -> String {
   let presentation = NetworkPresentation(value)
   guard presentation.available else { return "Н/Д" }
   return presentation.displayNumber + " " + (presentation.unit == "MiB" ? "М/с" : "К/с")
+ }
+ /// Same denominators as the detail cards: used/total in GiB, cores for CPU.
+ private func gibPair(_ used: Double?, _ total: Double?) -> String {
+  guard let used, let total, used.isFinite, total.isFinite, used >= 0, total >= 0, used <= total else { return "Н/Д" }
+  return String(format: "%.1f/%.1fG", used / 1_073_741_824, total / 1_073_741_824)
+ }
+ private func coreCount(_ sample: ServerTelemetry?) -> String {
+  guard let raw = sample?.cpuCount, raw.isFinite, raw >= 1 else { return "ядра: Н/Д" }
+  let count = Int(raw.rounded())
+  let word = (count % 10 == 1 && count % 100 != 11) ? "ядро"
+   : (([2, 3, 4].contains(count % 10) && ![12, 13, 14].contains(count % 100)) ? "ядра" : "ядер")
+  return String(count) + " " + word
  }
 }
 
@@ -447,17 +461,44 @@ private func smoothPath(_ points: [CGPoint]) -> Path {
  return path
 }
 
+/// Number only, for the compact chart title: "7.5", not "7.5 К/с".
+private func compactRate(_ value: Double?) -> String {
+ let presentation = NetworkPresentation(value)
+ return presentation.available ? presentation.displayNumber : "—"
+}
+
+/// Light quarter grid behind both trend charts: 25/50/75 % of the plot plus a
+/// baseline, so a flat line is readable without an axis.
+private func drawChartGrid(_ context: GraphicsContext, size: CGSize) {
+ for step in 1...3 {
+  let y = size.height * Double(step) / 4
+  var grid = Path()
+  grid.move(to: CGPoint(x: 0, y: y))
+  grid.addLine(to: CGPoint(x: size.width, y: y))
+  context.stroke(grid, with: .color(.primary.opacity(0.12)),
+                 style: StrokeStyle(lineWidth: 0.5, dash: [2, 3]))
+ }
+ var baseline = Path()
+ baseline.move(to: CGPoint(x: 0, y: size.height - 0.5))
+ baseline.addLine(to: CGPoint(x: size.width, y: size.height - 0.5))
+ context.stroke(baseline, with: .color(.primary.opacity(0.20)), style: StrokeStyle(lineWidth: 0.5))
+}
+
 private struct ServerLoadActivity: View {
  let state: ServerState
  let sample: ServerTelemetry?
  let now: Double
  var range: ServerHistoryRange = .fiveMinutes
+ /// Compact mode is used by the fleet card: shorter title with the live value.
+ var compact = false
  var body: some View {
   let readings = state.load(in: range, now: now)
   VStack(alignment: .leading, spacing: 4) {
-   Text("История нагрузки · CPU").font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+   Text(compact ? "CPU · " + MetricPresentation.percent(sample?.cpuPercent) : "История нагрузки · CPU")
+    .font(.caption2).foregroundStyle(.secondary).lineLimit(1)
    if sample != nil && readings.contains(where: { $0?.percent != nil }) {
     Canvas { context, size in
+     drawChartGrid(context, size: size)
      var run: [CGPoint] = []
      var previous: ServerLoadPoint?
      func flush() {
@@ -511,28 +552,32 @@ private struct ServerNetworkActivity: View {
  let now: Double
  var range: ServerHistoryRange = .fiveMinutes
  var interface: String? = nil
- /// The fleet card already shows both rates in its own dials; hiding them here
- /// keeps the chart's minimum width small enough for the row to fit.
- var showRates = true
+ /// Compact mode (fleet card): short title that carries both live rates, and no
+ /// separate rate widgets, which keeps the chart's minimum width small.
+ var compact = false
  var body: some View {
   let name = interface ?? sample?.preferredInterface
+  let rx = sample?.network.first(where: { $0.name == name })?.rx
+  let tx = sample?.network.first(where: { $0.name == name })?.tx
   let readings = state.traffic(for: name, in: range, now: now)
   let rxMax = readings.compactMap { $0?.received }.max() ?? 0
   let txMax = readings.compactMap { $0?.sent }.max() ?? 0
   let scale = max(1, max(rxMax, txMax))
   VStack(alignment: .leading, spacing: 4) {
    HStack(spacing: 6) {
-    Text("Сеть · " + (name ?? "Н/Д")).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+    Text(compact ? "Сеть · " + compactRate(rx) + "↓ " + compactRate(tx) + "↑" : "Сеть · " + (name ?? "Н/Д"))
+     .font(.caption2).foregroundStyle(.secondary).lineLimit(1)
     Spacer(minLength: 0)
-    if showRates {
-     NetworkRateValue(value: sample?.network.first(where: { $0.name == name })?.rx, direction: "↓", size: 11)
+    if !compact {
+     NetworkRateValue(value: rx, direction: "↓", size: 11)
       .foregroundStyle(InstrumentTheme.lime)
-     NetworkRateValue(value: sample?.network.first(where: { $0.name == name })?.tx, direction: "↑", size: 11)
+     NetworkRateValue(value: tx, direction: "↑", size: 11)
       .foregroundStyle(InstrumentTheme.cyan)
     }
    }
    if sample != nil && name != nil && readings.contains(where: { $0?.hasMeasurement == true }) {
     Canvas { context, size in
+     drawChartGrid(context, size: size)
      for incoming in [true, false] {
       let color = incoming ? InstrumentTheme.lime : InstrumentTheme.cyan
       var run: [CGPoint] = []
