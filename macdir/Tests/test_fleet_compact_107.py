@@ -11,14 +11,24 @@ class FleetCompactLayout(unittest.TestCase):
         self.assertIn('GeometryReader { geometry in', row)
         self.assertIn('let side = min(', row)
         self.assertIn('.frame(width: side, height: side)', row)
-        self.assertIn('NeedleGauge(fraction: fraction, tickLabels: [], gutter: 8, needleBase: 8)', row)
+        self.assertIn('NeedleGauge(fraction: fraction, neutral: direction != nil, tickLabels: [],', row)
+        self.assertIn('directionColor: direction ?? InstrumentTheme.lime, gutter: 8, needleBase: 8)', row)
         # Compact cards must shrink the label gutter, otherwise `height - 44`
         # collapses the radius and the needle is not drawn at all.
         face = (root / 'Sources/macdir/NeedleGauge.swift').read_text()
         self.assertIn('var gutter: Double = 44', face)
         self.assertIn('var needleBase: Double = 16', face)
-        for label in ('CPU', 'RAM', 'SWAP', 'Диск /'):
+        for label in ('CPU', 'RAM', 'SWAP', 'Диск /', 'Приём ↓', 'Отдача ↑'):
             self.assertIn(f'fleetGauge("{label}"', row)
+        self.assertIn('shortRate(', row)
+        # The two charts start after the six dials, shifted right by a spacer.
+        self.assertIn('Spacer(minLength: 14)', row)
+        self.assertLess(row.index('Отдача ↑'), row.index('Spacer(minLength: 14)'))
+        self.assertLess(row.index('Spacer(minLength: 14)'), row.index('ServerLoadActivity('))
+        # Trend lines are smoothed curves through the real samples, not a polyline.
+        self.assertIn('func smoothPath', view)
+        self.assertIn('path.addCurve(to: p2,', view)
+        self.assertNotIn('path.addLine(to: position)', view)
         self.assertIn('ServerNetworkActivity(', row)
         self.assertIn('.frame(maxWidth: .infinity)', row)
 

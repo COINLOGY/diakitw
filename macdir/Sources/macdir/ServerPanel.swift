@@ -390,12 +390,23 @@ private struct ServerFleetRow: View {
      Image(systemName: "chevron.right").foregroundStyle(.secondary)
     }
     GeometryReader { geometry in
-     let side = min(108, max(72, (geometry.size.width - 40) / 9))
+     let side = min(96, max(64, (geometry.size.width - 40) / 12))
+     let interface = sample?.preferredInterface
+     let traffic = state.traffic(for: interface, in: range, now: now)
+     let peaks = traffic.compactMap { $0?.received } + traffic.compactMap { $0?.sent }
+     // Fixed 10 MiB/s made ordinary traffic sit on zero; the dial is relative
+     // to the visible peak, the absolute value is printed under it.
+     let trafficMax = max(65_536, peaks.max() ?? 0)
+     let rx = sample?.network.first(where: { $0.name == interface })?.rx
+     let tx = sample?.network.first(where: { $0.name == interface })?.tx
      HStack(spacing: 8) {
       fleetGauge("CPU", MetricPresentation.percent(sample?.cpuPercent), GaugeScale.fraction(sample?.cpuPercent, maximum: 100), side: side)
       fleetGauge("RAM", measuredPercent(sample?.memoryUsed, sample?.memoryTotal), GaugeScale.fraction(sample?.memoryUsed, maximum: sample?.memoryTotal), side: side)
       fleetGauge("SWAP", measuredPercent(sample?.swapUsed, sample?.swapTotal), GaugeScale.fraction(sample?.swapUsed, maximum: sample?.swapTotal), side: side)
       fleetGauge("Диск /", measuredPercent(sample?.diskUsed, sample?.diskTotal), GaugeScale.fraction(sample?.diskUsed, maximum: sample?.diskTotal), side: side)
+      fleetGauge("Приём ↓", shortRate(rx), GaugeScale.fraction(rx, maximum: trafficMax), side: side, direction: InstrumentTheme.lime)
+      fleetGauge("Отдача ↑", shortRate(tx), GaugeScale.fraction(tx, maximum: trafficMax), side: side, direction: InstrumentTheme.cyan)
+      Spacer(minLength: 14)
       ServerLoadActivity(state: state, sample: sample, now: now, range: range)
        .frame(maxWidth: .infinity).frame(height: side)
       ServerNetworkActivity(state: state, sample: sample, now: now, range: range)
@@ -406,15 +417,42 @@ private struct ServerFleetRow: View {
     .background(.quaternary.opacity(0.25), in: RoundedRectangle(cornerRadius: 10))
   }.buttonStyle(.plain).accessibilityLabel(config.name + ", " + (sample == nil ? "Нет свежих данных" : "На связи"))
  }
- private func fleetGauge(_ title: String, _ value: String, _ fraction: Double?, side: CGFloat) -> some View {
+ private func fleetGauge(_ title: String, _ value: String, _ fraction: Double?, side: CGFloat,
+                         direction: Color? = nil) -> some View {
   VStack(spacing: 0) {
-   NeedleGauge(fraction: fraction, tickLabels: [], gutter: 8, needleBase: 8).frame(height: side * 0.58)
+   NeedleGauge(fraction: fraction, neutral: direction != nil, tickLabels: [],
+               directionColor: direction ?? InstrumentTheme.lime, gutter: 8, needleBase: 8)
+    .frame(height: side * 0.58)
    Text(title).font(.system(size: 10, weight: .semibold)).foregroundStyle(.secondary).lineLimit(1)
-   Text(value).font(.system(size: 14, weight: .semibold, design: .rounded)).monospacedDigit().lineLimit(1)
+   Text(value).font(.system(size: direction == nil ? 14 : 12, weight: .semibold, design: .rounded))
+    .monospacedDigit().lineLimit(1).minimumScaleFactor(0.7)
   }.frame(width: side, height: side)
    .background(InstrumentTheme.panel, in: RoundedRectangle(cornerRadius: 9))
    .accessibilityElement(children: .ignore).accessibilityLabel(title + ": " + value)
  }
+ /// Short byte rate for the mini dials: "2.6 К/с", not "2.6 KiB/с".
+ private func shortRate(_ value: Double?) -> String {
+  let presentation = NetworkPresentation(value)
+  guard presentation.available else { return "Н/Д" }
+  return presentation.displayNumber + " " + (presentation.unit == "MiB" ? "М/с" : "К/с")
+ }
+}
+
+/// Catmull-Rom through the real samples: keeps every measured point, removes
+/// the polyline kinks so the trend reads as a line, not a zigzag.
+private func smoothPath(_ points: [CGPoint]) -> Path {
+ var path = Path()
+ guard let first = points.first else { return path }
+ path.move(to: first)
+ guard points.count > 1 else { return path }
+ for index in 0..<(points.count - 1) {
+  let p0 = points[max(0, index - 1)], p1 = points[index]
+  let p2 = points[index + 1], p3 = points[min(points.count - 1, index + 2)]
+  path.addCurve(to: p2,
+                control1: CGPoint(x: p1.x + (p2.x - p0.x) / 6, y: p1.y + (p2.y - p0.y) / 6),
+                control2: CGPoint(x: p2.x - (p3.x - p1.x) / 6, y: p2.y - (p3.y - p1.y) / 6))
+ }
+ return path
 }
 
 private struct ServerLoadActivity: View {
@@ -428,17 +466,23 @@ private struct ServerLoadActivity: View {
    Text("История нагрузки · CPU").font(.caption2).foregroundStyle(.secondary).lineLimit(1)
    if sample != nil && readings.contains(where: { $0?.percent != nil }) {
     Canvas { context, size in
-     var path = Path(); var previous: ServerLoadPoint?
+     var run: [CGPoint] = []
+     var previous: ServerLoadPoint?
+     func flush() {
+      if run.count > 1 { context.stroke(smoothPath(run), with: .color(InstrumentTheme.lime), lineWidth: 1.5) }
+      run.removeAll()
+     }
      for point in readings {
-      guard let point, let value = point.percent else { previous = nil; continue }
+      guard let point, let value = point.percent else { previous = nil; flush(); continue }
       let x = size.width * (point.sampledAt - (now - range.seconds)) / range.seconds
       let y = size.height * (1 - value / 100)
       let position = CGPoint(x: x, y: y)
-      if let previous, point.follows(previous) { path.addLine(to: position) } else { path.move(to: position) }
+      if let previous, !point.follows(previous) { flush() }
+      run.append(position)
       previous = point
       context.fill(Path(ellipseIn: CGRect(x: x - 1.5, y: y - 1.5, width: 3, height: 3)), with: .color(InstrumentTheme.lime))
      }
-     context.stroke(path, with: .color(InstrumentTheme.lime), lineWidth: 1.5)
+     flush()
     }.frame(maxWidth: .infinity, maxHeight: .infinity)
      .accessibilityLabel("История реально измеренной загрузки CPU")
    } else {
@@ -483,7 +527,7 @@ private struct ServerNetworkActivity: View {
   let scale = max(1, max(rxMax, txMax))
   VStack(alignment: .leading, spacing: 4) {
    HStack(spacing: 6) {
-    Text("Активность сети · " + (name ?? "Н/Д")).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+    Text("Сеть · " + (name ?? "Н/Д")).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
     Spacer(minLength: 0)
     NetworkRateValue(value: sample?.network.first(where: { $0.name == name })?.rx, direction: "↓", size: 11)
      .foregroundStyle(InstrumentTheme.lime)
@@ -493,18 +537,25 @@ private struct ServerNetworkActivity: View {
    if sample != nil && name != nil && readings.contains(where: { $0?.hasMeasurement == true }) {
     Canvas { context, size in
      for incoming in [true, false] {
-      var path = Path(); var previous: ServerTrafficPoint?
+      let color = incoming ? InstrumentTheme.lime : InstrumentTheme.cyan
+      var run: [CGPoint] = []
+      var previous: ServerTrafficPoint?
+      func flush() {
+       if run.count > 1 { context.stroke(smoothPath(run), with: .color(color), lineWidth: 1.5) }
+       run.removeAll()
+      }
       for point in readings {
-       guard let point, let value = incoming ? point.received : point.sent else { previous = nil; continue }
+       guard let point, let value = incoming ? point.received : point.sent else { previous = nil; flush(); continue }
        let x = size.width * (point.sampledAt - (now - range.seconds)) / range.seconds
        let y = size.height * (1 - min(1, value / scale))
        let position = CGPoint(x: x, y: y)
-       if let previous, point.follows(previous) { path.addLine(to: position) } else { path.move(to: position) }
+       if let previous, !point.follows(previous) { flush() }
+       run.append(position)
        previous = point
        context.fill(Path(ellipseIn: CGRect(x: x - 1.5, y: y - 1.5, width: 3, height: 3)),
-        with: .color(incoming ? InstrumentTheme.lime : InstrumentTheme.cyan))
+        with: .color(color))
       }
-      context.stroke(path, with: .color(incoming ? InstrumentTheme.lime : InstrumentTheme.cyan), lineWidth: 1.5)
+      flush()
      }
     }.frame(maxWidth: .infinity, maxHeight: .infinity)
      .accessibilityLabel("История реально измеренной активности сети: приём и передача")
