@@ -188,9 +188,8 @@ struct MacdirRootView: View {
   NSApp.keyWindow?.firstResponder is NSTextView || NSApp.keyWindow?.firstResponder is NSTextField
  }
  private var shortcutsBlocked: Bool { servers.adding || servers.removing != nil }
- /// Logical canvas the zoom factor scales. Fitting the design canvas keeps the
- /// card proportions identical at every zoom level instead of stretching the
- /// flexible layout to `viewport / zoom`.
+ /// Design size used by «По размеру»: the panel is never stretched wider than
+ /// this, so a 55 % zoom keeps the card proportions instead of inflating them.
  private var designSize: CGSize {
   servers.section == 1
    ? CGSize(width: servers.selectedServerID == nil ? 1440 : 1180, height: 780)
@@ -446,17 +445,23 @@ private struct ServerFleetRow: View {
 
 /// Catmull-Rom through the real samples: keeps every measured point, removes
 /// the polyline kinks so the trend reads as a line, not a zigzag.
-private func smoothPath(_ points: [CGPoint]) -> Path {
+/// `clampHeight` keeps the interpolated controls inside the plot, so a dip to
+/// zero never paints outside the chart box.
+private func smoothPath(_ points: [CGPoint], clampHeight: Double? = nil) -> Path {
  var path = Path()
  guard let first = points.first else { return path }
- path.move(to: first)
+ let clamp: (Double) -> Double = { value in
+  guard let clampHeight else { return value }
+  return min(max(value, 0), clampHeight)
+ }
+ path.move(to: CGPoint(x: first.x, y: clamp(first.y)))
  guard points.count > 1 else { return path }
  for index in 0..<(points.count - 1) {
   let p0 = points[max(0, index - 1)], p1 = points[index]
   let p2 = points[index + 1], p3 = points[min(points.count - 1, index + 2)]
-  path.addCurve(to: p2,
-                control1: CGPoint(x: p1.x + (p2.x - p0.x) / 6, y: p1.y + (p2.y - p0.y) / 6),
-                control2: CGPoint(x: p2.x - (p3.x - p1.x) / 6, y: p2.y - (p3.y - p1.y) / 6))
+  path.addCurve(to: CGPoint(x: p2.x, y: clamp(p2.y)),
+                control1: CGPoint(x: p1.x + (p2.x - p0.x) / 6, y: clamp(p1.y + (p2.y - p0.y) / 6)),
+                control2: CGPoint(x: p2.x - (p3.x - p1.x) / 6, y: clamp(p2.y - (p3.y - p1.y) / 6)))
  }
  return path
 }
@@ -499,23 +504,30 @@ private struct ServerLoadActivity: View {
    if sample != nil && readings.contains(where: { $0?.percent != nil }) {
     Canvas { context, size in
      drawChartGrid(context, size: size)
-     var run: [CGPoint] = []
+     // Непрерывная линия: пропуск замера или пауза уводит линию в ноль и
+     // возвращает её к следующему реальному значению, без разрывов.
+     var pts: [CGPoint] = []
      var previous: ServerLoadPoint?
-     func flush() {
-      if run.count > 1 { context.stroke(smoothPath(run), with: .color(InstrumentTheme.lime), lineWidth: 1.5) }
-      run.removeAll()
-     }
+     var dropToZero = false
+     func zero(_ x: Double) { pts.append(CGPoint(x: x, y: size.height)) }
      for point in readings {
-      guard let point, let value = point.percent else { previous = nil; flush(); continue }
+      guard let point, let value = point.percent else { dropToZero = true; continue }
       let x = size.width * (point.sampledAt - (now - range.seconds)) / range.seconds
       let y = size.height * (1 - value / 100)
       let position = CGPoint(x: x, y: y)
-      if let previous, !point.follows(previous) { flush() }
-      run.append(position)
+      if dropToZero {
+       zero(pts.last?.x ?? 0); zero(x); dropToZero = false
+      } else if let previous, !point.follows(previous) {
+       zero(pts.last?.x ?? x); zero(x)
+      }
+      pts.append(position)
       previous = point
       context.fill(Path(ellipseIn: CGRect(x: x - 1.5, y: y - 1.5, width: 3, height: 3)), with: .color(InstrumentTheme.lime))
      }
-     flush()
+     if dropToZero { zero(size.width) }
+     if pts.count > 1 {
+      context.stroke(smoothPath(pts, clampHeight: size.height), with: .color(InstrumentTheme.lime), lineWidth: 1.5)
+     }
     }.frame(maxWidth: .infinity, maxHeight: .infinity)
      .accessibilityLabel("История реально измеренной загрузки CPU")
    } else {
@@ -580,24 +592,30 @@ private struct ServerNetworkActivity: View {
      drawChartGrid(context, size: size)
      for incoming in [true, false] {
       let color = incoming ? InstrumentTheme.lime : InstrumentTheme.cyan
-      var run: [CGPoint] = []
+      // Непрерывная линия: приём и отдача тоже уходят в ноль на пропусках.
+      var pts: [CGPoint] = []
       var previous: ServerTrafficPoint?
-      func flush() {
-       if run.count > 1 { context.stroke(smoothPath(run), with: .color(color), lineWidth: 1.5) }
-       run.removeAll()
-      }
+      var dropToZero = false
+      func zero(_ x: Double) { pts.append(CGPoint(x: x, y: size.height)) }
       for point in readings {
-       guard let point, let value = incoming ? point.received : point.sent else { previous = nil; flush(); continue }
+       guard let point, let value = incoming ? point.received : point.sent else { dropToZero = true; continue }
        let x = size.width * (point.sampledAt - (now - range.seconds)) / range.seconds
        let y = size.height * (1 - min(1, value / scale))
        let position = CGPoint(x: x, y: y)
-       if let previous, !point.follows(previous) { flush() }
-       run.append(position)
+       if dropToZero {
+        zero(pts.last?.x ?? 0); zero(x); dropToZero = false
+       } else if let previous, !point.follows(previous) {
+        zero(pts.last?.x ?? x); zero(x)
+       }
+       pts.append(position)
        previous = point
        context.fill(Path(ellipseIn: CGRect(x: x - 1.5, y: y - 1.5, width: 3, height: 3)),
         with: .color(color))
       }
-      flush()
+      if dropToZero { zero(size.width) }
+      if pts.count > 1 {
+       context.stroke(smoothPath(pts, clampHeight: size.height), with: .color(color), lineWidth: 1.5)
+      }
      }
     }.frame(maxWidth: .infinity, maxHeight: .infinity)
      .accessibilityLabel("История реально измеренной активности сети: приём и передача")

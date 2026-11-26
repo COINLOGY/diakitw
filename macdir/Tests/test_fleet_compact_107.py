@@ -31,7 +31,8 @@ class FleetCompactLayout(unittest.TestCase):
         self.assertLess(row.index('Spacer(minLength: 14)'), row.index('ServerLoadActivity('))
         # Trend lines are smoothed curves through the real samples, not a polyline.
         self.assertIn('func smoothPath', view)
-        self.assertIn('path.addCurve(to: p2,', view)
+        self.assertIn('path.addCurve(to: CGPoint(x: p2.x, y: clamp(p2.y)),', view)
+        self.assertIn('dropToZero', view)
         self.assertNotIn('path.addLine(to: position)', view)
         self.assertIn('ServerNetworkActivity(', row)
         self.assertIn('.frame(maxWidth: .infinity)', row)
