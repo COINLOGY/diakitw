@@ -14,6 +14,8 @@ import MacdirCore
  private var hardwareInFlight: Set<String> = []
  private var polling: Task<Void, Never>?
  private var visible = false
+ /// Удерживает приложение от App Nap, пока идёт сбор истории.
+ private var activity: NSObjectProtocol?
  private let store = ServerConfigStore()
  private var snapshot: ServerConfigStore.Snapshot?
  private var generations: [String: UUID] = [:]
@@ -124,11 +126,17 @@ import MacdirCore
   guard visible != value else { return }
   visible = value
   polling?.cancel(); polling = nil
+  if let activity { ProcessInfo.processInfo.endActivity(activity); self.activity = nil }
   guard value else {
    requests.values.flatMap { $0 }.forEach { $0.cancel() }; requests = [:]
    for id in generations.keys { generations[id] = UUID() }; inFlight = []; hardwareInFlight = []
    return
   }
+  // Сбор истории не должен засыпать: App Nap иначе растягивает 30-секундный
+  // интервал до минут, и графики остаются пустыми, пока окно не на виду.
+  activity = ProcessInfo.processInfo.beginActivity(
+   options: [.userInitiatedAllowingIdleSystemSleep, .suddenTerminationDisabled, .automaticTerminationDisabled],
+   reason: "Сбор истории загрузки серверов для графиков")
   reload()
   polling = Task { [weak self] in
    while !Task.isCancelled {
@@ -175,7 +183,7 @@ import MacdirCore
   }
  }
  func select(_ name: String, for id: String) { selections[id] = name; UserDefaults.standard.set(name, forKey: "server.interface." + id) }
- deinit { polling?.cancel(); requests.values.flatMap { $0 }.forEach { $0.cancel() } }
+ deinit { polling?.cancel(); if let activity { ProcessInfo.processInfo.endActivity(activity) }; requests.values.flatMap { $0 }.forEach { $0.cancel() } }
 }
 
 struct MacdirRootView: View {
@@ -239,13 +247,12 @@ struct MacdirRootView: View {
    }
   }
   .tint(.cyan).controlSize(.large)
-  .onChange(of: servers.section) { _, new in fit(); servers.setVisible(new == 1 && NSApp.isActive) }
+  .onChange(of: servers.section) { _, _ in fit() }
   .onChange(of: servers.selectedServerID) { _, _ in fit() }
   .onReceive(NotificationCenter.default.publisher(for: NSWindow.didChangeScreenNotification)) { _ in fit() }
-  .onAppear { servers.setVisible(servers.section == 1 && NSApp.isActive) }
-  .onReceive(NotificationCenter.default.publisher(for: NSApplication.didResignActiveNotification)) { _ in servers.setVisible(false) }
-  .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in servers.setVisible(servers.section == 1) }
-  .onDisappear { servers.setVisible(false) }
+  // Опрос идёт всё время, пока приложение запущено: смена раздела, потеря
+  // фокуса и свёрнутое окно историю не обрывают — статистика копится в фоне.
+  .onAppear { servers.setVisible(true) }
   .onReceive(NotificationCenter.default.publisher(for: NSApplication.willTerminateNotification)) { _ in servers.setVisible(false) }
  }
 }
@@ -342,7 +349,7 @@ struct ServerPanel: View {
       }.frame(maxWidth: .infinity, alignment: .topLeading)
      }
     }
-    Text("CPU: дельта за 1 с по всем ядрам · RAM: MemTotal − MemAvailable · диск: / · трафик одного интерфейса, без суммы мостов. Старше 90 с — Н/Д. При скрытии вкладки текущие SSH-запросы отменяются.")
+    Text("CPU: дельта за 1 с по всем ядрам · RAM: MemTotal − MemAvailable · диск: / · трафик одного интерфейса, без суммы мостов. Старше 90 с — Н/Д. Опрос идёт и в фоне: история копится, пока приложение запущено, даже если окно свёрнуто или открыт другой раздел.")
      .font(.caption).foregroundStyle(.secondary)
    }.padding(22)
   }

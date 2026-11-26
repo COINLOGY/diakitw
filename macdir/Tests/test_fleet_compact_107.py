@@ -87,6 +87,18 @@ class FleetCompactLayout(unittest.TestCase):
         self.assertLess(detail.index("ServerLoadActivity("), detail.index("ServerNetworkActivity("))
         self.assertIn("История нагрузки", view)
 
+    def test_polling_keeps_running_in_background(self):
+        # История для графиков должна копиться и без фокуса: опрос стартует один
+        # раз при появлении окна и не выключается ни на смене раздела, ни при
+        # потере активности приложения.
+        self.assertIn('.onAppear { servers.setVisible(true) }', view)
+        self.assertEqual(view.count('servers.setVisible(false)'), 1)
+        self.assertIn('willTerminateNotification)) { _ in servers.setVisible(false) }', view)
+        self.assertNotIn('didResignActiveNotification', view)
+        self.assertNotIn('onDisappear { servers.setVisible(false) }', view)
+        self.assertIn('beginActivity', view)
+        self.assertIn('Опрос идёт и в фоне', view)
+
     def test_native_geometry_checks_both_server_rows(self):
         renderer = (root / 'Tests/render_layout.swift').read_text()
         instrument = (root / 'Tests/check_layout.py').read_text()
