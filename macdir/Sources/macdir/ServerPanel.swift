@@ -447,10 +447,10 @@ private struct ServerFleetRow: View {
 /// the polyline kinks so the trend reads as a line, not a zigzag.
 /// `clampHeight` keeps the interpolated controls inside the plot, so a dip to
 /// zero never paints outside the chart box.
-private func smoothPath(_ points: [CGPoint], clampHeight: Double? = nil) -> Path {
+private func smoothPath(_ points: [CGPoint], clampHeight: CGFloat? = nil) -> Path {
  var path = Path()
  guard let first = points.first else { return path }
- let clamp: (Double) -> Double = { value in
+ let clamp: (CGFloat) -> CGFloat = { value in
   guard let clampHeight else { return value }
   return min(max(value, 0), clampHeight)
  }
@@ -498,8 +498,11 @@ private struct ServerLoadActivity: View {
  var compact = false
  var body: some View {
   let readings = state.load(in: range, now: now)
+  let title: String = compact
+   ? "CPU · " + MetricPresentation.percent(sample?.cpuPercent)
+   : "История нагрузки · CPU"
   VStack(alignment: .leading, spacing: 4) {
-   Text(compact ? "CPU · " + MetricPresentation.percent(sample?.cpuPercent) : "История нагрузки · CPU")
+   Text(title)
     .font(.caption2).foregroundStyle(.secondary).lineLimit(1)
    if sample != nil && readings.contains(where: { $0?.percent != nil }) {
     Canvas { context, size in
@@ -509,22 +512,22 @@ private struct ServerLoadActivity: View {
      var pts: [CGPoint] = []
      var previous: ServerLoadPoint?
      var dropToZero = false
-     func zero(_ x: Double) { pts.append(CGPoint(x: x, y: size.height)) }
+     func zero(_ x: Double) { pts.append(CGPoint(x: x, y: Double(size.height))) }
      for point in readings {
       guard let point, let value = point.percent else { dropToZero = true; continue }
-      let x = size.width * (point.sampledAt - (now - range.seconds)) / range.seconds
-      let y = size.height * (1 - value / 100)
+      let x = Double(size.width) * ((point.sampledAt - (now - range.seconds)) / range.seconds)
+      let y = Double(size.height) * (1 - value / 100)
       let position = CGPoint(x: x, y: y)
       if dropToZero {
-       zero(pts.last?.x ?? 0); zero(x); dropToZero = false
+       zero(Double(pts.last?.x ?? 0)); zero(x); dropToZero = false
       } else if let previous, !point.follows(previous) {
-       zero(pts.last?.x ?? x); zero(x)
+       zero(Double(pts.last?.x ?? CGFloat(x))); zero(x)
       }
       pts.append(position)
       previous = point
       context.fill(Path(ellipseIn: CGRect(x: x - 1.5, y: y - 1.5, width: 3, height: 3)), with: .color(InstrumentTheme.lime))
      }
-     if dropToZero { zero(size.width) }
+     if dropToZero { zero(Double(size.width)) }
      if pts.count > 1 {
       context.stroke(smoothPath(pts, clampHeight: size.height), with: .color(InstrumentTheme.lime), lineWidth: 1.5)
      }
@@ -575,9 +578,15 @@ private struct ServerNetworkActivity: View {
   let rxMax = readings.compactMap { $0?.received }.max() ?? 0
   let txMax = readings.compactMap { $0?.sent }.max() ?? 0
   let scale = max(1, max(rxMax, txMax))
+  let title: String
+  if compact {
+   title = "Сеть · " + compactRate(rx) + "↓ " + compactRate(tx) + "↑"
+  } else {
+   title = "Сеть · " + (name ?? "Н/Д")
+  }
   VStack(alignment: .leading, spacing: 4) {
    HStack(spacing: 6) {
-    Text(compact ? "Сеть · " + compactRate(rx) + "↓ " + compactRate(tx) + "↑" : "Сеть · " + (name ?? "Н/Д"))
+    Text(title)
      .font(.caption2).foregroundStyle(.secondary).lineLimit(1)
     Spacer(minLength: 0)
     if !compact {
@@ -596,23 +605,23 @@ private struct ServerNetworkActivity: View {
       var pts: [CGPoint] = []
       var previous: ServerTrafficPoint?
       var dropToZero = false
-      func zero(_ x: Double) { pts.append(CGPoint(x: x, y: size.height)) }
+      func zero(_ x: Double) { pts.append(CGPoint(x: x, y: Double(size.height))) }
       for point in readings {
        guard let point, let value = incoming ? point.received : point.sent else { dropToZero = true; continue }
-       let x = size.width * (point.sampledAt - (now - range.seconds)) / range.seconds
-       let y = size.height * (1 - min(1, value / scale))
+       let x = Double(size.width) * ((point.sampledAt - (now - range.seconds)) / range.seconds)
+       let y = Double(size.height) * (1 - min(1, value / scale))
        let position = CGPoint(x: x, y: y)
        if dropToZero {
-        zero(pts.last?.x ?? 0); zero(x); dropToZero = false
+        zero(Double(pts.last?.x ?? 0)); zero(x); dropToZero = false
        } else if let previous, !point.follows(previous) {
-        zero(pts.last?.x ?? x); zero(x)
+        zero(Double(pts.last?.x ?? CGFloat(x))); zero(x)
        }
        pts.append(position)
        previous = point
        context.fill(Path(ellipseIn: CGRect(x: x - 1.5, y: y - 1.5, width: 3, height: 3)),
         with: .color(color))
       }
-      if dropToZero { zero(size.width) }
+      if dropToZero { zero(Double(size.width)) }
       if pts.count > 1 {
        context.stroke(smoothPath(pts, clampHeight: size.height), with: .color(color), lineWidth: 1.5)
       }
