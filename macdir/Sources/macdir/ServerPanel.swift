@@ -188,11 +188,17 @@ struct MacdirRootView: View {
   NSApp.keyWindow?.firstResponder is NSTextView || NSApp.keyWindow?.firstResponder is NSTextField
  }
  private var shortcutsBlocked: Bool { servers.adding || servers.removing != nil }
+ /// Logical canvas the zoom factor scales. Fitting the design canvas keeps the
+ /// card proportions identical at every zoom level instead of stretching the
+ /// flexible layout to `viewport / zoom`.
+ private var designSize: CGSize {
+  servers.section == 1
+   ? CGSize(width: servers.selectedServerID == nil ? 1440 : 1180, height: 780)
+   : CGSize(width: 1180, height: 800)
+ }
  private func fit() {
-  let server = servers.section == 1
   zoom = WindowZoom.fit(width: viewport.width, height: viewport.height,
-   minimumWidth: server && servers.selectedServerID == nil ? 1440 : 1180,
-   minimumHeight: server ? 780 : 800)
+   minimumWidth: designSize.width, minimumHeight: designSize.height)
  }
  private func resize(_ size: CGSize) { viewport = size; fit() }
  private func step(_ direction: Int) { if !editingText && !shortcutsBlocked { zoom = WindowZoom.step(zoom, direction: direction) } }
@@ -220,15 +226,23 @@ struct MacdirRootView: View {
   VStack(spacing: 0) {
    zoomToolbar
    GeometryReader { geometry in
+    // Zoom scales the design canvas. Never lay the flexible views out wider than
+    // the window itself: `viewport / zoom` at 55 % doubled the logical width and
+    // produced huge, mostly empty cards.
+    let design = designSize
+    let logical = CGSize(
+     width: min(geometry.size.width / CGFloat(zoom), max(geometry.size.width, design.width)),
+     height: min(geometry.size.height / CGFloat(zoom), max(geometry.size.height, design.height)))
     VStack(spacing: 0) {
      Picker("Раздел", selection: $servers.section) { Text("Этот Mac").tag(0); Text("Серверы").tag(1) }
       .pickerStyle(.segmented).frame(width: 300).padding(.top, 12)
      if servers.section == 0 { ContentView(model: model) }
      else { ServerPanel(model: servers).frame(minWidth: 1060, minHeight: 740) }
     }
-    .frame(width: geometry.size.width / CGFloat(zoom), height: geometry.size.height / CGFloat(zoom), alignment: .top)
+    .frame(width: logical.width, height: logical.height, alignment: .top)
     .scaleEffect(CGFloat(zoom), anchor: .topLeading)
-    .frame(width: geometry.size.width, height: geometry.size.height, alignment: .topLeading)
+    .frame(width: logical.width * CGFloat(zoom), height: logical.height * CGFloat(zoom), alignment: .top)
+    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     .onAppear { resize(geometry.size) }
     .onChange(of: geometry.size) { _, size in resize(size) }
    }
@@ -394,7 +408,7 @@ private struct ServerFleetRow: View {
  }
  private func fleetGauge(_ title: String, _ value: String, _ fraction: Double?, side: CGFloat) -> some View {
   VStack(spacing: 0) {
-   NeedleGauge(fraction: fraction, tickLabels: []).frame(height: side * 0.58)
+   NeedleGauge(fraction: fraction, tickLabels: [], gutter: 8, needleBase: 8).frame(height: side * 0.58)
    Text(title).font(.system(size: 10, weight: .semibold)).foregroundStyle(.secondary).lineLimit(1)
    Text(value).font(.system(size: 14, weight: .semibold, design: .rounded)).monospacedDigit().lineLimit(1)
   }.frame(width: side, height: side)

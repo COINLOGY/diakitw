@@ -26,12 +26,14 @@ func gaugeColor(_ fraction: Double?, battery: Bool = false) -> Color {
 
 struct InstrumentNeedle: Shape {
  var fraction: Double
+ var gutter: Double = 44
+ var needleBase: Double = 16
  var animatableData: Double {
   get { fraction }
   set { fraction = newValue }
  }
  func path(in rect: CGRect) -> Path {
-  let points = GaugeGeometry(width: rect.width, height: rect.height).needlePoints(fraction: fraction)
+  let points = GaugeGeometry(width: rect.width, height: rect.height, gutter: gutter, needleBase: needleBase).needlePoints(fraction: fraction)
   var path = Path()
   if let first = points.first {
    path.move(to: first)
@@ -49,6 +51,10 @@ struct NeedleGauge: View {
  var upperLabel = "100%"
  var tickLabels: [String]? = nil
  var directionColor: Color = InstrumentTheme.lime
+ /// 44/16 keep the full dial unchanged; compact cards shrink the label gutter
+ /// and the needle hub so the radius stays large enough to draw a needle.
+ var gutter: Double = 44
+ var needleBase: Double = 16
  private var labels: [String] {
   if let tickLabels { return tickLabels }
   if neutral { return ["0", "5", String(upperLabel.split(separator: " ").first ?? "10")] }
@@ -60,7 +66,7 @@ struct NeedleGauge: View {
  }
  var body: some View {
   GeometryReader { geo in
-   let geometry = GaugeGeometry(width: geo.size.width, height: geo.size.height)
+   let geometry = GaugeGeometry(width: geo.size.width, height: geo.size.height, gutter: gutter, needleBase: needleBase)
    let radius = geometry.radius
    let center = geometry.center
    ZStack(alignment: .topLeading) {
@@ -81,7 +87,7 @@ struct NeedleGauge: View {
      }
     }
     if let fraction, fraction.isFinite, (0...1).contains(fraction) {
-     InstrumentNeedle(fraction: fraction).fill(color(fraction))
+     InstrumentNeedle(fraction: fraction, gutter: gutter, needleBase: needleBase).fill(color(fraction))
       .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: fraction)
      Circle().fill(Color(red: 0.078, green: 0.102, blue: 0.129))
       .overlay(Circle().strokeBorder(color(fraction), lineWidth: 1.5))

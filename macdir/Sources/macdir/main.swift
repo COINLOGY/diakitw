@@ -489,6 +489,26 @@ if CommandLine.arguments.contains("--self-check") {
  appMenu.addItem(withTitle: "О diakitw", action: #selector(AppDelegate.showAbout(_:)), keyEquivalent: "").target = delegate
 
  appMenu.addItem(.separator()); appMenu.addItem(withTitle: "Завершить diakitw", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+ // Standard text commands must live in the main menu: AppKit routes Cmd+X/C/V/A
+ // through menu key equivalents, so without them fields only had the
+ // right-click contextual menu and the keyboard did nothing.
+ let editItem = NSMenuItem(); menu.addItem(editItem)
+ let editMenu = NSMenu(title: "Правка"); editItem.submenu = editMenu
+ editMenu.addItem(withTitle: "Отменить", action: Selector(("undo:")), keyEquivalent: "z")
+ let redoItem = editMenu.addItem(withTitle: "Повторить", action: Selector(("redo:")), keyEquivalent: "z")
+ redoItem.keyEquivalentModifierMask = [.command, .shift]
+ editMenu.addItem(.separator())
+ editMenu.addItem(withTitle: "Вырезать", action: #selector(NSText.cut(_:)), keyEquivalent: "x")
+ editMenu.addItem(withTitle: "Копировать", action: #selector(NSText.copy(_:)), keyEquivalent: "c")
+ editMenu.addItem(withTitle: "Вставить", action: #selector(NSText.paste(_:)), keyEquivalent: "v")
+ editMenu.addItem(withTitle: "Выбрать всё", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
+ let windowItem = NSMenuItem(); menu.addItem(windowItem)
+ let windowMenu = NSMenu(title: "Окно"); windowItem.submenu = windowMenu
+ windowMenu.addItem(withTitle: "Свернуть", action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
+ windowMenu.addItem(withTitle: "Закрыть", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
+ windowMenu.addItem(.separator())
+ windowMenu.addItem(withTitle: "Все окна на передний план", action: #selector(NSApplication.arrangeInFront(_:)), keyEquivalent: "")
+ app.windowsMenu = windowMenu
  app.mainMenu = menu
  UpdateMenu.shared.start()
  app.activate(ignoringOtherApps: true)

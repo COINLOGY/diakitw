@@ -21,17 +21,23 @@ public struct GaugeGeometry {
  public let width: Double
  public let radius: Double
  public let center: CGPoint
- public init(width: Double, height: Double) {
+ /// Reserved vertical space for the three tick labels under the arc.
+ /// Full dials keep 44 (and the matching 22-point baseline gutter). Compact
+ /// fleet cards pass a smaller gutter: at 60-point height `height - 44`
+ /// collapses the radius to zero and the needle silently disappears.
+ private let needleBase: Double
+ public init(width: Double, height: Double, gutter: Double = 44, needleBase: Double = 16) {
   self.width = max(0, width)
-  radius = max(0, min(60, width / 2 - 12, height - 44))
-  center = CGPoint(x: width / 2, y: radius + 22)
+  self.needleBase = max(0, needleBase)
+  radius = max(0, min(60, width / 2 - 12, height - gutter))
+  center = CGPoint(x: width / 2, y: radius + gutter / 2)
  }
  /// Approved v4: wider triangle base; v2 tip and straight tail stay unchanged.
  /// Keep a three-point gap from the deepest tick (radius - 13).
  /// The existing 22-point lower gutter also contains the maximum tail (9.34 pt).
  public func needlePoints(fraction: Double?) -> [CGPoint] {
   guard let fraction, fraction.isFinite, (0...1).contains(fraction) else { return [] }
-  let scale = max(0, radius - 16) / 99
+  let scale = max(0, radius - needleBase) / 99
   let angle = fraction * .pi
   let vertices: [(Double, Double)] = [(-99.0, 0.0), (0, -10), (21, -4), (21, 4), (0, 10)]
   let cosine = cos(angle), sine = sin(angle)

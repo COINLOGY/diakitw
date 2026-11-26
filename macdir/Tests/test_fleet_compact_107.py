@@ -11,7 +11,12 @@ class FleetCompactLayout(unittest.TestCase):
         self.assertIn('GeometryReader { geometry in', row)
         self.assertIn('let side = min(', row)
         self.assertIn('.frame(width: side, height: side)', row)
-        self.assertIn('NeedleGauge(fraction: fraction, tickLabels: [])', row)
+        self.assertIn('NeedleGauge(fraction: fraction, tickLabels: [], gutter: 8, needleBase: 8)', row)
+        # Compact cards must shrink the label gutter, otherwise `height - 44`
+        # collapses the radius and the needle is not drawn at all.
+        face = (root / 'Sources/macdir/NeedleGauge.swift').read_text()
+        self.assertIn('var gutter: Double = 44', face)
+        self.assertIn('var needleBase: Double = 16', face)
         for label in ('CPU', 'RAM', 'SWAP', 'Диск /'):
             self.assertIn(f'fleetGauge("{label}"', row)
         self.assertIn('ServerNetworkActivity(', row)
