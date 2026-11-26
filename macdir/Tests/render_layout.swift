@@ -274,7 +274,8 @@ MainActor.assumeIsolated {
      }
      if let load = layoutFrames[prefix + "load"], let chart = layoutFrames[prefix + "network"], let row = layoutFrames[prefix + "row"] {
       if load.minX < row.minX || chart.maxX > row.maxX + 2 || load.maxX > chart.minX + 2 || chart.width < 80 || load.width < 80 {
-       failures.append("fleet load/network order, visibility or overlap " + server.id)
+       failures.append("fleet load/network order, visibility or overlap " + server.id +
+        " row=\(Int(row.minX))...\(Int(row.maxX)) load=\(Int(load.minX))...\(Int(load.maxX))w\(Int(load.width)) chart=\(Int(chart.minX))...\(Int(chart.maxX))w\(Int(chart.width))")
       }
      } else { failures.append("fleet load/network geometry missing " + server.id) }
     }

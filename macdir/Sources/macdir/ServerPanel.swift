@@ -390,7 +390,7 @@ private struct ServerFleetRow: View {
      Image(systemName: "chevron.right").foregroundStyle(.secondary)
     }
     GeometryReader { geometry in
-     let side = min(96, max(72, (geometry.size.width - 40) / 10))
+     let side = min(84, max(72, (geometry.size.width - 40) / 13))
      let interface = sample?.preferredInterface
      let traffic = state.traffic(for: interface, in: range, now: now)
      let peaks = traffic.compactMap { $0?.received } + traffic.compactMap { $0?.sent }
