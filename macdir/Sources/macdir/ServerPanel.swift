@@ -578,12 +578,10 @@ private struct ServerNetworkActivity: View {
   let rxMax = readings.compactMap { $0?.received }.max() ?? 0
   let txMax = readings.compactMap { $0?.sent }.max() ?? 0
   let scale = max(1, max(rxMax, txMax))
-  let title: String
-  if compact {
-   title = "Сеть · " + compactRate(rx) + "↓ " + compactRate(tx) + "↑"
-  } else {
-   title = "Сеть · " + (name ?? "Н/Д")
-  }
+  let down = compactRate(rx) + "↓"
+  let up = compactRate(tx) + "↑"
+  let rates = down + " " + up
+  let title: String = compact ? "Сеть · " + rates : "Сеть · " + (name ?? "Н/Д")
   VStack(alignment: .leading, spacing: 4) {
    HStack(spacing: 6) {
     Text(title)
