@@ -45,8 +45,12 @@ class FleetCompactLayout(unittest.TestCase):
         self.assertIn('dropToZero', view)
         # Сплошная линия от нуля: до первого замера и после последнего участок
         # идёт по базовой линии, пустых мест на графике нет.
-        self.assertIn('pts.insert(CGPoint(x: 0,', view)
-        self.assertIn('pts.append(CGPoint(x: Double(size.width),', view)
+        self.assertIn('pts.insert(CGPoint(x: 0, y: fillY)', view)
+        self.assertIn('pts.append(CGPoint(x: Double(size.width), y: fillY)', view)
+        # Пропуск заполняется половиной последнего максимума (среднее между
+        # нулём и пиком), а не нулём и не разрывом.
+        self.assertIn('(1 - (peak / 2) / 100)', view)
+        self.assertIn('min(1, (seriesPeak / 2) / scale)', view)
         self.assertNotIn('path.addLine(to: position)', view)
         self.assertIn('ServerNetworkActivity(', row)
         self.assertIn('.frame(maxWidth: .infinity)', row)

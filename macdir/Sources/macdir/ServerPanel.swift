@@ -515,12 +515,14 @@ private struct ServerLoadActivity: View {
    if sample != nil && readings.contains(where: { $0?.percent != nil }) {
     Canvas { context, size in
      drawChartGrid(context, size: size)
-     // Непрерывная линия: пропуск замера или пауза уводит линию в ноль и
-     // возвращает её к следующему реальному значению, без разрывов.
+     // Пропуск замера заполняется половиной последнего максимума — средним
+     // между нулём и пиком: линия непрерывна и не выглядит обрывом.
      var pts: [CGPoint] = []
      var previous: ServerLoadPoint?
      var dropToZero = false
-     func zero(_ x: Double) { pts.append(CGPoint(x: x, y: max(0, Double(size.height) - 1))) }
+     let peak = readings.compactMap { $0?.percent }.max() ?? 0
+     let fillY = max(0, Double(size.height) * (1 - (peak / 2) / 100))
+     func zero(_ x: Double) { pts.append(CGPoint(x: x, y: fillY)) }
      for point in readings {
       guard let point, let value = point.percent else { dropToZero = true; continue }
       let x = Double(size.width) * ((point.sampledAt - (now - range.seconds)) / range.seconds)
@@ -536,13 +538,13 @@ private struct ServerLoadActivity: View {
       context.fill(Path(ellipseIn: CGRect(x: x - 1.5, y: y - 1.5, width: 3, height: 3)), with: .color(InstrumentTheme.lime))
      }
      if dropToZero { zero(Double(size.width)) }
-     // Сплошная линия от нуля: до первого замера и после последнего она идёт
-     // по базовой линии, поэтому на графике нет пустых участков.
+     // До первого замера и после последнего линия идёт по средней линии,
+     // поэтому на графике нет пустых участков.
      if let firstX = pts.first?.x, firstX > 1 {
-      pts.insert(CGPoint(x: 0, y: max(0, Double(size.height) - 1)), at: 0)
+      pts.insert(CGPoint(x: 0, y: fillY), at: 0)
      }
      if !dropToZero, let lastX = pts.last?.x, lastX < size.width - 1 {
-      pts.append(CGPoint(x: Double(size.width), y: max(0, Double(size.height) - 1)))
+      pts.append(CGPoint(x: Double(size.width), y: fillY))
      }
      if pts.count > 1 {
       context.stroke(smoothPath(pts, clampHeight: size.height), with: .color(InstrumentTheme.lime), lineWidth: 1.5)
@@ -615,11 +617,13 @@ private struct ServerNetworkActivity: View {
      drawChartGrid(context, size: size)
      for incoming in [true, false] {
       let color = incoming ? InstrumentTheme.lime : InstrumentTheme.cyan
-      // Непрерывная линия: приём и отдача тоже уходят в ноль на пропусках.
+      // То же для приёма и отдачи: пропуск садится на половину своего пика.
       var pts: [CGPoint] = []
       var previous: ServerTrafficPoint?
       var dropToZero = false
-      func zero(_ x: Double) { pts.append(CGPoint(x: x, y: max(0, Double(size.height) - 1))) }
+      let seriesPeak = readings.compactMap { incoming ? $0?.received : $0?.sent }.max() ?? 0
+      let fillY = max(0, Double(size.height) * (1 - min(1, (seriesPeak / 2) / scale)))
+      func zero(_ x: Double) { pts.append(CGPoint(x: x, y: fillY)) }
       for point in readings {
        guard let point, let value = incoming ? point.received : point.sent else { dropToZero = true; continue }
        let x = Double(size.width) * ((point.sampledAt - (now - range.seconds)) / range.seconds)
@@ -636,12 +640,12 @@ private struct ServerNetworkActivity: View {
         with: .color(color))
       }
       if dropToZero { zero(Double(size.width)) }
-      // Та же непрерывность для приёма и отдачи: слева и справа — по нулю.
+      // Та же непрерывность для приёма и отдачи по краям окна.
       if let firstX = pts.first?.x, firstX > 1 {
-       pts.insert(CGPoint(x: 0, y: max(0, Double(size.height) - 1)), at: 0)
+       pts.insert(CGPoint(x: 0, y: fillY), at: 0)
       }
       if !dropToZero, let lastX = pts.last?.x, lastX < size.width - 1 {
-       pts.append(CGPoint(x: Double(size.width), y: max(0, Double(size.height) - 1)))
+       pts.append(CGPoint(x: Double(size.width), y: fillY))
       }
       if pts.count > 1 {
        context.stroke(smoothPath(pts, clampHeight: size.height), with: .color(color), lineWidth: 1.5)
