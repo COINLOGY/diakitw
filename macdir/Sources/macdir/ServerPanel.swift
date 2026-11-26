@@ -401,7 +401,7 @@ private struct ServerFleetRow: View {
       Spacer(minLength: 14)
       ServerLoadActivity(state: state, sample: sample, now: now, range: range)
        .frame(maxWidth: .infinity).frame(height: side)
-      ServerNetworkActivity(state: state, sample: sample, now: now, range: range)
+      ServerNetworkActivity(state: state, sample: sample, now: now, range: range, showRates: false)
        .frame(maxWidth: .infinity).frame(height: side)
      }.frame(maxWidth: .infinity, alignment: .leading)
     }.frame(height: 108)
@@ -511,6 +511,9 @@ private struct ServerNetworkActivity: View {
  let now: Double
  var range: ServerHistoryRange = .fiveMinutes
  var interface: String? = nil
+ /// The fleet card already shows both rates in its own dials; hiding them here
+ /// keeps the chart's minimum width small enough for the row to fit.
+ var showRates = true
  var body: some View {
   let name = interface ?? sample?.preferredInterface
   let readings = state.traffic(for: name, in: range, now: now)
@@ -521,10 +524,12 @@ private struct ServerNetworkActivity: View {
    HStack(spacing: 6) {
     Text("Сеть · " + (name ?? "Н/Д")).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
     Spacer(minLength: 0)
-    NetworkRateValue(value: sample?.network.first(where: { $0.name == name })?.rx, direction: "↓", size: 11)
-     .foregroundStyle(InstrumentTheme.lime)
-    NetworkRateValue(value: sample?.network.first(where: { $0.name == name })?.tx, direction: "↑", size: 11)
-     .foregroundStyle(InstrumentTheme.cyan)
+    if showRates {
+     NetworkRateValue(value: sample?.network.first(where: { $0.name == name })?.rx, direction: "↓", size: 11)
+      .foregroundStyle(InstrumentTheme.lime)
+     NetworkRateValue(value: sample?.network.first(where: { $0.name == name })?.tx, direction: "↑", size: 11)
+      .foregroundStyle(InstrumentTheme.cyan)
+    }
    }
    if sample != nil && name != nil && readings.contains(where: { $0?.hasMeasurement == true }) {
     Canvas { context, size in
