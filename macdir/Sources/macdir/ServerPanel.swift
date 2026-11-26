@@ -226,23 +226,15 @@ struct MacdirRootView: View {
   VStack(spacing: 0) {
    zoomToolbar
    GeometryReader { geometry in
-    // Zoom scales the design canvas. Never lay the flexible views out wider than
-    // the window itself: `viewport / zoom` at 55 % doubled the logical width and
-    // produced huge, mostly empty cards.
-    let design = designSize
-    let logical = CGSize(
-     width: min(geometry.size.width / CGFloat(zoom), max(geometry.size.width, design.width)),
-     height: min(geometry.size.height / CGFloat(zoom), max(geometry.size.height, design.height)))
     VStack(spacing: 0) {
      Picker("Раздел", selection: $servers.section) { Text("Этот Mac").tag(0); Text("Серверы").tag(1) }
       .pickerStyle(.segmented).frame(width: 300).padding(.top, 12)
      if servers.section == 0 { ContentView(model: model) }
-     else { ServerPanel(model: servers).frame(minWidth: 1060, minHeight: 740) }
+     else { ServerPanel(model: servers).frame(minWidth: 1060, minHeight: 740).frame(maxWidth: 1440, alignment: .top) }
     }
-    .frame(width: logical.width, height: logical.height, alignment: .top)
+    .frame(width: geometry.size.width / CGFloat(zoom), height: geometry.size.height / CGFloat(zoom), alignment: .top)
     .scaleEffect(CGFloat(zoom), anchor: .topLeading)
-    .frame(width: logical.width * CGFloat(zoom), height: logical.height * CGFloat(zoom), alignment: .top)
-    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+    .frame(width: geometry.size.width, height: geometry.size.height, alignment: .topLeading)
     .onAppear { resize(geometry.size) }
     .onChange(of: geometry.size) { _, size in resize(size) }
    }
