@@ -332,7 +332,7 @@ struct ServerPanel: View {
          Text("На связи: \(model.configs.filter { model.states[$0.id]?.current(now: context.date.timeIntervalSince1970) != nil }.count) / \(model.configs.count)").font(.caption).foregroundStyle(.secondary)
         }
         ForEach(model.configs) { config in
-         ServerFleetRow(config: config, state: model.states[config.id] ?? ServerState(), now: context.date.timeIntervalSince1970, range: historyRange) {
+         ServerFleetRow(config: config, state: model.states[config.id] ?? ServerState(), hardware: model.hardwareCache.snapshot(config), now: context.date.timeIntervalSince1970, range: historyRange) {
           model.selectedServerID = config.id
          }
         }
@@ -364,6 +364,7 @@ struct ServerPanel: View {
 private struct ServerFleetRow: View {
  let config: ServerConfig
  let state: ServerState
+ let hardware: ServerTelemetry?
  let now: Double
  let range: ServerHistoryRange
  let open: () -> Void
@@ -384,19 +385,26 @@ private struct ServerFleetRow: View {
      let side = min(84, max(72, (geometry.size.width - 40) / 13))
      let interface = sample?.preferredInterface
      let traffic = state.traffic(for: interface, in: range, now: now)
-     let peaks = traffic.compactMap { $0?.received } + traffic.compactMap { $0?.sent }
+     let rxPeaks = traffic.compactMap { $0?.received }
+     let txPeaks = traffic.compactMap { $0?.sent }
+     let peaks = rxPeaks + txPeaks
      // Fixed 10 MiB/s made ordinary traffic sit on zero; the dial is relative
      // to the visible peak, the absolute value is printed under it.
      let trafficMax = max(65_536, peaks.max() ?? 0)
      let rx = sample?.network.first(where: { $0.name == interface })?.rx
      let tx = sample?.network.first(where: { $0.name == interface })?.tx
+     // Ядра и полные объёмы приходят суточным замером, в живом сэмпле их нет:
+     // без подстановки на приборах было «ядер: Н/Д» и пустые знаменатели.
+     let cores = sample?.cpuCount ?? hardware?.cpuCount
+     let memoryTotal = sample?.memoryTotal ?? hardware?.memoryTotal
+     let diskTotal = sample?.diskTotal ?? hardware?.diskTotal
      HStack(spacing: 8) {
-      fleetGauge("CPU", MetricPresentation.percent(sample?.cpuPercent), GaugeScale.fraction(sample?.cpuPercent, maximum: 100), side: side, detail: coreCount(sample))
-      fleetGauge("RAM", measuredPercent(sample?.memoryUsed, sample?.memoryTotal), GaugeScale.fraction(sample?.memoryUsed, maximum: sample?.memoryTotal), side: side, detail: gibPair(sample?.memoryUsed, sample?.memoryTotal))
+      fleetGauge("CPU", MetricPresentation.percent(sample?.cpuPercent), GaugeScale.fraction(sample?.cpuPercent, maximum: 100), side: side, detail: coreCount(cores))
+      fleetGauge("RAM", measuredPercent(sample?.memoryUsed, memoryTotal), GaugeScale.fraction(sample?.memoryUsed, maximum: memoryTotal), side: side, detail: gibPair(sample?.memoryUsed, memoryTotal))
       fleetGauge("SWAP", measuredPercent(sample?.swapUsed, sample?.swapTotal), GaugeScale.fraction(sample?.swapUsed, maximum: sample?.swapTotal), side: side, detail: gibPair(sample?.swapUsed, sample?.swapTotal))
-      fleetGauge("Диск /", measuredPercent(sample?.diskUsed, sample?.diskTotal), GaugeScale.fraction(sample?.diskUsed, maximum: sample?.diskTotal), side: side, detail: gibPair(sample?.diskUsed, sample?.diskTotal))
-      fleetGauge("Приём ↓", shortRate(rx), GaugeScale.fraction(rx, maximum: trafficMax), side: side, direction: InstrumentTheme.lime, detail: "макс " + shortRate(peaks.max()))
-      fleetGauge("Отдача ↑", shortRate(tx), GaugeScale.fraction(tx, maximum: trafficMax), side: side, direction: InstrumentTheme.cyan, detail: "макс " + shortRate(peaks.max()))
+      fleetGauge("Диск /", measuredPercent(sample?.diskUsed, diskTotal), GaugeScale.fraction(sample?.diskUsed, maximum: diskTotal), side: side, detail: gibPair(sample?.diskUsed, diskTotal))
+      fleetGauge("Приём ↓", shortRate(rx), GaugeScale.fraction(rx, maximum: trafficMax), side: side, direction: InstrumentTheme.lime, detail: "макс " + shortRate(rxPeaks.max()))
+      fleetGauge("Отдача ↑", shortRate(tx), GaugeScale.fraction(tx, maximum: trafficMax), side: side, direction: InstrumentTheme.cyan, detail: "макс " + shortRate(txPeaks.max()))
       Spacer(minLength: 14)
       ServerLoadActivity(state: state, sample: sample, now: now, range: range, compact: true)
        .frame(maxWidth: .infinity).frame(height: side)
@@ -434,8 +442,8 @@ private struct ServerFleetRow: View {
   guard let used, let total, used.isFinite, total.isFinite, used >= 0, total >= 0, used <= total else { return "Н/Д" }
   return String(format: "%.1f/%.1fG", used / 1_073_741_824, total / 1_073_741_824)
  }
- private func coreCount(_ sample: ServerTelemetry?) -> String {
-  guard let raw = sample?.cpuCount, raw.isFinite, raw >= 1 else { return "ядра: Н/Д" }
+ private func coreCount(_ count: Double?) -> String {
+  guard let raw = count, raw.isFinite, raw >= 1 else { return "ядра: Н/Д" }
   let count = Int(raw.rounded())
   let word = (count % 10 == 1 && count % 100 != 11) ? "ядро"
    : (([2, 3, 4].contains(count % 10) && ![12, 13, 14].contains(count % 100)) ? "ядра" : "ядер")
@@ -512,7 +520,7 @@ private struct ServerLoadActivity: View {
      var pts: [CGPoint] = []
      var previous: ServerLoadPoint?
      var dropToZero = false
-     func zero(_ x: Double) { pts.append(CGPoint(x: x, y: Double(size.height))) }
+     func zero(_ x: Double) { pts.append(CGPoint(x: x, y: max(0, Double(size.height) - 1))) }
      for point in readings {
       guard let point, let value = point.percent else { dropToZero = true; continue }
       let x = Double(size.width) * ((point.sampledAt - (now - range.seconds)) / range.seconds)
@@ -528,6 +536,14 @@ private struct ServerLoadActivity: View {
       context.fill(Path(ellipseIn: CGRect(x: x - 1.5, y: y - 1.5, width: 3, height: 3)), with: .color(InstrumentTheme.lime))
      }
      if dropToZero { zero(Double(size.width)) }
+     // Сплошная линия от нуля: до первого замера и после последнего она идёт
+     // по базовой линии, поэтому на графике нет пустых участков.
+     if let firstX = pts.first?.x, firstX > 1 {
+      pts.insert(CGPoint(x: 0, y: max(0, Double(size.height) - 1)), at: 0)
+     }
+     if !dropToZero, let lastX = pts.last?.x, lastX < size.width - 1 {
+      pts.append(CGPoint(x: Double(size.width), y: max(0, Double(size.height) - 1)))
+     }
      if pts.count > 1 {
       context.stroke(smoothPath(pts, clampHeight: size.height), with: .color(InstrumentTheme.lime), lineWidth: 1.5)
      }
@@ -603,7 +619,7 @@ private struct ServerNetworkActivity: View {
       var pts: [CGPoint] = []
       var previous: ServerTrafficPoint?
       var dropToZero = false
-      func zero(_ x: Double) { pts.append(CGPoint(x: x, y: Double(size.height))) }
+      func zero(_ x: Double) { pts.append(CGPoint(x: x, y: max(0, Double(size.height) - 1))) }
       for point in readings {
        guard let point, let value = incoming ? point.received : point.sent else { dropToZero = true; continue }
        let x = Double(size.width) * ((point.sampledAt - (now - range.seconds)) / range.seconds)
@@ -620,6 +636,13 @@ private struct ServerNetworkActivity: View {
         with: .color(color))
       }
       if dropToZero { zero(Double(size.width)) }
+      // Та же непрерывность для приёма и отдачи: слева и справа — по нулю.
+      if let firstX = pts.first?.x, firstX > 1 {
+       pts.insert(CGPoint(x: 0, y: max(0, Double(size.height) - 1)), at: 0)
+      }
+      if !dropToZero, let lastX = pts.last?.x, lastX < size.width - 1 {
+       pts.append(CGPoint(x: Double(size.width), y: max(0, Double(size.height) - 1)))
+      }
       if pts.count > 1 {
        context.stroke(smoothPath(pts, clampHeight: size.height), with: .color(color), lineWidth: 1.5)
       }

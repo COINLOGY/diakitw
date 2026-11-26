@@ -22,7 +22,17 @@ class FleetCompactLayout(unittest.TestCase):
             self.assertIn(f'fleetGauge("{label}"', row)
         self.assertIn('shortRate(', row)
         self.assertIn('compact: true', row)
-        self.assertIn('detail: coreCount(sample)', row)
+        self.assertIn('detail: coreCount(cores)', row)
+        # Ядра и полные объёмы приходят суточным замером: строка списка обязана
+        # брать их из кэша характеристик, иначе на приборах «ядер: Н/Д».
+        self.assertIn('let hardware: ServerTelemetry?', row)
+        self.assertIn('hardware: model.hardwareCache.snapshot(config)', view)
+        self.assertIn('let cores = sample?.cpuCount ?? hardware?.cpuCount', row)
+        self.assertIn('let memoryTotal = sample?.memoryTotal ?? hardware?.memoryTotal', row)
+        self.assertIn('let diskTotal = sample?.diskTotal ?? hardware?.diskTotal', row)
+        # Пик трафика печатается по своему направлению, а не общий.
+        self.assertIn('shortRate(rxPeaks.max())', row)
+        self.assertIn('shortRate(txPeaks.max())', row)
         self.assertIn('detail: gibPair(', row)
         self.assertIn('drawChartGrid(context, size: size)', view)
         # The two charts start after the six dials, shifted right by a spacer.
@@ -33,6 +43,10 @@ class FleetCompactLayout(unittest.TestCase):
         self.assertIn('func smoothPath', view)
         self.assertIn('path.addCurve(to: CGPoint(x: p2.x, y: clamp(p2.y)),', view)
         self.assertIn('dropToZero', view)
+        # Сплошная линия от нуля: до первого замера и после последнего участок
+        # идёт по базовой линии, пустых мест на графике нет.
+        self.assertIn('pts.insert(CGPoint(x: 0,', view)
+        self.assertIn('pts.append(CGPoint(x: Double(size.width),', view)
         self.assertNotIn('path.addLine(to: position)', view)
         self.assertIn('ServerNetworkActivity(', row)
         self.assertIn('.frame(maxWidth: .infinity)', row)
