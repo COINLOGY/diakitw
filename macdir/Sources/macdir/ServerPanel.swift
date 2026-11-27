@@ -595,6 +595,23 @@ private func smoothPath(_ points: [CGPoint], clampHeight: CGFloat? = nil) -> Pat
  return path
 }
 
+/// Левая шкала графика: верх, середина, ноль.
+private func chartAxisLabels(top: String, middle: String, bottom: String, compact: Bool) -> some View {
+ VStack(alignment: .trailing, spacing: 0) {
+  Text(top); Spacer(minLength: 0); Text(middle); Spacer(minLength: 0); Text(bottom)
+ }.font(.system(size: compact ? 7 : 8, weight: .medium, design: .monospaced))
+  .foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.7)
+  .frame(width: compact ? 26 : 34)
+}
+
+/// Подпись скорости для оси: «2,0 М/с», а не «2,0 MiB».
+private func axisRate(_ value: Double) -> String {
+ let presentation = NetworkPresentation(value)
+ // Ниже 1 КиБ/с показываем ноль: иначе ось пишет «1 К/с» на пустом графике.
+ guard value >= 1024, presentation.available else { return "0" }
+ return presentation.displayNumber + (presentation.unit == "MiB" ? " М/с" : " К/с")
+}
+
 /// Number only, for the compact chart title: "7.5", not "7.5 К/с".
 private func compactRate(_ value: Double?) -> String {
  let presentation = NetworkPresentation(value)
@@ -634,7 +651,9 @@ private struct ServerLoadActivity: View {
    Text(title)
     .font(.caption2).foregroundStyle(.secondary).lineLimit(1)
    if readings.contains(where: { $0?.percent != nil }) {
-    Canvas { context, size in
+    HStack(alignment: .top, spacing: 3) {
+     chartAxisLabels(top: "100%", middle: "50%", bottom: "0%", compact: compact)
+     Canvas { context, size in
      drawChartGrid(context, size: size)
      // Пропуск замера заполняется половиной последнего максимума — средним
      // между нулём и пиком: линия непрерывна и не выглядит обрывом.
@@ -676,8 +695,9 @@ private struct ServerLoadActivity: View {
      if pts.count > 1 {
       context.stroke(smoothPath(pts, clampHeight: size.height), with: .color(InstrumentTheme.lime), lineWidth: 1.5)
      }
-    }.frame(maxWidth: .infinity, maxHeight: .infinity)
-     .accessibilityLabel("История реально измеренной загрузки CPU")
+     }.frame(maxWidth: .infinity, maxHeight: .infinity)
+      .accessibilityLabel("История реально измеренной загрузки CPU: шкала 0–100 %")
+    }
    } else {
     Text("История CPU: Н/Д").font(.caption2).foregroundStyle(.secondary)
      .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -698,6 +718,8 @@ private struct ServerHistoryAxis: View {
  var body: some View {
   HStack(spacing: 1) {
    Text(clock(now - range.seconds))
+   Spacer(minLength: 1)
+   Text(clock(now - range.seconds / 2))
    Spacer(minLength: 1)
    Text(clock(now))
   }.font(.system(size: 8, weight: .medium, design: .monospaced))
@@ -740,7 +762,9 @@ private struct ServerNetworkActivity: View {
     }
    }
    if let name, readings.contains(where: { $0?.hasMeasurement == true }) {
-    Canvas { context, size in
+    HStack(alignment: .top, spacing: 3) {
+     chartAxisLabels(top: axisRate(scale), middle: axisRate(scale / 2), bottom: "0", compact: compact)
+     Canvas { context, size in
      drawChartGrid(context, size: size)
      for incoming in [true, false] {
       let color = incoming ? InstrumentTheme.lime : InstrumentTheme.cyan
@@ -784,8 +808,9 @@ private struct ServerNetworkActivity: View {
        context.stroke(smoothPath(pts, clampHeight: size.height), with: .color(color), lineWidth: 1.5)
       }
      }
-    }.frame(maxWidth: .infinity, maxHeight: .infinity)
-     .accessibilityLabel("История реально измеренной активности сети: приём и передача")
+     }.frame(maxWidth: .infinity, maxHeight: .infinity)
+      .accessibilityLabel("История реально измеренной активности сети: шкала по максимуму периода " + axisRate(scale))
+    }
    } else {
     Text("Нет свежих данных сети").font(.caption2).foregroundStyle(.secondary)
      .frame(maxWidth: .infinity, maxHeight: .infinity)

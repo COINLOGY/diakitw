@@ -35,4 +35,9 @@ assert 'ServerHistoryStore.load(config.id, now: now)' in s, 'history must be res
 assert 'persistHistory(config.id)' in s and 'persistAll()' in s
 assert 'historySaveInterval: Double = 30' in s
 assert 'ServerHistoryStore.remove(config.id)' in s, 'removing a server must drop its history file'
+# Оси графиков: CPU — фиксированные 0–100 %, сеть — максимум отображаемого периода.
+assert 'chartAxisLabels(top: "100%", middle: "50%", bottom: "0%"' in s, 'CPU axis must show 0..100 %'
+assert 'chartAxisLabels(top: axisRate(scale), middle: axisRate(scale / 2), bottom: "0"' in s, 'network axis must use the period maximum'
+assert 'private func axisRate(' in s and 'private func chartAxisLabels(' in s
+assert "Text(clock(now - range.seconds / 2))" in s, 'time axis needs a middle tick'
 print('Servers UI wiring passed (not rendered UI)')
