@@ -20,4 +20,9 @@ assert 'hardwareCache.needsRefresh(config, now:' in s
 assert 'specs: true' in s and 'hardwareInFlight' in s
 assert 'hardware: model.hardwareCache.snapshot(config)' in s
 assert 'Text(hardwareLabel)' in s
+# Мастер-процесс ControlPersist живёт в группе ssh: при штатном завершении
+# группу убивать нельзя, иначе сокет исчезает и соединение не переиспользуется.
+process = (p/'Sources/MacdirCore/ServerSSHProcess.swift').read_text()
+assert 'if !reaped { _ = kill(-pid, SIGKILL) }' in process, 'normal exit must keep the ControlPersist master alive'
+assert 'kill(-pid, SIGTERM)' in process, 'timeout path must still stop the process group'
 print('Servers UI wiring passed (not rendered UI)')

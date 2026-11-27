@@ -51,7 +51,11 @@ public enum ServerSSHProcess {
   let start = ProcessInfo.processInfo.systemUptime
   var stopped: Double?; var reaped = false; var status: Int32 = 0; var sent = 0
   result.reason = .finished
-  defer { _ = kill(-pid, SIGKILL); cancellation.clear(); if !reaped { while waitpid(pid, &status, 0) < 0 && errno == EINTR {} } }
+  // Группу гасим только если процесс не завершился сам (таймаут, отмена,
+  // переполнение вывода). Иначе SIGKILL по группе убивает мастер-процесс
+  // ControlPersist, который ssh оставляет для переиспользования соединения:
+  // сокет исчезал сразу после первого замера.
+  defer { if !reaped { _ = kill(-pid, SIGKILL) }; cancellation.clear(); if !reaped { while waitpid(pid, &status, 0) < 0 && errno == EINTR {} } }
   func drain(_ fd: Int32, _ data: inout Data) -> Bool {
    var bytes = [UInt8](repeating: 0, count: 4096); var overflow = false
    for _ in 0..<16 {
