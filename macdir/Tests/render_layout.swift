@@ -218,7 +218,7 @@ MainActor.assumeIsolated {
    if total == 0 && GaugeScale.fraction(sample.swapUsed, maximum: sample.swapTotal) != nil { failures.append("zero server swap needle") }
    if measuredPair(sample.swapUsed, sample.swapTotal) != (total == 0 ? "0.0 из 0.0 GiB" : "3.0 из 4.0 GiB") { failures.append("server swap pair") }
    let view = VStack(spacing: 16) {
-    ForEach(0..<2) { _ in ServerHostPanel(config: config, state: state, hardware: sample, hardwareLabel: "Fixture", now: 1000, busy: false, selection: .constant("fixture0")) }
+    ForEach(0..<2) { _ in ServerHostPanel(config: config, state: state, hardware: sample, hardwareLabel: "Fixture", now: 1000, busy: false, interval: 30, selection: .constant("fixture0")) }
    }.padding().environment(\.colorScheme, dark ? .dark : .light)
    let host = NSHostingView(rootView: view); host.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
    let window = NSWindow(contentRect: NSRect(x: -10000, y: -10000, width: 1060, height: 1100), styleMask: [.borderless], backing: .buffered, defer: false)
