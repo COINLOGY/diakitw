@@ -26,7 +26,10 @@ assert 'inet_ntop' in resources and 's.interfaceAddresses' in resources
 assert 'diagnostic(' not in server and 'servers-last-diagnostic' not in server
 print('PASS: Mac identity source wiring (not rendered GUI or live HTTP proof)')
 server_ui = (root / 'Sources/macdir/ServerPanel.swift').read_text()
-assert 'NSApplication.didResignActiveNotification' in server_ui and 'NSApp.isActive' in server_ui, 'server polling must stop when app inactive'
+# Polling now continues in the background: history must not depend on window focus.
+assert 'NSApplication.didResignActiveNotification' not in server_ui, 'server polling must not stop when app inactive'
+assert 'NSApplication.willTerminateNotification' in server_ui and server_ui.count('servers.setVisible(false)') == 1, 'server polling stops only on app termination'
+assert 'beginActivity' in server_ui, 'App Nap must not stretch the sampling interval'
 assert 'foreground: self?.statusVisible == true || (self?.identityVisible == true && NSApp.isActive)' in main
 assert 'networkRate: selectedNetwork?.received' in main
 assert 'networkRate: selectedNetwork?.sent' in main
