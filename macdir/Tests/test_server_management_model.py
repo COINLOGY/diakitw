@@ -15,7 +15,7 @@ with tempfile.TemporaryDirectory(prefix='server-model-', dir=scratch) as directo
     model = model.replace('import MacdirCore', '')
     model = model.replace('private let store = ServerConfigStore()', f'private let store = ServerConfigStore(url: URL(fileURLWithPath: "{root}/servers.json"))')
     model = model.replace('ServerHardwareCache()', f'ServerHardwareCache(url: URL(fileURLWithPath: "{root}/hardware.json"))')
-    model = model.replace('usesMultiplexing ? (try? ServerMultiplex.controlPath(for: config)) : nil', 'nil')
+    model = model.replace('let controlPath = usesMultiplexing ? (try? ServerMultiplex.controlPath(for: config)) : nil', 'let controlPath: String? = nil')
     model = model.replace('ServerSampler.sample(config, probe: try ServerSampler.bundledProbe(), specs: true, controlPath: controlPath, cancellation: cancellation)', 'try await Fake.sample()')
     model = model.replace('ServerSampler.sample(config, probe: try ServerSampler.bundledProbe(), controlPath: controlPath, cancellation: cancellation)', 'try await Fake.sample()')
     assert 'ServerSampler.sample(' not in model, 'fixture must never contact real SSH'
