@@ -728,6 +728,7 @@ private struct ServerLoadActivity: View {
  var range: ServerHistoryRange = .fiveMinutes
  /// Compact mode is used by the fleet card: shorter title with the live value.
  var compact = false
+ @State private var hoverX: CGFloat?
  var body: some View {
   let readings = state.load(in: range, now: now)
   let title: String = compact
@@ -781,7 +782,23 @@ private struct ServerLoadActivity: View {
      if pts.count > 1 {
       context.stroke(smoothPath(pts, clampHeight: size.height), with: .color(InstrumentTheme.lime), lineWidth: 1.5)
      }
-     }.frame(maxWidth: .infinity, maxHeight: .infinity)
+     // Курсор: время замера и его значение прямо на графике.
+     if let hoverX, size.width > 0 {
+      let moment = now - range.seconds + Double(hoverX / size.width) * range.seconds
+      let measured = readings.compactMap { $0 }.filter { $0.percent != nil }
+      if let nearest = measured.min(by: { abs($0.sampledAt - moment) < abs($1.sampledAt - moment) }) {
+       let x = size.width * CGFloat((nearest.sampledAt - (now - range.seconds)) / range.seconds)
+       let y = size.height * CGFloat(1 - (nearest.percent ?? 0) / 100)
+       drawChartCursor(context, size: size, x: x, accent: InstrumentTheme.lime)
+       drawChartDot(context, x: x, y: y, accent: InstrumentTheme.lime)
+       drawChartTip(context, size: size, at: x,
+                    lines: [chartTimeLabel(nearest.sampledAt),
+                            "CPU " + MetricPresentation.percent(nearest.percent)],
+                    accent: InstrumentTheme.lime)
+      }
+     }
+     }.chartHoverTracking($hoverX)
+      .frame(maxWidth: .infinity, maxHeight: .infinity)
       .accessibilityLabel("История реально измеренной загрузки CPU: шкала 0–100 %")
     }
    } else {
@@ -823,6 +840,7 @@ private struct ServerNetworkActivity: View {
  /// Compact mode (fleet card): short title that carries both live rates, and no
  /// separate rate widgets, which keeps the chart's minimum width small.
  var compact = false
+ @State private var hoverX: CGFloat?
  var body: some View {
   let name = interface ?? sample?.preferredInterface ?? state.knownInterface
   let rx = sample?.network.first(where: { $0.name == name })?.rx
@@ -894,7 +912,27 @@ private struct ServerNetworkActivity: View {
        context.stroke(smoothPath(pts, clampHeight: size.height), with: .color(color), lineWidth: 1.5)
       }
      }
-     }.frame(maxWidth: .infinity, maxHeight: .infinity)
+     // Курсор: время замера и обе скорости в этой точке.
+     if let hoverX, size.width > 0 {
+      let moment = now - range.seconds + Double(hoverX / size.width) * range.seconds
+      let measured = readings.compactMap { $0 }.filter { $0.hasMeasurement }
+      if let nearest = measured.min(by: { abs($0.sampledAt - moment) < abs($1.sampledAt - moment) }) {
+       let x = size.width * CGFloat((nearest.sampledAt - (now - range.seconds)) / range.seconds)
+       drawChartCursor(context, size: size, x: x, accent: InstrumentTheme.cyan)
+       if let received = nearest.received {
+        drawChartDot(context, x: x, y: size.height * CGFloat(1 - min(1, received / scale)), accent: InstrumentTheme.lime)
+       }
+       if let sent = nearest.sent {
+        drawChartDot(context, x: x, y: size.height * CGFloat(1 - min(1, sent / scale)), accent: InstrumentTheme.cyan)
+       }
+       drawChartTip(context, size: size, at: x,
+                    lines: [chartTimeLabel(nearest.sampledAt),
+                            "↓ " + chartRateText(nearest.received) + "   ↑ " + chartRateText(nearest.sent)],
+                    accent: InstrumentTheme.cyan)
+      }
+     }
+     }.chartHoverTracking($hoverX)
+      .frame(maxWidth: .infinity, maxHeight: .infinity)
       .accessibilityLabel("История реально измеренной активности сети: шкала по максимуму периода " + axisRate(scale))
     }
    } else {

@@ -6,6 +6,7 @@ struct TrafficChart: View {
  let history: TrafficHistory
  @Binding var range: TrafficRange
  var expanded = false
+ @State private var hoverX: CGFloat?
  private let receiveColor = Color(red: 0.65, green: 0.90, blue: 0.25)
  private let sendColor = Color(red: 0.30, green: 0.75, blue: 1.0)
  private var scaleLabel: String {
@@ -59,7 +60,30 @@ struct TrafficChart: View {
       }
      }
     }
+   // Курсор: время замера и обе скорости в этой точке.
+   if let hoverX, size.width > 4 {
+    let end = history.samples.last?.time ?? 0
+    let plot = max(1, size.width - 4)
+    let span = max(1e-9, range.seconds)
+    let moment = (end - span) + Double((hoverX - 2) / plot) * span
+    let visible = history.samples.filter { $0.time >= end - span }
+    if let nearest = visible.min(by: { abs($0.time - moment) < abs($1.time - moment) }) {
+     let x = 2 + plot * CGFloat((nearest.time - (end - span)) / span)
+     drawChartCursor(context, size: size, x: x, accent: .white.opacity(0.6))
+     let top = max(1, history.scale(in: range))
+     if let received = nearest.received {
+      drawChartDot(context, x: x, y: baseline - CGFloat(min(1, received / top)) * height, accent: receiveColor)
+     }
+     if let sent = nearest.sent {
+      drawChartDot(context, x: x, y: baseline - CGFloat(min(1, sent / top)) * height, accent: sendColor)
+     }
+     drawChartTip(context, size: size, at: x,
+                  lines: [chartTimeLabel(nearest.time),
+                          "↓ " + chartRateText(nearest.received) + "   ↑ " + chartRateText(nearest.sent)],
+                  accent: receiveColor)
+    }
    }
+   }.chartHoverTracking($hoverX)
    .frame(height: expanded ? nil : 46).frame(maxHeight: expanded ? .infinity : nil)
    // A dark plotting surface keeps the requested lime/cyan readable in both themes.
    .background(Color(red: 0.08, green: 0.10, blue: 0.13), in: RoundedRectangle(cornerRadius: 4))

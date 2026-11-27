@@ -69,6 +69,7 @@ python3 Tests/check_internet_ui.py
 python3 Tests/test_server_probe.py
 python3 Tests/check_servers_ui.py
 python3 Tests/check_alerts_export.py
+python3 Tests/check_chart_hover.py
 python3 Tests/test_fleet_compact_107.py
 python3 Tests/test_native_zoom_107.py
 python3 Tests/test_ui_revision_r2.py
