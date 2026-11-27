@@ -59,4 +59,18 @@ public enum ServerHistoryStore {
   guard let url = url(for: id) else { return }
   try? FileManager.default.removeItem(at: url)
  }
+
+ /// Удаляет файлы истории, которых нет среди известных серверов: запись могла
+ /// быть удалена, пока приложение было закрыто, и её файл остался бы навсегда.
+ @discardableResult
+ public static func prune(keeping ids: Set<String>) -> Int {
+  guard let directory = try? directory(),
+        let files = try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil) else { return 0 }
+  let keep = Set(ids.compactMap { url(for: $0)?.lastPathComponent })
+  var removed = 0
+  for file in files where file.pathExtension == "json" && !keep.contains(file.lastPathComponent) {
+   if (try? FileManager.default.removeItem(at: file)) != nil { removed += 1 }
+  }
+  return removed
+ }
 }

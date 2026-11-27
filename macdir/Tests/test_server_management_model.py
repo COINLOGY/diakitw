@@ -20,6 +20,7 @@ with tempfile.TemporaryDirectory(prefix='server-model-', dir=scratch) as directo
     model = model.replace('ServerHistoryStore.load(config.id, now: now)', 'Optional<ServerState.Snapshot>.none')
     model = model.replace('ServerHistoryStore.save(state.historySnapshot(now: now), id: id)', 'true')
     model = model.replace('ServerHistoryStore.remove(config.id); ', '')
+    model = model.replace('ServerHistoryStore.prune(keeping: Set(configs.map { $0.id }))', '0')
     assert 'ServerHistoryStore' not in model, 'fixture must not touch the on-disk history'
     model = model.replace('ServerSampler.sample(config, probe: try ServerSampler.bundledProbe(), specs: true, controlPath: controlPath, cancellation: cancellation)', 'try await Fake.sample()')
     model = model.replace('ServerSampler.sample(config, probe: try ServerSampler.bundledProbe(), controlPath: controlPath, cancellation: cancellation)', 'try await Fake.sample()')

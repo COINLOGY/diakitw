@@ -44,6 +44,8 @@ import MacdirCore
  /// История графиков с диска: после перезапуска линии продолжаются.
  private func restoreHistories() {
   let now = Date().timeIntervalSince1970
+  // Файлы серверов, удалённых пока приложение было закрыто, иначе остались бы навсегда.
+  ServerHistoryStore.prune(keeping: Set(configs.map { $0.id }))
   for config in configs where states[config.id] == nil {
    guard let snapshot = ServerHistoryStore.load(config.id, now: now) else { continue }
    var state = ServerState(); state.restore(snapshot, now: now); states[config.id] = state
