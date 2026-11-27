@@ -4,9 +4,16 @@ import SwiftUI
 /// Один вид для всех переключателей, чтобы состояние было видно с первого взгляда.
 struct ModeChip: View {
  let title: String
- var systemImage: String? = nil
+ let systemImage: String?
  let isOn: Bool
  let action: () -> Void
+
+ init(title: String, systemImage: String? = nil, isOn: Bool, action: @escaping () -> Void) {
+  self.title = title
+  self.systemImage = systemImage
+  self.isOn = isOn
+  self.action = action
+ }
 
  var body: some View {
   Button(action: action) {

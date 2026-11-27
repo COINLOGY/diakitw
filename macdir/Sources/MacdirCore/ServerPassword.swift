@@ -1,5 +1,6 @@
 import Foundation
 import Security
+import LocalAuthentication
 import Darwin
 
 public enum ServerCredentialError: String, Error, LocalizedError {
@@ -14,6 +15,11 @@ public enum ServerCredentialError: String, Error, LocalizedError {
 /// No password is returned to the UI or serialized in server configuration.
 public enum ServerPasswordStore {
  public static let service = "pro.emcx.macdir.ssh-password.v1"
+ /// Та же семантика, что у устаревшего kSecUseAuthenticationUIFail:
+ /// Связка ключей не показывает диалог и не ждёт подтверждения.
+ private static func noPromptContext() -> LAContext {
+  let context = LAContext(); context.interactionNotAllowed = true; return context
+ }
  private static func query(_ c: ServerConfig) throws -> [String: Any] {
   _ = try c.sshArguments()
   guard let ref = c.passwordReference, UUID(uuidString: ref) != nil else { throw ServerCredentialError.missing }
@@ -26,7 +32,7 @@ public enum ServerPasswordStore {
  }
  public static func read(_ c: ServerConfig) throws -> Data {
   var q = try query(c); q[kSecReturnData as String] = true; q[kSecMatchLimit as String] = kSecMatchLimitOne
-  q[kSecUseAuthenticationUI as String] = kSecUseAuthenticationUIFail
+  q[kSecUseAuthenticationContext as String] = noPromptContext()
   var value: CFTypeRef?
   guard SecItemCopyMatching(q as CFDictionary, &value) == errSecSuccess, let data = value as? Data else { throw ServerCredentialError.missing }
   try validate(data); return data
@@ -44,17 +50,17 @@ public enum ServerPasswordStore {
   q[kSecAttrAccess as String] = access
   q[kSecValueData as String] = data
   q[kSecAttrLabel as String] = "diakitw SSH · " + c.name
-  q[kSecUseAuthenticationUI as String] = kSecUseAuthenticationUIFail
+  q[kSecUseAuthenticationContext as String] = noPromptContext()
   guard SecItemAdd(q as CFDictionary, nil) == errSecSuccess else { throw ServerCredentialError.save }
   // Exact target readback verifies the write; no logs, no security CLI subprocess.
   guard (try? read(c)) == data else { try? delete(c); throw ServerCredentialError.save }
  }
  public static func delete(_ c: ServerConfig) throws {
   guard c.passwordReference != nil else { return }
-  var q = try query(c); q[kSecUseAuthenticationUI as String] = kSecUseAuthenticationUIFail
+  var q = try query(c); q[kSecUseAuthenticationContext as String] = noPromptContext()
   let status = SecItemDelete(q as CFDictionary)
   guard status == errSecSuccess || status == errSecItemNotFound else { throw ServerCredentialError.save }
-  var verify = try query(c); verify[kSecReturnAttributes as String] = true; verify[kSecUseAuthenticationUI as String] = kSecUseAuthenticationUIFail
+  var verify = try query(c); verify[kSecReturnAttributes as String] = true; verify[kSecUseAuthenticationContext as String] = noPromptContext()
   guard SecItemCopyMatching(verify as CFDictionary, nil) == errSecItemNotFound else { throw ServerCredentialError.save }
  }
 }

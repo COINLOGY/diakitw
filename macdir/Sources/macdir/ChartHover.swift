@@ -3,13 +3,21 @@ import AppKit
 import MacdirCore
 
 /// Время замера в подсказке: часы, минуты и секунды местного времени.
+private enum ChartClock {
+ /// Один форматтер на всё приложение: подсказка перерисовывается на каждое
+ /// движение мыши, создавать DateFormatter каждый кадр слишком дорого.
+ static let formatter: DateFormatter = {
+  let value = DateFormatter()
+  value.locale = Locale(identifier: "ru_RU")
+  value.timeZone = TimeZone.current
+  value.dateFormat = "HH:mm:ss"
+  return value
+ }()
+}
+
 func chartTimeLabel(_ epoch: Double) -> String {
  guard epoch.isFinite, epoch > 0, epoch < 4_102_444_800 else { return "—" }
- let formatter = DateFormatter()
- formatter.locale = Locale(identifier: "ru_RU")
- formatter.timeZone = TimeZone.current
- formatter.dateFormat = "HH:mm:ss"
- return formatter.string(from: Date(timeIntervalSince1970: epoch))
+ return ChartClock.formatter.string(from: Date(timeIntervalSince1970: epoch))
 }
 
 /// Скорость в подсказке: те же единицы, что на оси графика.
@@ -64,6 +72,8 @@ func drawChartTip(_ context: GraphicsContext, size: CGSize, at x: CGFloat, lines
 /// строки парка — это кнопки, и нажатие обязано доходить до них.
 struct ChartHoverArea: NSViewRepresentable {
  let onMove: (CGFloat?) -> Void
+
+ init(onMove: @escaping (CGFloat?) -> Void) { self.onMove = onMove }
 
  func makeNSView(context: Context) -> NSView {
   let view = TrackingView()

@@ -14,7 +14,8 @@ mac = (p / 'Sources/macdir/TrafficChart.swift').read_text()
 
 # --- общий механизм ---
 assert 'func chartTimeLabel(_ epoch: Double) -> String' in hover, 'время замера в подсказке обязательно'
-assert 'formatter.dateFormat = "HH:mm:ss"' in hover
+assert 'static let formatter: DateFormatter' in hover, 'форматтер должен быть один на приложение'
+assert 'value.dateFormat = "HH:mm:ss"' in hover
 assert 'func chartRateText(' in hover
 assert 'func drawChartCursor(' in hover
 assert 'func drawChartDot(' in hover
