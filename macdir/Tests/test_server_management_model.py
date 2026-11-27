@@ -15,7 +15,12 @@ with tempfile.TemporaryDirectory(prefix='server-model-', dir=scratch) as directo
     model = model.replace('import MacdirCore', '')
     model = model.replace('private let store = ServerConfigStore()', f'private let store = ServerConfigStore(url: URL(fileURLWithPath: "{root}/servers.json"))')
     model = model.replace('ServerHardwareCache()', f'ServerHardwareCache(url: URL(fileURLWithPath: "{root}/hardware.json"))')
-    model = model.replace('let controlPath = usesMultiplexing ? (try? ServerMultiplex.controlPath(for: config)) : nil', 'let controlPath: String? = nil')
+    model = model.replace('let controlPath = usesMultiplexing ? (try? ServerMultiplex.controlPath(for: config)) : nil', 'let controlPath: String? = nil; _ = controlPath')
+    # Реальная папка истории не читается и не пишется из теста.
+    model = model.replace('ServerHistoryStore.load(config.id, now: now)', 'Optional<ServerState.Snapshot>.none')
+    model = model.replace('ServerHistoryStore.save(state.historySnapshot(now: now), id: id)', 'true')
+    model = model.replace('ServerHistoryStore.remove(config.id); ', '')
+    assert 'ServerHistoryStore' not in model, 'fixture must not touch the on-disk history'
     model = model.replace('ServerSampler.sample(config, probe: try ServerSampler.bundledProbe(), specs: true, controlPath: controlPath, cancellation: cancellation)', 'try await Fake.sample()')
     model = model.replace('ServerSampler.sample(config, probe: try ServerSampler.bundledProbe(), controlPath: controlPath, cancellation: cancellation)', 'try await Fake.sample()')
     assert 'ServerSampler.sample(' not in model, 'fixture must never contact real SSH'
