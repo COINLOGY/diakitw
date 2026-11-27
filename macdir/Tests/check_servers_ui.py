@@ -27,13 +27,16 @@ assert 'if !reaped { _ = kill(-pid, SIGKILL) }' in process, 'normal exit must ke
 assert 'kill(-pid, SIGTERM)' in process, 'timeout path must still stop the process group'
 # История графиков переживает перезапуск: файл на сервер, атомарная запись,
 # жёсткие границы на чтении и запись не чаще раза в 30 с.
+telem = (p/'Sources/MacdirCore/ServerTelemetry.swift').read_text()
 store = (p/'Sources/MacdirCore/ServerHistoryStore.swift').read_text()
 assert 'public enum ServerHistoryStore' in store
-assert 'maxBytes = 262_144' in store and 'maxPoints = 400' in store
+assert 'maxBytes = 1_048_576' in store and 'maxPoints = ServerState.historyLimit' in store
 assert '0o600' in store and 'replaceItemAt' in store
 assert 'ServerHistoryStore.load(config.id, now: now)' in s, 'history must be restored at startup'
 assert 'persistHistory(config.id)' in s and 'persistAll()' in s
 assert 'historySaveInterval: Double = 30' in s
+assert 'historyWindow: Double = 3600' in telem and 'historyLimit = 720' in telem, 'history is a one-hour window, not 121 points'
+assert 'suffix(121)' not in telem, 'fixed 121-point cap must be gone'
 assert 'ServerHistoryStore.remove(config.id)' in s, 'removing a server must drop its history file'
 assert 'ServerHistoryStore.prune(keeping: Set(configs.map { $0.id }))' in s, 'stale history files must be swept at startup'
 # Оси графиков: CPU — фиксированные 0–100 %, сеть — максимум отображаемого периода.

@@ -60,7 +60,12 @@ class FleetCompactLayout(unittest.TestCase):
 
     def test_chart_uses_real_bounded_traffic_samples_and_hides_stale(self):
         self.assertIn('trafficHistory', core)
-        self.assertIn('Array(trafficHistory.suffix(121))', core)
+        # История ограничена часом по времени, а не 121 точкой: иначе на 5-секундном
+        # опросе диапазон «60 мин» физически нечего было показывать.
+        self.assertIn('public static let historyWindow: Double = 3600', core)
+        self.assertIn('public static let historyLimit = 720', core)
+        self.assertIn('ServerState.trim(trafficHistory', core)
+        self.assertNotIn('suffix(121)', core)
         self.assertIn('trafficHistory.append(nil)', core)
         self.assertIn('$0?.hasMeasurement == true', row)
         self.assertIn('point.follows(previous)', row)

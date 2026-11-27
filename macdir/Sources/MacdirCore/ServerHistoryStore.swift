@@ -5,8 +5,8 @@ import Foundation
 /// атомарная запись, только владелец (0600), жёсткие границы на чтении —
 /// повреждённый или подменённый файл просто игнорируется.
 public enum ServerHistoryStore {
- public static let maxBytes = 262_144
- public static let maxPoints = 400
+ public static let maxBytes = 1_048_576
+ public static let maxPoints = ServerState.historyLimit
 
  public static func directory() throws -> URL {
   let url = FileManager.default.homeDirectoryForCurrentUser

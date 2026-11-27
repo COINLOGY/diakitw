@@ -76,6 +76,11 @@ public struct ServerTelemetry: Codable {
 }
 
 public struct ServerState {
+ /// Окно истории — час, а не фиксированные 121 точка: при опросе 5 с линия
+ /// обрывалась на 10-й минуте, хотя выбран диапазон «60 мин». 720 точек — это
+ /// ровно час на 5 с и страховка от раздувания памяти.
+ public static let historyWindow: Double = 3600
+ public static let historyLimit = 720
  public private(set) var lastSuccess: ServerTelemetry?
  public private(set) var error: ServerError?
  public private(set) var cpuHistory: [Double?] = []
@@ -110,14 +115,27 @@ public struct ServerState {
     trafficByInterface[net.name] = history
    }
   }
+  let newest = (loadHistory.compactMap { $0?.sampledAt } + trafficByInterface.values.flatMap { $0.compactMap { $0?.sampledAt } }).max()
   for name in Array(trafficByInterface.keys) {
-   let bounded = Array((trafficByInterface[name] ?? []).suffix(121))
+   let bounded = ServerState.trim(trafficByInterface[name] ?? [], newest: newest, timestamp: { $0.sampledAt })
    if bounded.compactMap({ $0 }).isEmpty { trafficByInterface.removeValue(forKey: name) }
    else { trafficByInterface[name] = bounded }
   }
-  cpuHistory = Array(cpuHistory.suffix(121))
-  trafficHistory = Array(trafficHistory.suffix(121))
-  loadHistory = Array(loadHistory.suffix(121))
+  cpuHistory = ServerState.trim(cpuHistory, newest: newest, timestamp: { $0.sampledAt })
+  trafficHistory = ServerState.trim(trafficHistory, newest: newest, timestamp: { $0.sampledAt })
+  loadHistory = ServerState.trim(loadHistory, newest: newest, timestamp: { $0.sampledAt })
+ }
+ /// Оставляет час истории и не больше 720 точек. Пустые слоты — разрывы — не режутся.
+ static func trim<T>(_ points: [T?], newest: Double?, timestamp: (T) -> Double) -> [T?] {
+  let reference = newest.flatMap { $0.isFinite ? $0 : nil } ?? 0
+  let cut = reference - historyWindow
+  var kept = points.filter { point in
+   guard let point else { return true }
+   let at = timestamp(point)
+   return at.isFinite ? at >= cut : true
+  }
+  if kept.count > historyLimit { kept = Array(kept.suffix(historyLimit)) }
+  return kept
  }
  // Keep nil slots: unsuccessful probes and missing measurements are discontinuities.
  public func load(in range: ServerHistoryRange, now: Double) -> [ServerLoadPoint?] {
@@ -154,7 +172,7 @@ public struct ServerState {
  public struct Snapshot: Codable { public let savedAt: Double; public let load: [SavedLoad]; public let traffic: [String: [SavedTraffic]] }
  /// Только окно последнего часа: более старые точки ни одному диапазону не нужны.
  public func historySnapshot(now: Double = Date().timeIntervalSince1970) -> Snapshot {
-  let floor = now - 3600
+  let floor = now - ServerState.historyWindow
   let load = loadHistory.compactMap { point -> SavedLoad? in
    guard let point, point.sampledAt.isFinite, point.sampledAt >= floor, point.sampledAt <= now + 60 else { return nil }
    return SavedLoad(t: point.sampledAt, v: point.percent)
@@ -171,11 +189,11 @@ public struct ServerState {
  }
  /// Восстанавливает историю так, чтобы линии продолжились, а не начинались с нуля.
  public mutating func restore(_ snapshot: Snapshot, now: Double = Date().timeIntervalSince1970) {
-  let floor = now - 3600
+  let floor = now - ServerState.historyWindow
   let restoredLoad = snapshot.load
    .filter { $0.t.isFinite && $0.t >= floor && $0.t <= now + 60 }
    .sorted { $0.t < $1.t }
-   .suffix(121)
+   .suffix(ServerState.historyLimit)
    .map { ServerLoadPoint(sampledAt: $0.t, percent: $0.v.flatMap { $0.isFinite && (0...100).contains($0) ? $0 : nil }) }
   if !restoredLoad.isEmpty { loadHistory = Array(restoredLoad) }
   var restoredTraffic: [String: [ServerTrafficPoint?]] = [:]
@@ -183,7 +201,7 @@ public struct ServerState {
    let clean = points
     .filter { $0.t.isFinite && $0.t >= floor && $0.t <= now + 60 }
     .sorted { $0.t < $1.t }
-    .suffix(121)
+    .suffix(ServerState.historyLimit)
     .map { ServerTrafficPoint(interface: name, sampledAt: $0.t, received: $0.rx, sent: $0.tx) }
    if !clean.isEmpty { restoredTraffic[name] = clean }
   }
