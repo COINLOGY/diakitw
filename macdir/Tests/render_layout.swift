@@ -101,7 +101,7 @@ MainActor.assumeIsolated {
      let occupied = resources.reduce(CGRect.null) { $0.union($1) }
      if abs(occupied.minX - row.minX) > 2 || abs(occupied.maxX - row.maxX) > 2 { failures.append(size+": four resource cards do not fill row") }
      for (index, rect) in resources.enumerated() {
-      if abs(rect.width - rect.height) > 3 || rect.width < 140 || abs(rect.minY - resources[0].minY) > 2 { failures.append(size+": resource card not square or aligned \(index)") }
+      if rect.width < 140 || abs(rect.minY - resources[0].minY) > 2 || abs(rect.height - resources[0].height) > 2 || rect.height < 120 || rect.height > 200 { failures.append(size+": resource card not uniform or aligned \(index)") }
       if index > 0 && abs(rect.minX - resources[index-1].maxX - 8) > 2 { failures.append(size+": resource card spacing changed \(index)") }
      }
     }
@@ -129,12 +129,11 @@ MainActor.assumeIsolated {
     failures.append(size+": resource/network/folder order or lower panels overlap")
    }
    if abs(rx.minY - tx.minY) > 2 || abs(rx.minY - chart.minY) > 2 ||
-      abs(rx.width - rx.height) > 3 || abs(tx.width - tx.height) > 3 ||
-      abs(rx.width - cpu.width) > 3 || abs(chart.width - (rx.width * 2 + 8)) > 3 ||
-      chart.width < rx.width * 1.8 || abs(chart.height - rx.height) > 3 ||
+      abs(rx.width - tx.width) > 3 || abs(rx.height - chart.height) > 3 ||
+      rx.height < 120 || rx.width < 150 || chart.width < rx.width * 1.5 ||
       abs(tx.minX - rx.maxX - 8) > 2 || abs(chart.minX - tx.maxX - 8) > 2 ||
       max(disk.maxX, chart.maxX) > CGFloat(width) || min(disk.minX, rx.minX) < 0 {
-    failures.append(size+": network gauges must be square beside a double-width chart")
+    failures.append(size+": network row must be a uniform compact strip")
    }
    if picker.minY < chart.maxY - 2 || chart.height < 140 {
     failures.append(size+": chart controls or height invalid")

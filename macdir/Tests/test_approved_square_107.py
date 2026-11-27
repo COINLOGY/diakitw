@@ -43,10 +43,14 @@ class ApprovedSquareLayout(unittest.TestCase):
 
     def test_square_gauge_fills_the_given_frame(self):
         self.assertIn('var square = false', GAUGE)
-        self.assertIn('VStack(spacing: 2)', GAUGE)
+        self.assertIn('VStack(spacing: 0)', GAUGE)
         # Квадрат по aspectRatio убран: карточка заполняет выданную высоту.
         self.assertNotIn('.aspectRatio(1, contentMode: .fit)', GAUGE)
-        self.assertIn('.frame(width: geo.size.width, height: geo.size.height, alignment: .top)', GAUGE)
+        # Без GeometryReader внутри карточки: он схлопывается до 10×10.
+        square = GAUGE.split('if square {', 1)[1].split('} else {\n    HStack(spacing: 4)', 1)[0]
+        self.assertNotIn('GeometryReader', square)
+        self.assertIn('dial.frame(maxWidth: 220).frame(height: 88)', square)
+        self.assertIn('.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)', square)
 
 
 if __name__ == '__main__':
