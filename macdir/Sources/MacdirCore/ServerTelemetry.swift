@@ -131,6 +131,9 @@ public struct ServerState {
  public func traffic(in range: ServerHistoryRange, now: Double) -> [ServerTrafficPoint?] {
   filteredTraffic(trafficHistory, in: range, now: now)
  }
+ /// Первый интерфейс, для которого есть история: нужен до первого живого замера,
+ /// иначе восстановленные линии не рисуются после перезапуска.
+ public var knownInterface: String? { trafficByInterface.keys.sorted().first }
  public func traffic(for name: String?, in range: ServerHistoryRange, now: Double) -> [ServerTrafficPoint?] {
   guard let name, let history = trafficByInterface[name] else { return [] }
   return filteredTraffic(history, in: range, now: now)
@@ -144,4 +147,51 @@ public struct ServerState {
   }
  }
  public func current(now: Double = Date().timeIntervalSince1970) -> ServerTelemetry? { guard error == nil, let lastSuccess, lastSuccess.isFresh(now: now) else { return nil }; return lastSuccess }
+ // MARK: — История на диск
+ /// Компактный снимок истории для файла: точка = [время, значение].
+ public struct SavedLoad: Codable { public let t: Double; public let v: Double? }
+ public struct SavedTraffic: Codable { public let t: Double; public let rx: Double?; public let tx: Double? }
+ public struct Snapshot: Codable { public let savedAt: Double; public let load: [SavedLoad]; public let traffic: [String: [SavedTraffic]] }
+ /// Только окно последнего часа: более старые точки ни одному диапазону не нужны.
+ public func historySnapshot(now: Double = Date().timeIntervalSince1970) -> Snapshot {
+  let floor = now - 3600
+  let load = loadHistory.compactMap { point -> SavedLoad? in
+   guard let point, point.sampledAt.isFinite, point.sampledAt >= floor, point.sampledAt <= now + 60 else { return nil }
+   return SavedLoad(t: point.sampledAt, v: point.percent)
+  }
+  var traffic: [String: [SavedTraffic]] = [:]
+  for (name, points) in trafficByInterface {
+   let saved = points.compactMap { point -> SavedTraffic? in
+    guard let point, point.sampledAt.isFinite, point.sampledAt >= floor, point.sampledAt <= now + 60 else { return nil }
+    return SavedTraffic(t: point.sampledAt, rx: point.received, tx: point.sent)
+   }
+   if !saved.isEmpty { traffic[name] = saved }
+  }
+  return Snapshot(savedAt: now, load: load, traffic: traffic)
+ }
+ /// Восстанавливает историю так, чтобы линии продолжились, а не начинались с нуля.
+ public mutating func restore(_ snapshot: Snapshot, now: Double = Date().timeIntervalSince1970) {
+  let floor = now - 3600
+  let restoredLoad = snapshot.load
+   .filter { $0.t.isFinite && $0.t >= floor && $0.t <= now + 60 }
+   .sorted { $0.t < $1.t }
+   .suffix(121)
+   .map { ServerLoadPoint(sampledAt: $0.t, percent: $0.v.flatMap { $0.isFinite && (0...100).contains($0) ? $0 : nil }) }
+  if !restoredLoad.isEmpty { loadHistory = Array(restoredLoad) }
+  var restoredTraffic: [String: [ServerTrafficPoint?]] = [:]
+  for (name, points) in snapshot.traffic {
+   let clean = points
+    .filter { $0.t.isFinite && $0.t >= floor && $0.t <= now + 60 }
+    .sorted { $0.t < $1.t }
+    .suffix(121)
+    .map { ServerTrafficPoint(interface: name, sampledAt: $0.t, received: $0.rx, sent: $0.tx) }
+   if !clean.isEmpty { restoredTraffic[name] = clean }
+  }
+  if !restoredTraffic.isEmpty {
+   trafficByInterface = restoredTraffic
+   if trafficHistory.isEmpty, let first = restoredTraffic.keys.sorted().first, let points = restoredTraffic[first] {
+    trafficHistory = points
+   }
+  }
+ }
 }

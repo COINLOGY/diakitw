@@ -25,4 +25,14 @@ assert 'Text(hardwareLabel)' in s
 process = (p/'Sources/MacdirCore/ServerSSHProcess.swift').read_text()
 assert 'if !reaped { _ = kill(-pid, SIGKILL) }' in process, 'normal exit must keep the ControlPersist master alive'
 assert 'kill(-pid, SIGTERM)' in process, 'timeout path must still stop the process group'
+# История графиков переживает перезапуск: файл на сервер, атомарная запись,
+# жёсткие границы на чтении и запись не чаще раза в 30 с.
+store = (p/'Sources/MacdirCore/ServerHistoryStore.swift').read_text()
+assert 'public enum ServerHistoryStore' in store
+assert 'maxBytes = 262_144' in store and 'maxPoints = 400' in store
+assert '0o600' in store and 'replaceItemAt' in store
+assert 'ServerHistoryStore.load(config.id, now: now)' in s, 'history must be restored at startup'
+assert 'persistHistory(config.id)' in s and 'persistAll()' in s
+assert 'historySaveInterval: Double = 30' in s
+assert 'ServerHistoryStore.remove(config.id)' in s, 'removing a server must drop its history file'
 print('Servers UI wiring passed (not rendered UI)')

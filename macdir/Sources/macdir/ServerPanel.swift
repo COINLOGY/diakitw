@@ -39,6 +39,23 @@ import MacdirCore
  @Published var draftAuthentication = ServerConfig.Authentication.key
  @Published var draftPassword = ""
  private var requests: [String: [ServerCancellation]] = [:]
+ private var lastSaved: [String: Double] = [:]
+ private static let historySaveInterval: Double = 30
+ /// История графиков с диска: после перезапуска линии продолжаются.
+ private func restoreHistories() {
+  let now = Date().timeIntervalSince1970
+  for config in configs where states[config.id] == nil {
+   guard let snapshot = ServerHistoryStore.load(config.id, now: now) else { continue }
+   var state = ServerState(); state.restore(snapshot, now: now); states[config.id] = state
+  }
+ }
+ private func persistHistory(_ id: String, force: Bool = false) {
+  let now = Date().timeIntervalSince1970
+  if !force, let last = lastSaved[id], now - last < ServersModel.historySaveInterval { return }
+  guard let state = states[id] else { return }
+  if ServerHistoryStore.save(state.historySnapshot(now: now), id: id) { lastSaved[id] = now }
+ }
+ private func persistAll() { for config in configs { persistHistory(config.id, force: true) } }
  @Published var draftName = ""
  @Published var draftTarget = ""
  @Published var draftRole = "bot"
@@ -70,6 +87,7 @@ import MacdirCore
   }
   snapshot = value; configs = value.configs; configError = nil
   if let selectedServerID, new[selectedServerID] == nil { self.selectedServerID = nil }
+  restoreHistories()
  }
  func reload() {
   do { apply(try store.load()) }
@@ -128,6 +146,7 @@ import MacdirCore
   guard let snapshot else { return }
   do {
    apply(try store.remove(id: config.id, expected: snapshot)); managementError = nil
+   ServerHistoryStore.remove(config.id); lastSaved[config.id] = nil
    do { try ServerPasswordStore.delete(config) }
    catch { managementError = "Сервер удалён из мониторинга; его пароль diakitw не удалось удалить из Связки ключей." }
   }
@@ -140,6 +159,7 @@ import MacdirCore
   polling?.cancel(); polling = nil
   guard value else {
    if let activity { ProcessInfo.processInfo.endActivity(activity); self.activity = nil }
+   persistAll()
    requests.values.flatMap { $0 }.forEach { $0.cancel() }; requests = [:]
    for id in generations.keys { generations[id] = UUID() }; inFlight = []; hardwareInFlight = []
    return
@@ -229,6 +249,7 @@ import MacdirCore
     requests[config.id]?.removeAll { $0 === cancellation }
     var state = states[config.id] ?? ServerState(); state.accept(result); states[config.id] = state
     inFlight.remove(config.id)
+    persistHistory(config.id)
     if selections[config.id] == nil {
      selections[config.id] = UserDefaults.standard.string(forKey: "server.interface." + config.id) ?? state.lastSuccess?.preferredInterface
     }
@@ -612,7 +633,7 @@ private struct ServerLoadActivity: View {
   VStack(alignment: .leading, spacing: 4) {
    Text(title)
     .font(.caption2).foregroundStyle(.secondary).lineLimit(1)
-   if sample != nil && readings.contains(where: { $0?.percent != nil }) {
+   if readings.contains(where: { $0?.percent != nil }) {
     Canvas { context, size in
      drawChartGrid(context, size: size)
      // Пропуск замера заполняется половиной последнего максимума — средним
@@ -695,7 +716,7 @@ private struct ServerNetworkActivity: View {
  /// separate rate widgets, which keeps the chart's minimum width small.
  var compact = false
  var body: some View {
-  let name = interface ?? sample?.preferredInterface
+  let name = interface ?? sample?.preferredInterface ?? state.knownInterface
   let rx = sample?.network.first(where: { $0.name == name })?.rx
   let tx = sample?.network.first(where: { $0.name == name })?.tx
   let readings = state.traffic(for: name, in: range, now: now)
@@ -718,7 +739,7 @@ private struct ServerNetworkActivity: View {
       .foregroundStyle(InstrumentTheme.cyan)
     }
    }
-   if sample != nil && name != nil && readings.contains(where: { $0?.hasMeasurement == true }) {
+   if let name, readings.contains(where: { $0?.hasMeasurement == true }) {
     Canvas { context, size in
      drawChartGrid(context, size: size)
      for incoming in [true, false] {
