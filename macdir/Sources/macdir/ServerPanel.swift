@@ -16,6 +16,18 @@ import MacdirCore
  private var visible = false
  /// Удерживает приложение от App Nap, пока идёт сбор истории.
  private var activity: NSObjectProtocol?
+ /// Интервал опроса SSH и постоянный сбор — настройки владельца, переживают перезапуск.
+ static let intervalChoices = [5, 10, 20, 30, 60]
+ @Published var refreshInterval = ServersModel.storedInterval()
+ @Published var backgroundCollecting = ServersModel.storedBackground()
+ private var appActive = true
+ private static func storedInterval() -> Int {
+  let value = UserDefaults.standard.integer(forKey: "server.refreshInterval")
+  return intervalChoices.contains(value) ? value : 30
+ }
+ private static func storedBackground() -> Bool {
+  UserDefaults.standard.object(forKey: "server.backgroundCollecting") as? Bool ?? true
+ }
  private let store = ServerConfigStore()
  private var snapshot: ServerConfigStore.Snapshot?
  private var generations: [String: UUID] = [:]
@@ -126,23 +138,62 @@ import MacdirCore
   guard visible != value else { return }
   visible = value
   polling?.cancel(); polling = nil
-  if let activity { ProcessInfo.processInfo.endActivity(activity); self.activity = nil }
   guard value else {
+   if let activity { ProcessInfo.processInfo.endActivity(activity); self.activity = nil }
    requests.values.flatMap { $0 }.forEach { $0.cancel() }; requests = [:]
    for id in generations.keys { generations[id] = UUID() }; inFlight = []; hardwareInFlight = []
    return
   }
-  // Сбор истории не должен засыпать: App Nap иначе растягивает 30-секундный
-  // интервал до минут, и графики остаются пустыми, пока окно не на виду.
-  activity = ProcessInfo.processInfo.beginActivity(
-   options: [.userInitiatedAllowingIdleSystemSleep, .suddenTerminationDisabled, .automaticTerminationDisabled],
-   reason: "Сбор истории загрузки серверов для графиков")
+  applyActivity()
   reload()
+  startPolling()
+ }
+ /// До 30 с включительно опрос идёт по одному переиспользуемому SSH-соединению:
+ /// новый handshake каждые 5–30 с и есть тот самый постоянный разрыв.
+ var usesMultiplexing: Bool { refreshInterval <= 30 }
+ func setInterval(_ value: Int) {
+  guard ServersModel.intervalChoices.contains(value), value != refreshInterval else { return }
+  refreshInterval = value
+  UserDefaults.standard.set(value, forKey: "server.refreshInterval")
+  if visible { startPolling() }
+ }
+ func setBackgroundCollecting(_ value: Bool) {
+  guard value != backgroundCollecting else { return }
+  backgroundCollecting = value
+  UserDefaults.standard.set(value, forKey: "server.backgroundCollecting")
+  applyActivity()
+  if visible { startPolling() }
+ }
+ /// Активность окна важна только при выключенном постоянном сборе.
+ func setAppActive(_ value: Bool) {
+  guard appActive != value else { return }
+  appActive = value
+  applyActivity()
+  if visible { startPolling() }
+ }
+ private func applyActivity() {
+  let wanted = visible && backgroundCollecting
+  if wanted {
+   guard activity == nil else { return }
+   // App Nap иначе растягивает интервал опроса до минут, и графики пустуют.
+   activity = ProcessInfo.processInfo.beginActivity(
+    options: [.userInitiatedAllowingIdleSystemSleep, .suddenTerminationDisabled, .automaticTerminationDisabled],
+    reason: "Сбор истории загрузки серверов для графиков")
+  } else if let activity {
+   ProcessInfo.processInfo.endActivity(activity); self.activity = nil
+  }
+ }
+ private func startPolling() {
+  polling?.cancel(); polling = nil
+  guard visible else { return }
+  let interval = refreshInterval
+  let continuous = backgroundCollecting
   polling = Task { [weak self] in
    while !Task.isCancelled {
-    guard self?.visible == true else { return }
-    self?.refresh()
-    do { try await Task.sleep(for: .seconds(30)) } catch { return }
+    guard let self, self.visible else { return }
+    guard continuous || self.appActive else { return }
+    self.refresh()
+    do { try await Task.sleep(for: .seconds(interval)) } catch { return }
    }
   }
  }
@@ -152,9 +203,10 @@ import MacdirCore
    guard let generation = generations[config.id] else { continue }
    hardwareInFlight.insert(config.id)
    let cancellation = ServerCancellation(); requests[config.id, default: []].append(cancellation)
+   let controlPath = usesMultiplexing ? (try? ServerMultiplex.controlPath(for: config)) : nil
    Task {
     let result: Result<ServerTelemetry, ServerError> = await Task.detached(priority: .utility) {
-     do { return ServerSampler.sample(config, probe: try ServerSampler.bundledProbe(), specs: true, cancellation: cancellation) }
+     do { return ServerSampler.sample(config, probe: try ServerSampler.bundledProbe(), specs: true, controlPath: controlPath, cancellation: cancellation) }
      catch { return .failure(.probe) }
     }.value
     guard generations[config.id] == generation else { return }
@@ -167,9 +219,10 @@ import MacdirCore
    guard let generation = generations[config.id] else { continue }
    inFlight.insert(config.id)
    let cancellation = ServerCancellation(); requests[config.id, default: []].append(cancellation)
+   let controlPath = usesMultiplexing ? (try? ServerMultiplex.controlPath(for: config)) : nil
    Task {
     let result: Result<ServerTelemetry, ServerError> = await Task.detached(priority: .utility) {
-     do { return ServerSampler.sample(config, probe: try ServerSampler.bundledProbe(), cancellation: cancellation) }
+     do { return ServerSampler.sample(config, probe: try ServerSampler.bundledProbe(), controlPath: controlPath, cancellation: cancellation) }
      catch { return .failure(.probe) }
     }.value
     guard generations[config.id] == generation else { return }
@@ -251,8 +304,10 @@ struct MacdirRootView: View {
   .onChange(of: servers.selectedServerID) { _, _ in fit() }
   .onReceive(NotificationCenter.default.publisher(for: NSWindow.didChangeScreenNotification)) { _ in fit() }
   // Опрос идёт всё время, пока приложение запущено: смена раздела, потеря
-  // фокуса и свёрнутое окно историю не обрывают — статистика копится в фоне.
+  // фокуса и свёрнутое окно историю не обрывают, если включён сбор в фоне.
   .onAppear { servers.setVisible(true) }
+  .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in servers.setAppActive(true) }
+  .onReceive(NotificationCenter.default.publisher(for: NSApplication.didResignActiveNotification)) { _ in servers.setAppActive(false) }
   .onReceive(NotificationCenter.default.publisher(for: NSApplication.willTerminateNotification)) { _ in servers.setVisible(false) }
  }
 }
@@ -284,7 +339,17 @@ struct ServerPanel: View {
     HStack {
      Label("Серверы", systemImage: "server.rack").font(.largeTitle.bold())
      Spacer()
-     Text("SSH · только чтение · каждые 30 с").foregroundStyle(.secondary)
+     Text("SSH · только чтение").foregroundStyle(.secondary)
+     Picker("Обновление", selection: Binding(get: { model.refreshInterval }, set: { model.setInterval($0) })) {
+      ForEach(ServersModel.intervalChoices, id: \.self) { Text("\($0) с").tag($0) }
+     }
+     .labelsHidden().pickerStyle(.menu).frame(width: 74).controlSize(.small)
+     .help("Интервал опроса SSH. При 5–30 с соединение не пересоздаётся: опрос идёт по одному keep-alive-каналу")
+     Toggle(isOn: Binding(get: { model.backgroundCollecting }, set: { model.setBackgroundCollecting($0) })) {
+      Label("В фоне", systemImage: "arrow.triangle.2.circlepath")
+     }
+     .toggleStyle(.button).controlSize(.small)
+     .help("Собирать данные постоянно, в том числе когда окно неактивно: без разрывов на графиках")
      Button("Добавить сервер") { model.beginAdd() }.disabled(!model.canManage || model.configs.count >= 16)
      Button("Обновить") { model.reload(); model.refresh() }
     }
@@ -330,7 +395,7 @@ struct ServerPanel: View {
          Button("Изменить") { model.beginEdit(config) }
          Button("Удалить из мониторинга", role: .destructive) { model.removing = config }
         }
-        ServerHostPanel(config: config, state: model.states[config.id] ?? ServerState(), hardware: model.hardwareCache.snapshot(config), hardwareLabel: model.hardwareCache.label(config, now: context.date.timeIntervalSince1970), now: context.date.timeIntervalSince1970, busy: model.inFlight.contains(config.id), range: historyRange, selection: Binding(get: { model.selections[config.id] ?? "" }, set: { model.select($0, for: config.id) }))
+        ServerHostPanel(config: config, state: model.states[config.id] ?? ServerState(), hardware: model.hardwareCache.snapshot(config), hardwareLabel: model.hardwareCache.label(config, now: context.date.timeIntervalSince1970), now: context.date.timeIntervalSince1970, busy: model.inFlight.contains(config.id), interval: model.refreshInterval, range: historyRange, selection: Binding(get: { model.selections[config.id] ?? "" }, set: { model.select($0, for: config.id) }))
        } else {
         HStack {
          Text("Все серверы").font(.title2.bold())
@@ -759,6 +824,7 @@ private struct ServerHostPanel: View {
  let hardwareLabel: String
  let now: Double
  let busy: Bool
+ let interval: Int
  var range: ServerHistoryRange = .fiveMinutes
  @Binding var selection: String
  private var sample: ServerTelemetry? { state.current(now: now) }
@@ -771,7 +837,7 @@ private struct ServerHostPanel: View {
      Text(config.headerAddress).font(.system(.caption, design: .monospaced)).foregroundStyle(.secondary).textSelection(.enabled)
      Text(ServerTelemetry.hardwareSummary(hardware)).font(.system(.caption, design: .monospaced)).foregroundStyle(.secondary).textSelection(.enabled)
       .help("vCPU — логические процессоры ОС, не физические ядра. RAM — MemTotal; диск — полный размер файловой системы /. GiB = 2³⁰ байт.")
-     Text(hardwareLabel).font(.caption2).foregroundStyle(.secondary).help(hardwareLabel + ". Кэш характеристик: 24 ч; при ошибке повтор через 30 мин. Живые показатели и их знаменатели RAM/диска обновляются каждые 30 с.")
+     Text(hardwareLabel).font(.caption2).foregroundStyle(.secondary).help(hardwareLabel + ". Кэш характеристик: 24 ч; при ошибке повтор через 30 мин. Живые показатели и их знаменатели RAM/диска обновляются каждые \(interval) с.")
     }
     Text(config.role == "bot" ? "VPN / bot" : "EMCx / Hermes").font(.caption).foregroundStyle(.secondary)
     Spacer()

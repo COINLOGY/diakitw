@@ -8,7 +8,9 @@ s = (p/'Sources/macdir/ServerPanel.swift').read_text()
 assert 'ContentView(model: model)' in s
 assert 'Этот Mac' in s and 'Серверы' in s
 assert s.index('title: "RAM"') < s.index('title: "SWAP"') < s.index('title: "ДИСК /"')
-assert 'seconds(30)' in s and '.onDisappear' in s
+assert '.seconds(interval)' in s and '.onDisappear' in s
+assert 'intervalChoices' in s and 'server.refreshInterval' in s and 'server.backgroundCollecting' in s
+assert 'ServerMultiplex.controlPath(for:' in s, 'frequent polling must reuse the SSH control socket'
 assert 'Task.detached' in s and 'inFlight' in s
 assert 'Europe/Moscow' in s and 'lastSuccess' in s
 assert 'ResourceStatusController' not in s

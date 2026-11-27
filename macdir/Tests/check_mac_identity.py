@@ -26,10 +26,15 @@ assert 'inet_ntop' in resources and 's.interfaceAddresses' in resources
 assert 'diagnostic(' not in server and 'servers-last-diagnostic' not in server
 print('PASS: Mac identity source wiring (not rendered GUI or live HTTP proof)')
 server_ui = (root / 'Sources/macdir/ServerPanel.swift').read_text()
-# Polling now continues in the background: history must not depend on window focus.
-assert 'NSApplication.didResignActiveNotification' not in server_ui, 'server polling must not stop when app inactive'
+# Polling keeps running in the background by default; pausing on inactivity is
+# only the explicit "no background collection" mode.
+assert 'server.backgroundCollecting' in server_ui and 'setBackgroundCollecting' in server_ui, 'background collection must be a persisted setting'
+assert 'setAppActive(false)' in server_ui and 'NSApplication.didResignActiveNotification' in server_ui, 'inactive pause must be wired'
+assert 'continuous || self.appActive' in server_ui, 'inactive pause must apply only when background collection is off'
 assert 'NSApplication.willTerminateNotification' in server_ui and server_ui.count('servers.setVisible(false)') == 1, 'server polling stops only on app termination'
 assert 'beginActivity' in server_ui, 'App Nap must not stretch the sampling interval'
+# 5–30 s polling must reuse an SSH master session instead of a fresh handshake.
+assert 'ControlMaster=auto' in (root / 'Sources/MacdirCore/ServerSampler.swift').read_text(), 'frequent polling must reuse one SSH session'
 assert 'foreground: self?.statusVisible == true || (self?.identityVisible == true && NSApp.isActive)' in main
 assert 'networkRate: selectedNetwork?.received' in main
 assert 'networkRate: selectedNetwork?.sent' in main

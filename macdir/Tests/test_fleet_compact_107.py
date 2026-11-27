@@ -90,14 +90,30 @@ class FleetCompactLayout(unittest.TestCase):
     def test_polling_keeps_running_in_background(self):
         # История для графиков должна копиться и без фокуса: опрос стартует один
         # раз при появлении окна и не выключается ни на смене раздела, ни при
-        # потере активности приложения.
+        # потере активности — пока включён сбор в фоне.
         self.assertIn('.onAppear { servers.setVisible(true) }', view)
         self.assertEqual(view.count('servers.setVisible(false)'), 1)
         self.assertIn('willTerminateNotification)) { _ in servers.setVisible(false) }', view)
-        self.assertNotIn('didResignActiveNotification', view)
         self.assertNotIn('onDisappear { servers.setVisible(false) }', view)
         self.assertIn('beginActivity', view)
         self.assertIn('Опрос идёт и в фоне', view)
+        # Пауза по неактивности осталась, но только для режима без фонового сбора.
+        self.assertIn('setAppActive(false)', view)
+        self.assertIn('continuous || self.appActive', view)
+
+    def test_refresh_interval_and_ssh_reuse(self):
+        # 5/10/20/30/60 с, обе настройки переживают перезапуск.
+        self.assertIn('static let intervalChoices = [5, 10, 20, 30, 60]', view)
+        self.assertIn('UserDefaults.standard.set(value, forKey: "server.refreshInterval")', view)
+        self.assertIn('UserDefaults.standard.set(value, forKey: "server.backgroundCollecting")', view)
+        self.assertIn('.seconds(interval)', view)
+        # До 30 с включительно соединение переиспользуется, выше — нет.
+        self.assertIn('var usesMultiplexing: Bool { refreshInterval <= 30 }', view)
+        self.assertIn('usesMultiplexing ? (try? ServerMultiplex.controlPath(for: config)) : nil', view)
+        sampler = (root / 'Sources/MacdirCore/ServerSampler.swift').read_text()
+        self.assertIn('"-oControlMaster=auto", "-oControlPath=" + controlPath, "-oControlPersist=120"', sampler)
+        self.assertIn('"-oControlMaster=no", "-oControlPath=none"', sampler)
+        self.assertIn('path.utf8.count <= 100', sampler)
 
     def test_native_geometry_checks_both_server_rows(self):
         renderer = (root / 'Tests/render_layout.swift').read_text()
