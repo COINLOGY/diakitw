@@ -20,6 +20,7 @@ import MacdirCore
  static let intervalChoices = [5, 10, 20, 30, 60]
  @Published var refreshInterval = ServersModel.storedInterval()
  @Published var backgroundCollecting = ServersModel.storedBackground()
+
  private var appActive = true
  private static func storedInterval() -> Int {
   let value = UserDefaults.standard.integer(forKey: "server.refreshInterval")
@@ -27,6 +28,51 @@ import MacdirCore
  }
  private static func storedBackground() -> Bool {
   UserDefaults.standard.object(forKey: "server.backgroundCollecting") as? Bool ?? true
+ }
+ @Published var alertSettings = ServerAlertSettings.load()
+ @Published var alertsSheet = false
+ @Published var alertsAuthorized = ServerNotifier.shared.authorized
+ @Published var lastAlert: String?
+ @Published var exportStatus: String?
+ private var alertEngine = ServerAlertEngine()
+ var alertsOn: Bool { alertSettings.offlineEnabled || alertSettings.cpuEnabled || alertSettings.diskEnabled }
+ func applyAlerts(_ value: ServerAlertSettings) {
+  let clean = value.sanitized(); clean.save(); alertSettings = clean
+ }
+ func requestNotifications() {
+  ServerNotifier.shared.requestAuthorizationIfNeeded()
+  alertsAuthorized = ServerNotifier.shared.authorized
+ }
+ /// Проверка канала уведомлений по требованию владельца.
+ func sendTestAlert() {
+  ServerNotifier.shared.post(ServerAlert(serverID: "self-test", serverName: "diakitw", kind: .offline,
+                                         title: "diakitw: проверка уведомлений",
+                                         body: "Если вы это видите, оповещения работают."))
+ }
+ /// Все серверы в один CSV: строки выровнены по моментам замеров.
+ func exportHistory(_ range: ServerHistoryRange) {
+  let panel = NSSavePanel()
+  panel.canCreateDirectories = true
+  panel.nameFieldStringValue = "diakitw-history.csv"
+  guard panel.runModal() == .OK, let url = panel.url else { return }
+  let now = Date().timeIntervalSince1970
+  var chunks: [String] = []
+  var rows = 0
+  for config in configs.sorted(by: { $0.name < $1.name }) {
+   guard let state = states[config.id] else { continue }
+   let block = ServerHistoryExport.csv(server: config.name, state: state, range: range, now: now)
+   let parts = block.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+   guard parts.count > 1 else { continue }
+   rows += parts.count - 2
+   chunks.append(chunks.isEmpty ? parts.joined(separator: "\n") : parts.dropFirst().joined(separator: "\n"))
+  }
+  guard !chunks.isEmpty else { exportStatus = "Экспорт: истории пока нет"; return }
+  do {
+   try chunks.joined(separator: "\n").write(to: url, atomically: true, encoding: .utf8)
+   exportStatus = "Экспорт: \(rows) строк → \(url.lastPathComponent)"
+  } catch {
+   exportStatus = "Экспорт не удался: \(error.localizedDescription)"
+  }
  }
  private let store = ServerConfigStore()
  private var snapshot: ServerConfigStore.Snapshot?
@@ -252,6 +298,10 @@ import MacdirCore
     var state = states[config.id] ?? ServerState(); state.accept(result); states[config.id] = state
     inFlight.remove(config.id)
     persistHistory(config.id)
+    for alert in alertEngine.evaluate(serverID: config.id, name: config.name, result: result, settings: alertSettings) {
+     ServerNotifier.shared.post(alert)
+     lastAlert = alert.title + " · " + alert.body
+    }
     if selections[config.id] == nil {
      selections[config.id] = UserDefaults.standard.string(forKey: "server.interface." + config.id) ?? state.lastSuccess?.preferredInterface
     }
@@ -352,6 +402,24 @@ private func serverTime(_ epoch: Double?) -> String {
  return formatter.string(from: Date(timeIntervalSince1970: epoch))
 }
 
+/// Одна строка о состоянии сервера: давность ответа, тренд диска, сбои.
+private func fleetStatusLine(state: ServerState, now: Double) -> String {
+ var parts: [String] = ["ответ " + state.lastAnswerText(now: now)]
+ if let trend = state.diskTrendPerDay {
+  parts.append("диск " + (trend >= 0 ? "+" : "−") + gibText(abs(trend)) + "/сут")
+ }
+ if state.failuresToday > 0 { parts.append("сбоев \(state.failuresToday)") }
+ if state.rebootsToday > 0 { parts.append("перезагрузок \(state.rebootsToday)") }
+ return parts.joined(separator: " · ")
+}
+
+private func gibText(_ bytes: Double) -> String {
+ let gib = bytes / 1_073_741_824
+ if gib >= 1 { return String(format: "%.1f ГБ", gib) }
+ return String(format: "%.0f МБ", bytes / 1_048_576)
+}
+
+
 struct ServerPanel: View {
  @ObservedObject var model: ServersModel
  @State private var treeExpanded = true
@@ -363,21 +431,32 @@ struct ServerPanel: View {
      Label("Серверы", systemImage: "server.rack").font(.largeTitle.bold())
      Spacer()
      Text("SSH · только чтение").foregroundStyle(.secondary)
-     Picker("Обновление", selection: Binding(get: { model.refreshInterval }, set: { model.setInterval($0) })) {
-      ForEach(ServersModel.intervalChoices, id: \.self) { Text("\($0) с").tag($0) }
+     HStack(spacing: 4) {
+      Text("Обновление").font(.caption).foregroundStyle(.secondary)
+      ForEach(ServersModel.intervalChoices, id: \.self) { seconds in
+       ModeChip(title: "\(seconds) с", isOn: model.refreshInterval == seconds) { model.setInterval(seconds) }
+      }
      }
-     .labelsHidden().pickerStyle(.menu).frame(width: 74).controlSize(.small)
      .help("Интервал опроса SSH. При 5–30 с соединение не пересоздаётся: опрос идёт по одному keep-alive-каналу")
-     Toggle(isOn: Binding(get: { model.backgroundCollecting }, set: { model.setBackgroundCollecting($0) })) {
-      Label("В фоне", systemImage: "arrow.triangle.2.circlepath")
+     ModeChip(title: "В фоне", systemImage: "arrow.triangle.2.circlepath", isOn: model.backgroundCollecting) {
+      model.setBackgroundCollecting(!model.backgroundCollecting)
      }
-     .toggleStyle(.button).controlSize(.small)
      .help("Собирать данные постоянно, в том числе когда окно неактивно: без разрывов на графиках")
+     ModeChip(title: "Оповещения", systemImage: model.alertsOn ? "bell.badge" : "bell.slash", isOn: model.alertsOn) {
+      model.requestNotifications(); model.alertsSheet = true
+     }
+     .help("Пороги: сервер не отвечает, перегрузка процессора, мало места на диске")
      Button("Добавить сервер") { model.beginAdd() }.disabled(!model.canManage || model.configs.count >= 16)
+     ModeChip(title: "Экспорт CSV", systemImage: "square.and.arrow.up", isOn: false) {
+      model.exportHistory(historyRange)
+     }
+     .help("Сохранить историю всех серверов в CSV за выбранный период")
      Button("Обновить") { model.reload(); model.refresh() }
     }
     if let error = model.configError { Text(error).foregroundStyle(.orange).textSelection(.enabled) }
     if let error = model.managementError, !model.adding { Text(error).foregroundStyle(.orange) }
+    if let status = model.exportStatus { Text(status).font(.caption).foregroundStyle(.secondary).textSelection(.enabled) }
+    if let alert = model.lastAlert { Text("Последнее оповещение: " + alert).font(.caption).foregroundStyle(.orange).lineLimit(2) }
     TimelineView(.periodic(from: .now, by: 1)) { context in
      HStack(alignment: .top, spacing: 14) {
       VStack(alignment: .leading, spacing: 9) {
@@ -442,6 +521,7 @@ struct ServerPanel: View {
    }.padding(22)
   }
   .sheet(isPresented: $model.adding) { ServerAddSheet(model: model) }
+  .sheet(isPresented: $model.alertsSheet) { ServerAlertSettingsSheet(model: model) }
   .alert("Удалить из мониторинга?", isPresented: Binding(get: { model.removing != nil }, set: { if !$0 { model.removing = nil } }), presenting: model.removing) { config in
    Button("Отмена", role: .cancel) { model.removing = nil }.keyboardShortcut(.cancelAction)
    Button("Удалить из мониторинга", role: .destructive) { model.removeServer(config) }
@@ -450,9 +530,11 @@ struct ServerPanel: View {
   }
  }
  private var historyPicker: some View {
-  Picker("Период истории", selection: $historyRange) {
-   ForEach(ServerHistoryRange.allCases, id: \.self) { Text($0.label).tag($0) }
-  }.pickerStyle(.segmented).fixedSize().accessibilityLabel("Период истории")
+  HStack(spacing: 4) {
+   ForEach(ServerHistoryRange.allCases, id: \.self) { value in
+    ModeChip(title: value.label, isOn: historyRange == value) { historyRange = value }
+   }
+  }.accessibilityLabel("Период истории")
  }
 }
 
@@ -471,6 +553,8 @@ private struct ServerFleetRow: View {
      VStack(alignment: .leading, spacing: 3) {
       Text(config.name).font(.headline).lineLimit(1)
       Text(config.target + ":" + String(config.port)).font(.caption.monospaced()).foregroundStyle(.secondary).lineLimit(1)
+      Text(fleetStatusLine(state: state, now: now))
+       .font(.caption2.monospacedDigit()).foregroundStyle(.secondary).lineLimit(1)
      }.frame(maxWidth: .infinity, alignment: .leading)
      Text(sample == nil ? (state.error?.rawValue ?? "Нет свежих данных") : "На связи")
       .font(.caption).foregroundStyle(sample == nil ? Color.orange : Color.green).lineLimit(1)

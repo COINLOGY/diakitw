@@ -12,6 +12,24 @@ scratch = Path(sys.argv[1]).resolve()
 with tempfile.TemporaryDirectory(prefix='server-model-', dir=scratch) as directory:
     root = Path(directory)
     model = (project / 'Sources/macdir/ServerPanel.swift').read_text().split('struct MacdirRootView: View')[0]
+    def drop_method(text, signature):
+        """Удаляет метод целиком: тело может зависеть от AppKit и уведомлений."""
+        start = text.index(signature)
+        brace = text.index('{', start)
+        depth, index = 0, brace
+        while index < len(text):
+            if text[index] == '{':
+                depth += 1
+            elif text[index] == '}':
+                depth -= 1
+                if depth == 0:
+                    break
+            index += 1
+        end = index + 1
+        while end < len(text) and text[end] == '\n':
+            end += 1
+        return text[:start] + text[end:]
+
     model = model.replace('import MacdirCore', '')
     model = model.replace('private let store = ServerConfigStore()', f'private let store = ServerConfigStore(url: URL(fileURLWithPath: "{root}/servers.json"))')
     model = model.replace('ServerHardwareCache()', f'ServerHardwareCache(url: URL(fileURLWithPath: "{root}/hardware.json"))')
@@ -26,6 +44,15 @@ with tempfile.TemporaryDirectory(prefix='server-model-', dir=scratch) as directo
     model = model.replace('ServerSampler.sample(config, probe: try ServerSampler.bundledProbe(), controlPath: controlPath, cancellation: cancellation)', 'try await Fake.sample()')
     assert 'ServerSampler.sample(' not in model, 'fixture must never contact real SSH'
     assert 'ServerMultiplex' not in model, 'fixture must not open control sockets'
+    # Уведомления и панель сохранения — только в приложении, в фикстуре не нужны.
+    model = model.replace('@Published var alertsAuthorized = ServerNotifier.shared.authorized', '@Published var alertsAuthorized = false')
+    model = model.replace('ServerNotifier.shared.requestAuthorizationIfNeeded()', '')
+    model = model.replace('alertsAuthorized = ServerNotifier.shared.authorized', 'alertsAuthorized = false')
+    model = model.replace('ServerNotifier.shared.post(alert)', '_ = alert')
+    model = drop_method(model, ' func sendTestAlert() {')
+    model = drop_method(model, ' func exportHistory(_ range: ServerHistoryRange) {')
+    assert 'ServerNotifier' not in model, 'fixture must not post real notifications'
+    assert 'NSSavePanel' not in model, 'fixture must not open a save panel'
     model = model.replace('ServerPasswordStore.', 'FakeCredentials.')
     # Observe actual actor-side delivery, not a sleep guessed to allow completion.
     assert model.count('}.value') == 2
@@ -129,6 +156,6 @@ final class Fake {
 '''.replace('CONFIG', str(root / 'servers.json')).replace('CACHE', str(root / 'hardware.json'))
 
     (root / 'Checks.swift').write_text(fixture)
-    sources = [project / 'Sources/MacdirCore' / name for name in ['MetricPresentation.swift', 'ServerSampler.swift', 'ServerTelemetry.swift', 'ServerConfigStore.swift', 'ServerHardwareCache.swift', 'ServerPassword.swift', 'ServerSSHProcess.swift']]
+    sources = [project / 'Sources/MacdirCore' / name for name in ['MetricPresentation.swift', 'ServerSampler.swift', 'ServerTelemetry.swift', 'ServerAlerts.swift', 'ServerConfigStore.swift', 'ServerHardwareCache.swift', 'ServerPassword.swift', 'ServerSSHProcess.swift']]
     subprocess.run(['swiftc', '-j', '2', *map(str, sources), str(root / 'Model.swift'), str(root / 'Checks.swift'), '-o', str(root / 'checks')], check=True)
     subprocess.run([str(root / 'checks')], check=True, timeout=20)
