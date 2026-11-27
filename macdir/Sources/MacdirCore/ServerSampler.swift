@@ -43,7 +43,7 @@ public struct ServerConfig: Codable, Identifiable {
   // tear the socket down between samples.
   var args = ["-T", "-p", String(port), authentication == .key ? "-oBatchMode=yes" : "-oBatchMode=no", "-oStrictHostKeyChecking=yes", "-oConnectTimeout=8", "-oServerAliveInterval=" + (controlPath == nil ? "5" : "15"), "-oServerAliveCountMax=" + (controlPath == nil ? "1" : "3"), "-oForwardAgent=no", "-oClearAllForwardings=yes"]
   if let controlPath {
-   guard controlPath.hasPrefix("/"), !controlPath.contains("\n"), controlPath.utf8.count <= 100 else { throw ServerError.config }
+   guard controlPath.hasPrefix("/"), !controlPath.contains("\n"), !controlPath.contains(" "), controlPath.utf8.count <= 100 else { throw ServerError.config }
    args += ["-oControlMaster=auto", "-oControlPath=" + controlPath, "-oControlPersist=120"]
   } else {
    args += ["-oControlMaster=no", "-oControlPath=none"]
@@ -68,6 +68,15 @@ public enum ServerSampler {
  }
  // Blocking worker primitive: callers dispatch off the main actor.
  public static func sample(_ config: ServerConfig, probe: Data, specs: Bool = false, controlPath: String? = nil, cancellation: ServerCancellation = ServerCancellation()) -> Result<ServerTelemetry, ServerError> {
+  let first = attempt(config, probe: probe, specs: specs, controlPath: controlPath, cancellation: cancellation)
+  // Мастер-канал не должен выключать мониторинг: любая его ошибка повторяется
+  // обычным одноразовым соединением.
+  if case .failure(let error) = first, controlPath != nil, error != .cancelled {
+   return attempt(config, probe: probe, specs: specs, controlPath: nil, cancellation: cancellation)
+  }
+  return first
+ }
+ private static func attempt(_ config: ServerConfig, probe: Data, specs: Bool, controlPath: String?, cancellation: ServerCancellation) -> Result<ServerTelemetry, ServerError> {
   do {
    let args = try config.sshArguments(specs: specs, controlPath: controlPath)
    guard !probe.isEmpty, probe.count <= 65536 else { return .failure(.probe) }
@@ -96,9 +105,12 @@ public enum ServerSampler {
 /// Control sockets for SSH multiplexing. A frequent poll (5–30 s) keeps one
 /// master session per server instead of paying a handshake on every sample.
 public enum ServerMultiplex {
+ /// Путь обязан быть без пробелов: ssh разбирает значение `-o ControlPath=…`
+ /// по пробелам и падает с «keyword controlpath extra arguments at end of line».
+ /// `~/Library/Application Support` для этой цели не годится.
  public static func directory() throws -> URL {
   let url = FileManager.default.homeDirectoryForCurrentUser
-   .appendingPathComponent("Library/Application Support/macdir/ssh-control", isDirectory: true)
+   .appendingPathComponent("Library/Caches/macdir/ssh-control", isDirectory: true)
   var isDirectory: ObjCBool = false
   if FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory) {
    guard isDirectory.boolValue else { throw ServerError.config }

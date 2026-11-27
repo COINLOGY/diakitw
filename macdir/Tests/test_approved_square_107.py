@@ -1,10 +1,19 @@
-"""Approved 1.0.7 Mac dashboard: CPU, RAM, SWAP, disk in one square row."""
+"""Approved Mac dashboard: CPU, RAM, SWAP, disk in one uniform compact row.
+
+Обновлено по просьбе владельца (27.11.2026): карточки больше не квадратные —
+квадрат при четырёх в ряд давал ~340 px и прятал обзор диска под сгибом.
+Теперь у карточек ресурсов и у сети одна и та же компактная высота, содержимое
+прижато к верху без пустоты между прибором и подписью.
+"""
 from pathlib import Path
+import re
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 MAIN = (ROOT / 'Sources/macdir/main.swift').read_text()
 GAUGE = (ROOT / 'Sources/macdir/NeedleGauge.swift').read_text()
+
+ROW_HEIGHT = '158'
 
 
 class ApprovedSquareLayout(unittest.TestCase):
@@ -21,17 +30,23 @@ class ApprovedSquareLayout(unittest.TestCase):
         self.assertIn('square: true', disk)
         self.assertIn('.popover(isPresented: $model.showCapacity)', disk)
 
-    def test_network_row_never_shorter_than_square_cards_at_wide_width(self):
-        import re
-        section = MAIN.split('private var networkInstruments:', 1)[1].split('private func receiveGauge', 1)[0]
-        ratio = float(re.search(r'\.aspectRatio\(([0-9.]+), contentMode: \.fit\)', section).group(1))
-        for width in (1060, 1440, 2532):
-            self.assertLessEqual((width - 24) / 4, width / ratio, f'network cards overflow row at {width}')
+    def test_resource_row_has_fixed_compact_height(self):
+        resources = MAIN.split('private func compactResources(', 1)[1].split('private var compactNetwork:', 1)[0]
+        self.assertIn('.frame(height: ' + ROW_HEIGHT + ')', resources)
 
-    def test_square_gauge_has_tight_gauge_and_label_stack(self):
+    def test_network_row_matches_resource_height(self):
+        section = MAIN.split('private var networkInstruments:', 1)[1].split('private func receiveGauge', 1)[0]
+        # Никакого aspectRatio: высота ряда задана явно и совпадает с карточками.
+        self.assertIsNone(re.search(r'\.aspectRatio\([0-9.]+, contentMode: \.fit\)', section))
+        # График и общий HStack несут фиксированную высоту ряда.
+        self.assertEqual(section.count('.frame(height: ' + ROW_HEIGHT + ')'), 2)
+
+    def test_square_gauge_fills_the_given_frame(self):
         self.assertIn('var square = false', GAUGE)
-        self.assertIn('VStack(spacing: 0)', GAUGE)
-        self.assertIn('.aspectRatio(1, contentMode: .fit)', GAUGE)
+        self.assertIn('VStack(spacing: 2)', GAUGE)
+        # Квадрат по aspectRatio убран: карточка заполняет выданную высоту.
+        self.assertNotIn('.aspectRatio(1, contentMode: .fit)', GAUGE)
+        self.assertIn('.frame(width: geo.size.width, height: geo.size.height, alignment: .top)', GAUGE)
 
 
 if __name__ == '__main__':

@@ -24,7 +24,8 @@ class DashboardLayoutTests(unittest.TestCase):
         instruments = MAIN.split('private var networkInstruments:', 1)[1].split('private var diskGauge:', 1)[0]
         self.assertLess(instruments.index('receiveGauge(scale:'), instruments.index('sendGauge(scale:'))
         self.assertLess(instruments.index('sendGauge(scale:'), instruments.index('TrafficChart(history:'))
-        self.assertIn('side * 2 + 8', instruments)
+        # Компактный ряд: график занимает всю оставшуюся ширину, высота фиксирована.
+        self.assertIn('.frame(maxWidth: .infinity).frame(height: 158)', instruments)
         self.assertIn('expanded: true', instruments)
         self.assertIn('selectedNetwork?.received', instruments)
         self.assertIn('selectedNetwork?.sent', instruments)

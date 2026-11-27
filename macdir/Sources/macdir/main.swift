@@ -250,15 +250,14 @@ struct ContentView: View {
   private var networkInstruments: some View {
    let scale = model.trafficHistory.scale(in: model.trafficRange)
    let labels = NetworkSpeedScale.labels(maximum: scale)
-   return GeometryReader { grid in
-    let side = max(0, (grid.size.width - 24) / 4)
-    HStack(alignment: .top, spacing: 8) {
-     receiveGauge(scale: scale, labels: labels).frame(width: side, height: side)
-     sendGauge(scale: scale, labels: labels).frame(width: side, height: side)
-     TrafficChart(history: model.trafficHistory, range: $model.trafficRange, expanded: true)
-      .frame(width: side * 2 + 8, height: side)
-    }
-   }.aspectRatio(4, contentMode: .fit)
+   // Раньше ряд растягивался через aspectRatio(4): на широком окне это давало
+   // ~360 px высоты. Теперь та же компактная высота, что и у карточек ресурсов.
+   return HStack(alignment: .top, spacing: 8) {
+    receiveGauge(scale: scale, labels: labels).frame(width: 210, height: 158)
+    sendGauge(scale: scale, labels: labels).frame(width: 210, height: 158)
+    TrafficChart(history: model.trafficHistory, range: $model.trafficRange, expanded: true)
+     .frame(maxWidth: .infinity).frame(height: 158)
+   }.frame(height: 158)
   }
  private func receiveGauge(scale: Double, labels: [String]) -> some View {
   GaugeTile(symbol: "arrow.down", title: "ПРИЁМ", value: NetworkPresentation(selectedNetwork?.received).text + " ↓", detail: selectedInterface + " · 0–" + labels[2] + "/с", fraction: GaugeScale.fraction(selectedNetwork?.received, maximum: scale), neutral: true, networkRate: selectedNetwork?.received, networkDirection: "↓", tickLabels: labels, directionColor: InstrumentTheme.lime, square: true)
@@ -351,6 +350,8 @@ struct ContentView: View {
      GaugeTile(symbol: "arrow.left.arrow.right", title: "SWAP", value: MetricPresentation.utilization(model.snapshot.swap, total: model.snapshot.swapTotal), detail: MetricPresentation.usedTotal(model.snapshot.swap, total: model.snapshot.swapTotal), fraction: GaugeScale.fraction(model.snapshot.swap.map(Double.init), maximum: model.snapshot.swapTotal.map(Double.init)), explanation: MetricPresentation.swapExplanation, square: true)
      diskGauge
     }
+    // Одинаковая компактная высота: ряд ресурсов не должен занимать полэкрана.
+    .frame(height: 158)
    }
   }
  private var compactNetwork: some View {
@@ -402,11 +403,11 @@ struct ContentView: View {
      }.frame(minWidth: 450)
      VStack(alignment: .leading, spacing: 10) {
       Text("Карта пространства").font(.headline)
-      Treemap(nodes: model.tiles) { model.navigate($0); model.tab = 0 }.frame(minHeight: 220)
+      Treemap(nodes: model.tiles) { model.navigate($0); model.tab = 0 }.frame(minHeight: 180)
       Text("Площадь = учтённый логический размер. После 79 элементов — группа «Остальные» с переходом. Нулевые, ссылки и неизвестные размеры — в полной таблице. Карта частичного обхода не описывает весь диск.").font(.caption).foregroundStyle(.secondary)
      }.padding(.leading, 12).frame(minWidth: 290)
     // Reserve a usable independently scrolling table; the page scrolls when needed.
-    }.frame(height: max(360, viewport.height * 0.4))
+    }.frame(height: max(300, viewport.height * 0.34))
     HStack {
      Text("\(result.files) файлов · \(result.symlinks) ссылок · \(result.hardlinks) hardlink · \(result.aliases) повторов каталогов · \(model.elapsed)").font(.caption)
      Button("Ошибки: \(result.errors)") { model.showIssues = true }

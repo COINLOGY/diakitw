@@ -44,7 +44,7 @@ s=s.replace('}.frame(minWidth: 450)', '}.frame(minWidth: 450).layoutProbe("table
 s=s.replace('}.padding(.leading, 12).frame(minWidth: 290)', '}.padding(.leading, 12).frame(minWidth: 290).layoutProbe("map")')
 # Probe only the unshipped copy; preserve production padding and proposals.
 for old, new in [
-    ('    }\n   }\n  }\n private var compactNetwork:', '    }.layoutProbe("gaugeRow")\n   }\n  }\n private var compactNetwork:'),
+    ('    .frame(height: 158)\n   }\n  }\n private var compactNetwork:', '    .frame(height: 158).layoutProbe("gaugeRow")\n   }\n  }\n private var compactNetwork:'),
     ('  }.padding(14).frame(maxWidth: .infinity)', '  }.layoutProbe("dashboardContent").padding(14).frame(maxWidth: .infinity).layoutProbe("dashboardDocument")'),
 ]:
     assert s.count(old) == 1, 'layout probe anchor changed: ' + old

@@ -138,24 +138,26 @@ struct GaugeTile: View {
   Group {
    if square {
     GeometryReader { geo in
-     let side = min(geo.size.width, geo.size.height)
-     VStack(spacing: 0) {
-      dial.frame(width: max(0, side - 16), height: max(0, side * 0.59))
+     let side = max(0, min(geo.size.width, geo.size.height))
+     VStack(spacing: 2) {
+      dial.frame(width: max(0, min(geo.size.width, 220)), height: max(0, side * 0.55))
       Label(title, systemImage: symbol).font(.system(size: 11, weight: .semibold))
        .foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.75)
       if neutral {
        NetworkRateValue(value: networkRate, direction: networkDirection, size: 16)
         .foregroundStyle(network.available ? directionColor : Color.secondary)
       } else {
-       Text(value).font(.system(size: min(27, side * 0.14), weight: .semibold, design: .rounded))
+       Text(value).font(.system(size: min(26, side * 0.17), weight: .semibold, design: .rounded))
         .foregroundStyle(gaugeColor(fraction, battery: battery))
         .monospacedDigit().lineLimit(1).minimumScaleFactor(0.65)
       }
       Text(detail).font(.system(size: 10)).foregroundStyle(.secondary)
-       .lineLimit(2).multilineTextAlignment(.center).frame(height: 24, alignment: .top)
-     }.frame(width: side, height: side, alignment: .center)
-      .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }.aspectRatio(1, contentMode: .fit)
+       .lineLimit(2).multilineTextAlignment(.center).frame(height: 22, alignment: .top)
+     }
+     // Заполняем выданную высоту целиком: раньше содержимое висело по центру
+     // квадрата, и между прибором и подписью оставалась пустота.
+     .frame(width: geo.size.width, height: geo.size.height, alignment: .top)
+    }
    } else {
     HStack(spacing: 4) {
      VStack(alignment: .leading, spacing: 5) {
