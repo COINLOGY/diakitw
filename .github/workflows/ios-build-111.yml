@@ -2,7 +2,6 @@ name: iOS 1.1.1 unsigned compile/tests (no upload)
 on:
   push:
     branches: [feat/release-111-candidate]
-    paths: ["ios/**", ".github/workflows/ios-build-111.yml"]
   workflow_dispatch:
 permissions:
   contents: read

@@ -3,7 +3,6 @@ name: macOS 1.1.1 build-only
 on:
   push:
     branches: [feat/release-111-candidate]
-    paths: ["macdir/**", ".github/workflows/macos-build-111.yml"]
   workflow_dispatch:
     inputs:
       scope:
