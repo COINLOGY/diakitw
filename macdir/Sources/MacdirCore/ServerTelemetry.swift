@@ -158,8 +158,9 @@ public struct ServerState {
   loadHistory = ServerState.trim(loadHistory, newest: newest, timestamp: { $0.sampledAt })
   diskHistory = ServerState.trim(diskHistory, newest: newest, timestamp: { $0.sampledAt })
   uptimeHistory = Array(uptimeHistory.suffix(ServerState.historyLimit))
-  // Только после обрезки loadHistory: иначе значения отстают от окна на одну точку.
-  cpuHistory = Array(cpuHistory.suffix(loadHistory.count))
+  // Значения берём из уже обрезанного окна: длины совпадают по построению,
+  // а разрывы остаются на своих местах.
+  cpuHistory = loadHistory.map { $0?.percent }
   let dayFloor = now - 86_400
   failureTimes = failureTimes.filter { $0 >= dayFloor }
   rebootTimes = rebootTimes.filter { $0 >= dayFloor }
@@ -207,6 +208,13 @@ public struct ServerState {
    guard let point else { return true }
    let at = timestamp(point)
    return at.isFinite ? at >= cut : true
+  }
+  // Разрыв (nil) не имеет своей метки времени: если он оказался перед первым
+  // замером внутри окна, он уже за окном и жить в истории не должен.
+  if let firstMeasure = kept.firstIndex(where: { $0 != nil }) {
+   kept.removeFirst(firstMeasure)
+  } else {
+   kept = []
   }
   if kept.count > historyLimit { kept = Array(kept.suffix(historyLimit)) }
   return kept

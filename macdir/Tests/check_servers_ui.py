@@ -39,7 +39,7 @@ assert 'historyWindow: Double = 3600' in telem and 'historyLimit = 720' in telem
 assert 'suffix(121)' not in telem, 'fixed 121-point cap must be gone'
 # Порядок важен: cpuHistory выравнивается по уже обрезанному окну, иначе
 # к концу часовой серии он отстаёт от loadHistory ровно на одну точку.
-assert telem.index('cpuHistory = Array(cpuHistory.suffix(loadHistory.count))') > telem.index('loadHistory = ServerState.trim(loadHistory'), 'cpuHistory must follow the trimmed window'
+assert telem.index('cpuHistory = loadHistory.map { $0?.percent }') > telem.index('loadHistory = ServerState.trim(loadHistory'), 'cpuHistory must be derived from the trimmed window'
 assert 'ServerHistoryStore.remove(config.id)' in s, 'removing a server must drop its history file'
 assert 'ServerHistoryStore.prune(keeping: Set(configs.map { $0.id }))' in s, 'stale history files must be swept at startup'
 # Оси графиков: CPU — фиксированные 0–100 %, сеть — максимум отображаемого периода.
