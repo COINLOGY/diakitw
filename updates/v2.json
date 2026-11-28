@@ -2,54 +2,15 @@
   "schema": 1,
   "releases": [
     {
-      "version": "1.0.6",
-      "build": 106,
+      "version": "1.1.1",
+      "build": 111,
       "channel": "preview",
-      "notes": "diakitw 1.0.6 preview: геосервис EMCx переведён на emcx.pro/diakitw-api/geo; Android — закрытие информационных окон при сворачивании, настоящая версия в User-Agent, сброс суточного лимита при смене сети; macOS — надёжный разбор ответа геосервиса и лимит 8 ГиБ; Windows PE 1.0.6.106. Desktop/macOS ставятся вручную, Android передаёт APK системному установщику. Подписи издателей Windows/macOS не получены.",
+      "notes": "diakitw 1.1.1: первый выпуск новой линии. macOS — измеренная история парка серверов за час, подписи осей и подсказки под курсором, оповещения по переходам, история диска и аптайма, экспорт CSV, адрес выхода в меню-баре, интервал опроса 5–60 с с переиспользованием SSH. Android — карта и геолокация, верные окна, User-Agent и лимит провайдера. Windows и Linux — портативные сборки. Подписи издателей Windows и macOS не получены; iOS только компилируется.",
       "assets": {
         "android": {
-          "url": "https://github.com/COINLOGY/diakitw/releases/download/v1.0.6/diakitw-android-1.0.6.apk",
-          "size": 131855,
-          "sha256": "5feaa7d116dbe2bf314b122e387de44aaa58ec6317a0b1d99815a0906c62c8e1"
-        }
-      }
-    },
-    {
-      "version": "1.0.3",
-      "build": 103,
-      "channel": "preview",
-      "notes": "diakitw 1.0.3 preview. Android same signing key as 1.0.1/1.0.2; from 0.5.x reinstall may lose data. Windows/macOS lack publisher signing; manual installation may be blocked.",
-      "assets": {
-        "android": {
-          "url": "https://github.com/COINLOGY/diakitw/releases/download/v1.0.3/diakitw-android-1.0.3.apk",
-          "size": 127759,
-          "sha256": "762e6711a3574dcc1d4313cd242db07cc713e104ad3629cc3d57634285a7d190"
-        }
-      }
-    },
-    {
-      "version": "1.0.2",
-      "build": 102,
-      "channel": "preview",
-      "notes": "Android 1.0.2 preview: same signing key as 1.0.1. System installer may request confirmation. Android 0.5.x requires uninstall first; data loss possible.",
-      "assets": {
-        "android": {
-          "url": "https://github.com/COINLOGY/diakitw/releases/download/v1.0.2/diakitw-android-1.0.2.apk",
-          "size": 123663,
-          "sha256": "0952d1526845213e1dffc1217e507f758202631cfdd01fb2e687120981f6254e"
-        }
-      }
-    },
-    {
-      "version": "1.0.1",
-      "build": 101,
-      "channel": "preview",
-      "notes": "Android 1.0.1 preview, new signing key. Old APK must be uninstalled first; data loss possible. Android may require installer confirmation.",
-      "assets": {
-        "android": {
-          "url": "https://github.com/COINLOGY/diakitw/releases/download/v1.0.1/diakitw-android-1.0.1.apk",
-          "size": 123663,
-          "sha256": "9158b679db2f1bfc6c3ce7c1ce5736c74591d8eb85fdeeafb34acabcdf9a3064"
+          "url": "https://github.com/COINLOGY/diakitw/releases/download/v1.1.1/diakitw-android-1.1.1.apk",
+          "size": 135951,
+          "sha256": "1234032383eaf32d32710c33252ed39ec826149ff4e81507144a4fb3fc80df61"
         }
       }
     }

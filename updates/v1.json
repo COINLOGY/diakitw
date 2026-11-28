@@ -2,183 +2,30 @@
   "schema": 1,
   "releases": [
     {
-      "version": "1.0.6",
-      "build": 106,
+      "version": "1.1.1",
+      "build": 111,
       "channel": "preview",
-      "notes": "diakitw 1.0.6 preview: геосервис EMCx переведён на emcx.pro/diakitw-api/geo; Android — закрытие информационных окон при сворачивании, настоящая версия в User-Agent, сброс суточного лимита при смене сети; macOS — надёжный разбор ответа геосервиса и лимит 8 ГиБ; Windows PE 1.0.6.106. Desktop/macOS ставятся вручную, Android передаёт APK системному установщику. Подписи издателей Windows/macOS не получены.",
+      "notes": "diakitw 1.1.1: первый выпуск новой линии. macOS — измеренная история парка серверов за час, подписи осей и подсказки под курсором, оповещения по переходам, история диска и аптайма, экспорт CSV, адрес выхода в меню-баре, интервал опроса 5–60 с с переиспользованием SSH. Android — карта и геолокация, верные окна, User-Agent и лимит провайдера. Windows и Linux — портативные сборки. Подписи издателей Windows и macOS не получены; iOS только компилируется.",
       "assets": {
         "macos-arm64": {
-          "url": "https://github.com/COINLOGY/diakitw/releases/download/v1.0.6/diakitw-1.0.6-macos-arm64.dmg",
-          "size": 1645463,
-          "sha256": "65320e78eb3fe6e34141094b5f59886e9c0e941e6c690d067c5b74d38de47806"
+          "url": "https://github.com/COINLOGY/diakitw/releases/download/v1.1.1/diakitw-1.1.1-macos-unsigned-arm64.dmg",
+          "size": 2021041,
+          "sha256": "6bb4dd97e86bbbd769b175aa11480c50ab98150a54412731bda8be2bd13aea31"
         },
         "macos-x86_64": {
-          "url": "https://github.com/COINLOGY/diakitw/releases/download/v1.0.6/diakitw-1.0.6-macos-x86_64.dmg",
-          "size": 1760375,
-          "sha256": "b25f61c1b583ec44f2fbbf3700afc0450100991d1d0bd04a400ddda1b7610215"
+          "url": "https://github.com/COINLOGY/diakitw/releases/download/v1.1.1/diakitw-1.1.1-macos-unsigned-x86_64.dmg",
+          "size": 2159977,
+          "sha256": "a9fe4ca77531b3aae3d8816fa206fbc385e32e97e9c914ec73c757d02bb1a851"
         },
         "windows-x64": {
-          "url": "https://github.com/COINLOGY/diakitw/releases/download/v1.0.6/diakitw-1.0.6-windows-x64.zip",
-          "size": 158115874,
-          "sha256": "b5a0d4a3911ecc2cf30b87d2ad0b7f4f8c7efbdd4181aaaa0d646cb76ea1375c"
+          "url": "https://github.com/COINLOGY/diakitw/releases/download/v1.1.1/diakitw-1.1.1-windows-x64.zip",
+          "size": 158460395,
+          "sha256": "4e747b7a97fff55d3fe6bf9c7c141faeed3e9b0af386afbdfd79ce0589cda75c"
         },
         "linux-x64": {
-          "url": "https://github.com/COINLOGY/diakitw/releases/download/v1.0.6/diakitw-1.0.6-linux-x64.tar.gz",
-          "size": 124052439,
-          "sha256": "e5dee68ef37912fc2800321e7e1dd4ab6398e1b3ba6b73c6f11364ab017363c4"
-        }
-      }
-    },
-    {
-      "version": "1.0.3",
-      "build": 103,
-      "channel": "preview",
-      "notes": "diakitw 1.0.3 preview. Android same signing key as 1.0.1/1.0.2; from 0.5.x reinstall may lose data. Windows/macOS lack publisher signing; manual installation may be blocked.",
-      "assets": {
-        "macos-arm64": {
-          "url": "https://github.com/COINLOGY/diakitw/releases/download/v1.0.3/diakitw-1.0.3-macos-arm64.dmg",
-          "size": 1616066,
-          "sha256": "ab22fb5534ca5d8b4ea91c625c9668aba70406903be496da713425efcb2e8ba0"
-        },
-        "macos-x86_64": {
-          "url": "https://github.com/COINLOGY/diakitw/releases/download/v1.0.3/diakitw-1.0.3-macos-x86_64.dmg",
-          "size": 1732620,
-          "sha256": "744b17a8bed4c5ab93cf38382783668a2bc06e0f78a9a63daca82094c790bf92"
-        },
-        "windows-x64": {
-          "url": "https://github.com/COINLOGY/diakitw/releases/download/v1.0.3/diakitw-1.0.3-windows-x64.zip",
-          "size": 158114064,
-          "sha256": "de993edf285cd4478bf27893a3b0a8922be975f811006c0db19727eed23fd396"
-        },
-        "linux-x64": {
-          "url": "https://github.com/COINLOGY/diakitw/releases/download/v1.0.3/diakitw-1.0.3-linux-x64.tar.gz",
-          "size": 124051641,
-          "sha256": "b23ddc03ad60ae8bac80fcd778f5cffdbd652389a9b9a4079fc6de90a89da404"
-        }
-      }
-    },
-    {
-      "version": "1.0.2",
-      "build": 102,
-      "channel": "preview",
-      "notes": "diakitw 1.0.2 preview: persistent trailing macOS VPN country flag and cross-platform version 102. Manual desktop/macOS installation; macOS ad-hoc may be rejected by Gatekeeper. Android new key uses separate v2 feed; iOS no release asset.",
-      "assets": {
-        "macos-arm64": {
-          "url": "https://github.com/COINLOGY/diakitw/releases/download/v1.0.2/diakitw-1.0.2-macos-arm64.dmg",
-          "size": 1612723,
-          "sha256": "9a95e993bbee821d638f5851cb1502e5f8f46987a61231feaa36f3d91b0dd1e1"
-        },
-        "macos-x86_64": {
-          "url": "https://github.com/COINLOGY/diakitw/releases/download/v1.0.2/diakitw-1.0.2-macos-x86_64.dmg",
-          "size": 1726649,
-          "sha256": "30e298b80bd52c9c20a6e4ca368a7a4ce275699c9d879310aa79c01956a7058e"
-        },
-        "windows-x64": {
-          "url": "https://github.com/COINLOGY/diakitw/releases/download/v1.0.2/diakitw-1.0.2-windows-x64.zip",
-          "size": 158111881,
-          "sha256": "c73c00f1faab320708cdfb5e57520d97a4ed2914953696e1b4017646b546ae16"
-        },
-        "linux-x64": {
-          "url": "https://github.com/COINLOGY/diakitw/releases/download/v1.0.2/diakitw-1.0.2-linux-x64.tar.gz",
-          "size": 124049478,
-          "sha256": "6cc5be86588eebd75a4bf4ef195841727611b30c83a9a9ab17de7d5c5f638c74"
-        }
-      }
-    },
-    {
-      "version": "1.0.1",
-      "build": 101,
-      "channel": "preview",
-      "notes": "diakitw 1.0.1 preview: IP country flags, network indicators. Manual desktop/macOS installation; macOS ad-hoc may be rejected by Gatekeeper. Android new key uses separate v2 feed; iOS no release asset.",
-      "assets": {
-        "macos-arm64": {
-          "url": "https://github.com/COINLOGY/diakitw/releases/download/v1.0.1/diakitw-1.0.1-macos-arm64.dmg",
-          "size": 1609755,
-          "sha256": "f72578912576dac5bf579936c99c1b9446a3dcd29f140d51a3557a049fe4631c"
-        },
-        "macos-x86_64": {
-          "url": "https://github.com/COINLOGY/diakitw/releases/download/v1.0.1/diakitw-1.0.1-macos-x86_64.dmg",
-          "size": 1725258,
-          "sha256": "a83f20a32c01012a1dd6cb87ff88c2e3ea3b254ef4633f05b86eab04e89effab"
-        },
-        "windows-x64": {
-          "url": "https://github.com/COINLOGY/diakitw/releases/download/v1.0.1/diakitw-1.0.1-windows-x64.zip",
-          "size": 158111800,
-          "sha256": "c6912be6785d98878c4f9477172e04b64fa690d7e24d7f2495d2d7ccb27bf293"
-        },
-        "linux-x64": {
-          "url": "https://github.com/COINLOGY/diakitw/releases/download/v1.0.1/diakitw-1.0.1-linux-x64.tar.gz",
-          "size": 124049541,
-          "sha256": "e8913437ea19d7864ebd89e920ebd41ec478db117fd84df9dccc994bcd6e3f8f"
-        }
-      }
-    },
-    {
-      "version": "0.5.6",
-      "build": 56,
-      "channel": "stable",
-      "notes": "macOS: стрелки направления передачи перенесены вправо от значения скорости и обозначения K/M в строке меню (например, 5.2K↓ 12.4M↑). Windows, Linux, Android и iOS остаются на прежних версиях. Установка вручную; подпись ad-hoc, без нотариализации.",
-      "assets": {
-        "macos-arm64": {
-          "url": "https://github.com/COINLOGY/diakitw/releases/download/v0.5.6/diakitw-0.5.6-macos-arm64.dmg",
-          "size": 1593991,
-          "sha256": "6dee475414c194d69e3635f22445c4cb027ca8868a7c3e99f01d6b20a6dbc1ba"
-        },
-        "macos-x86_64": {
-          "url": "https://github.com/COINLOGY/diakitw/releases/download/v0.5.6/diakitw-0.5.6-macos-x86_64.dmg",
-          "size": 1723342,
-          "sha256": "c72df7c6de13bc0205e65b2ab8389990e67fffbc967b34a10799e4dd878c0a74"
-        }
-      }
-    },
-    {
-      "version": "0.5.6",
-      "build": 56,
-      "channel": "preview",
-      "notes": "macOS: стрелки направления передачи перенесены вправо от значения скорости и обозначения K/M в строке меню (например, 5.2K↓ 12.4M↑). Windows, Linux, Android и iOS остаются на прежних версиях. Установка вручную; подпись ad-hoc, без нотариализации.",
-      "assets": {
-        "macos-arm64": {
-          "url": "https://github.com/COINLOGY/diakitw/releases/download/v0.5.6/diakitw-0.5.6-macos-arm64.dmg",
-          "size": 1593991,
-          "sha256": "6dee475414c194d69e3635f22445c4cb027ca8868a7c3e99f01d6b20a6dbc1ba"
-        },
-        "macos-x86_64": {
-          "url": "https://github.com/COINLOGY/diakitw/releases/download/v0.5.6/diakitw-0.5.6-macos-x86_64.dmg",
-          "size": 1723342,
-          "sha256": "c72df7c6de13bc0205e65b2ab8389990e67fffbc967b34a10799e4dd878c0a74"
-        }
-      }
-    },
-    {
-      "version": "0.5.5",
-      "build": 55,
-      "channel": "stable",
-      "notes": "diakitw 0.5.5a. Android: НОВЫЙ ключ. Старое приложение необходимо удалить; данные, настройки и история могут потеряться. Обновление поверх невозможно. Следующие версии используют этот же ключ. NEW signing key: uninstall the old Android app first; data, settings and history may be lost. No in-place upgrade; subsequent versions use this same key. Mobile: одна кнопка Старт / single Start; HTTP ping RTT (ms), JSON reports. Manual installation only. iOS unsigned archives are not offered.",
-      "assets": {
-        "windows-x64": {
-          "url": "https://github.com/COINLOGY/diakitw/releases/download/v0.5.5/diakitw-0.5.5a-windows-x64.zip",
-          "size": 158117257,
-          "sha256": "70deeaf563255a3c6c345315eab103e775f27c1735b3e8d1b668b1515c356d71"
-        },
-        "linux-x64": {
-          "url": "https://github.com/COINLOGY/diakitw/releases/download/v0.5.5/diakitw-0.5.5a-linux-x64.tar.gz",
-          "size": 124055319,
-          "sha256": "76dbdcae5ea77aa62014c396d65bf80983384c34e3a3fdac351e1989d65e00ab"
-        },
-        "android": {
-          "url": "https://github.com/COINLOGY/diakitw/releases/download/v0.5.5/diakitw-android-0.5.5a-candidate.apk",
-          "size": 119567,
-          "sha256": "9a1dd47ac3e5d2e4effc9b3d673abc6c43a97dece42c9d4051853f9764af8ccb"
-        },
-        "macos-arm64": {
-          "url": "https://github.com/COINLOGY/diakitw/releases/download/v0.5.5/diakitw-0.5.5-macos-arm64.dmg",
-          "size": 1593204,
-          "sha256": "cfcffb59c212d041482c52aed58f401847a57d35458a93d4e3aeb1dd875909e0"
-        },
-        "macos-x86_64": {
-          "url": "https://github.com/COINLOGY/diakitw/releases/download/v0.5.5/diakitw-0.5.5-macos-x86_64.dmg",
-          "size": 1703956,
-          "sha256": "b3c440c0945a87a1891e2b51c1a9f3a721c52e9c00412f11a12c7191af6bb72c"
+          "url": "https://github.com/COINLOGY/diakitw/releases/download/v1.1.1/diakitw-1.1.1-linux-x64.tar.gz",
+          "size": 124397789,
+          "sha256": "d2fb4f7060669e81006824cd1688ee8f509bd6476dabc14d7d3a40558d505d07"
         }
       }
     }
