@@ -154,13 +154,12 @@ public struct ServerState {
    if bounded.compactMap({ $0 }).isEmpty { trafficByInterface.removeValue(forKey: name) }
    else { trafficByInterface[name] = bounded }
   }
-  // cpuHistory — значения без меток времени: держим их ровно по окну loadHistory,
-  // иначе два ряда одной истории расходятся по длине.
-  cpuHistory = Array(cpuHistory.suffix(loadHistory.count))
   trafficHistory = ServerState.trim(trafficHistory, newest: newest, timestamp: { $0.sampledAt })
   loadHistory = ServerState.trim(loadHistory, newest: newest, timestamp: { $0.sampledAt })
   diskHistory = ServerState.trim(diskHistory, newest: newest, timestamp: { $0.sampledAt })
   uptimeHistory = Array(uptimeHistory.suffix(ServerState.historyLimit))
+  // Только после обрезки loadHistory: иначе значения отстают от окна на одну точку.
+  cpuHistory = Array(cpuHistory.suffix(loadHistory.count))
   let dayFloor = now - 86_400
   failureTimes = failureTimes.filter { $0 >= dayFloor }
   rebootTimes = rebootTimes.filter { $0 >= dayFloor }
