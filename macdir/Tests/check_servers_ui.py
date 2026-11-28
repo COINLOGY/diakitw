@@ -47,4 +47,7 @@ assert 'chartAxisLabels(top: "100%", middle: "50%", bottom: "0%"' in s, 'CPU axi
 assert 'chartAxisLabels(top: axisRate(scale), middle: axisRate(scale / 2), bottom: "0"' in s, 'network axis must use the period maximum'
 assert 'private func axisRate(' in s and 'private func chartAxisLabels(' in s
 assert "Text(clock(now - range.seconds / 2))" in s, 'time axis needs a middle tick'
+# Единицы в компактной подписи: без буквы «14.0↓» не отличить МБ от КБ.
+assert 'presentation.unit == "MiB" ? "М" : "К"' in s, 'compact rate must state М or К before the arrow'
+assert 'compactRate(rx) + "↓"' in s
 print('Servers UI wiring passed (not rendered UI)')

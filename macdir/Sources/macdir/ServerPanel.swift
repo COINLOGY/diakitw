@@ -701,7 +701,9 @@ private func axisRate(_ value: Double) -> String {
 /// Number only, for the compact chart title: "7.5", not "7.5 К/с".
 private func compactRate(_ value: Double?) -> String {
  let presentation = NetworkPresentation(value)
- return presentation.available ? presentation.displayNumber : "—"
+ guard presentation.available else { return "—" }
+ // Без буквы «14.0↓» не говорит ничего: мегабайты это или килобайты.
+ return presentation.displayNumber + (presentation.unit == "MiB" ? "М" : "К")
 }
 
 /// Light quarter grid behind both trend charts: 25/50/75 % of the plot plus a
@@ -927,7 +929,7 @@ private struct ServerNetworkActivity: View {
        }
        drawChartTip(context, size: size, at: x,
                     lines: [chartTimeLabel(nearest.sampledAt),
-                            "↓ " + chartRateText(nearest.received) + "   ↑ " + chartRateText(nearest.sent)],
+                            chartRateText(nearest.received) + " ↓   " + chartRateText(nearest.sent) + " ↑"],
                     accent: InstrumentTheme.cyan)
       }
      }

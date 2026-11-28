@@ -33,7 +33,7 @@ assert servers.count('@State private var hoverX: CGFloat?') == 2, 'нужны о
 assert servers.count('.chartHoverTracking($hoverX)') == 2
 assert servers.count('chartTimeLabel(nearest.sampledAt)') == 2, 'время замера на обоих графиках'
 assert '"CPU " + MetricPresentation.percent(nearest.percent)' in servers
-assert '"↓ " + chartRateText(nearest.received)' in servers
+assert 'chartRateText(nearest.received) + " ↓' in servers, 'единица перед стрелкой, как в остальном интерфейсе'
 assert servers.count('drawChartDot(') >= 3, 'точка на приёме и на отдаче'
 assert 'let measured = readings.compactMap { $0 }.filter { $0.percent != nil }' in servers
 assert 'let measured = readings.compactMap { $0 }.filter { $0.hasMeasurement }' in servers
@@ -41,7 +41,7 @@ assert 'let measured = readings.compactMap { $0 }.filter { $0.hasMeasurement }' 
 # --- панель «Этот Mac»: сетевой график ---
 assert mac.count('.chartHoverTracking($hoverX)') == 1
 assert 'chartTimeLabel(nearest.time)' in mac
-assert '"↓ " + chartRateText(nearest.received)' in mac
+assert 'chartRateText(nearest.received) + " ↓' in mac
 assert 'drawChartDot(context, x: x, y: baseline' in mac
 
 print('Подсказка под курсором: время и значение на графиках обеих панелей проверены')

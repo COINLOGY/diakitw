@@ -49,7 +49,7 @@ func drawChartTip(_ context: GraphicsContext, size: CGSize, at x: CGFloat, lines
  guard !lines.isEmpty, size.width > 20 else { return }
  let texts = lines.map { line in
   context.resolve(Text(line)
-   .font(.system(size: 10, weight: .semibold, design: .monospaced))
+   .font(.system(size: 11, weight: .semibold, design: .monospaced))
    .foregroundStyle(Color.primary))
  }
  let measured = texts.map { $0.measure(in: CGSize(width: 260, height: 40)) }

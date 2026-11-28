@@ -79,7 +79,7 @@ struct TrafficChart: View {
      }
      drawChartTip(context, size: size, at: x,
                   lines: [chartTimeLabel(nearest.time),
-                          "↓ " + chartRateText(nearest.received) + "   ↑ " + chartRateText(nearest.sent)],
+                          chartRateText(nearest.received) + " ↓   " + chartRateText(nearest.sent) + " ↑"],
                   accent: receiveColor)
     }
    }
