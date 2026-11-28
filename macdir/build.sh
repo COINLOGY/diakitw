@@ -46,7 +46,12 @@ python3 Tests/check_final_brand.py
 python3 Tests/check_diagnostic_p0_ui.py
 python3 Tests/check_metric_pairs.py
 python3 Tests/check_release_artifacts.py
-swift build --jobs 2 -c release --triple arm64-apple-macosx14.0 --sdk "$(xcrun --sdk macosx --show-sdk-path)" -Xswiftc -file-prefix-map -Xswiftc "$PWD=/diakitw-src" -Xswiftc -debug-prefix-map -Xswiftc "$PWD=/diakitw-src"
+# --build-system native обязателен: от него зависит раскладка артефактов.
+# Без него модуль ядра уезжает в .build/out/..., а swiftc-проверки ниже ищут
+# его в .build/release/Modules и падают с "no such module 'MacdirCore'".
+# Предупреждение SwiftPM об устаревании флага безвредно — убрать его можно
+# только вместе с переписыванием всех -I путей.
+swift build --jobs 2 --build-system native -c release --triple arm64-apple-macosx14.0 --sdk "$(xcrun --sdk macosx --show-sdk-path)" -Xswiftc -file-prefix-map -Xswiftc "$PWD=/diakitw-src" -Xswiftc -debug-prefix-map -Xswiftc "$PWD=/diakitw-src"
  swiftc -j 2 -parse-as-library Tests/battery_cycles_checks.swift -I .build/release/Modules .build/release/MacdirCore.build/*.o -o evidence/diakitw-1.0.7/battery-cycles-checks
  evidence/diakitw-1.0.7/battery-cycles-checks
 .build/release/CoreChecks

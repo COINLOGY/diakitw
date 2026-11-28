@@ -76,4 +76,7 @@ class ArtifactChecks(unittest.TestCase):
         self.assertNotIn('servers.json', p)
         self.assertIn('README-diakitw-1.0.7-RU.txt', p)
 
-if __name__ == '__main__': unittest.main()
+if __name__ == '__main__': unittest.main()# Флаг нужен: без него модуль ядра оказывается в .build/out и
+# последующие swiftc-проверки не находят MacdirCore.
+assert '--build-system native' in (p/'build.sh').read_text(), 'build.sh must keep the native build layout'
+
