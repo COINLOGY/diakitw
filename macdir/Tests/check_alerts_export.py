@@ -50,6 +50,8 @@ assert 'ISO8601DateFormatter()' in export
 assert 'joined(separator: ",")' in export
 
 # --- уведомления macOS ---
+assert 'import MacdirCore' in notifier, 'без импорта ядра типы оповещений не видны'
+assert 'import MacdirCore' in chips
 assert 'UNUserNotificationCenter' in notifier
 assert 'requestAuthorization(options: [.alert, .sound])' in notifier
 assert 'UNNotificationRequest(identifier:' in notifier

@@ -1,5 +1,6 @@
 import Foundation
 import UserNotifications
+import MacdirCore
 
 /// Локальные уведомления macOS. Приложение само сообщает о проблеме,
 /// поэтому не нужно держать окно открытым, чтобы узнать о падении сервера.

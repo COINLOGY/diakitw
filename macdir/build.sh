@@ -46,7 +46,7 @@ python3 Tests/check_final_brand.py
 python3 Tests/check_diagnostic_p0_ui.py
 python3 Tests/check_metric_pairs.py
 python3 Tests/check_release_artifacts.py
-swift build --jobs 2 --build-system native -c release --triple arm64-apple-macosx14.0 --sdk "$(xcrun --sdk macosx --show-sdk-path)" -Xswiftc -file-prefix-map -Xswiftc "$PWD=/diakitw-src" -Xswiftc -debug-prefix-map -Xswiftc "$PWD=/diakitw-src"
+swift build --jobs 2 -c release --triple arm64-apple-macosx14.0 --sdk "$(xcrun --sdk macosx --show-sdk-path)" -Xswiftc -file-prefix-map -Xswiftc "$PWD=/diakitw-src" -Xswiftc -debug-prefix-map -Xswiftc "$PWD=/diakitw-src"
  swiftc -j 2 -parse-as-library Tests/battery_cycles_checks.swift -I .build/release/Modules .build/release/MacdirCore.build/*.o -o evidence/diakitw-1.0.7/battery-cycles-checks
  evidence/diakitw-1.0.7/battery-cycles-checks
 .build/release/CoreChecks

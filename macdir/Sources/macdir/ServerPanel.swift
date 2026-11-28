@@ -865,7 +865,7 @@ private struct ServerNetworkActivity: View {
       .foregroundStyle(InstrumentTheme.cyan)
     }
    }
-   if let name, readings.contains(where: { $0?.hasMeasurement == true }) {
+   if readings.contains(where: { $0?.hasMeasurement == true }) {
     HStack(alignment: .top, spacing: 3) {
      chartAxisLabels(top: axisRate(scale), middle: axisRate(scale / 2), bottom: "0", compact: compact)
      Canvas { context, size in
