@@ -45,11 +45,11 @@ for variant in portrait landscape large-font; do
   esac
   adb shell am force-stop app.diakitw || :
   check_offline || { echo 'FAIL network returned before native probe' >&2; exit 1; }
-  report="${RUNNER_TEMP:-/tmp}/android-107-${variant}.txt"
-  if ! adb shell am instrument -w -e mode release107 -e orientation "$expected" -e minFontScale "$font" app.diakitw.test/app.diakitw.LayoutProbe > "$report"; then
+  report="${RUNNER_TEMP:-/tmp}/android-111-${variant}.txt"
+  if ! adb shell am instrument -w -e mode release111 -e orientation "$expected" -e minFontScale "$font" app.diakitw.test/app.diakitw.LayoutProbe > "$report"; then
     python3 ci/safe-probe-summary.py "$report" >&2; exit 1
   fi
-  if ! grep -Fq 'PASS release107 offline resources, RX/TX, disk, map visible, folder grant gate' "$report" || grep -Fq 'FAIL ' "$report" || grep -Fq 'INSTRUMENTATION_FAILED' "$report"; then
+  if ! grep -Fq 'PASS release111 offline resources, RX/TX, disk, map visible, folder grant gate' "$report" || grep -Fq 'FAIL ' "$report" || grep -Fq 'INSTRUMENTATION_FAILED' "$report"; then
     python3 ci/safe-probe-summary.py "$report" >&2; exit 1
   fi
   check_offline || { echo 'FAIL network returned during native probe' >&2; exit 1; }
@@ -63,7 +63,7 @@ adb shell settings put system font_scale 1.0
 check_offline || { echo 'FAIL network returned during display reset' >&2; exit 1; }
 # The existing entry route checks the verified ISO country flag on visible compact cards.
 check_offline || { echo 'FAIL network returned before entry probe' >&2; exit 1; }
-report="${RUNNER_TEMP:-/tmp}/android-107-entry.txt"
+report="${RUNNER_TEMP:-/tmp}/android-111-entry.txt"
 if ! adb shell am instrument -w -e mode entry app.diakitw.test/app.diakitw.LayoutProbe > "$report"; then
   python3 ci/safe-probe-summary.py "$report" >&2; exit 1
 fi
@@ -76,17 +76,17 @@ check_offline || { echo 'FAIL network returned during entry probe' >&2; exit 1; 
 # Debug and release have different signatures, so replace rather than update.
 adb shell am force-stop app.diakitw || :
 adb uninstall app.diakitw >/dev/null
-signed=release-candidate/diakitw-android-1.0.7.apk
+signed=release-candidate/diakitw-android-1.1.1.apk
 [ -s "$signed" ] || { echo 'FAIL signed candidate missing' >&2; exit 1; }
 check_offline || { echo 'FAIL network returned before signed launch' >&2; exit 1; }
 adb install "$signed" >/dev/null
-adb shell am start -W -n app.diakitw/.MainActivity > "${RUNNER_TEMP:?}/signed-107-launch.txt"
+adb shell am start -W -n app.diakitw/.MainActivity > "${RUNNER_TEMP:?}/signed-111-launch.txt"
 sleep 3
 [ -n "$(adb shell pidof app.diakitw | tr -d '\r')" ] || { echo 'FAIL signed release process exited' >&2; exit 1; }
 package=$(adb shell dumpsys package app.diakitw | tr -d '\r')
-printf '%s\n' "$package" | grep -F 'versionCode=107' >/dev/null
-printf '%s\n' "$package" | grep -F 'versionName=1.0.7' >/dev/null
+printf '%s\n' "$package" | grep -F 'versionCode=111' >/dev/null
+printf '%s\n' "$package" | grep -F 'versionName=1.1.1' >/dev/null
 check_offline || { echo 'FAIL network returned during signed launch' >&2; exit 1; }
 # Keep only bounded, non-sensitive evidence; never upload logs with IP fields.
-printf 'PASS signed release APK installed and launched offline; build 107; source %s\n' "$GITHUB_SHA" > release-candidate/signed-107-smoke.txt
-printf 'PASS native DEBUG probes: release107 portrait, landscape, large-font; measured RX/TX, scoped disk, map, offline fixtures. PASS signed RELEASE smoke: installed and launched offline; source %s\n' "$GITHUB_SHA" > release-candidate/native-107-status.txt
+printf 'PASS signed release APK installed and launched offline; build 111; source %s\n' "$GITHUB_SHA" > release-candidate/signed-111-smoke.txt
+printf 'PASS native DEBUG probes: release111 portrait, landscape, large-font; measured RX/TX, scoped disk, map, offline fixtures. PASS signed RELEASE smoke: installed and launched offline; source %s\n' "$GITHUB_SHA" > release-candidate/native-111-status.txt

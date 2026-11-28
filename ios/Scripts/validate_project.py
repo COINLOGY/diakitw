@@ -19,7 +19,7 @@ assert set(paths)=={'Sources/'+n+'.swift' for n in ['Dial','NetworkPolicy','Boun
 assert all(p.startswith('Sources/') for p in paths)
 assert not any('Tests' in p for p in paths)
 info=plistlib.loads((root/'Info.plist').read_bytes())
-assert info['CFBundleShortVersionString']=='1.0.7' and info['CFBundleVersion']=='107'
+assert info['CFBundleShortVersionString']=='1.1.1' and info['CFBundleVersion']=='111'
 assert 'NSAppTransportSecurity' not in info
 scheme=ET.parse(root/'diakitw.xcodeproj/xcshareddata/xcschemes/diakitw.xcscheme')
 for ref in scheme.iter('BuildableReference'): assert ref.attrib['BlueprintIdentifier'] in objects

@@ -10,7 +10,7 @@ assert v.index('Text(NetworkPolicy.trafficNotice)') < v.index('if model.running 
 assert 'Text(NetworkPolicy.latencyReport(model.latencyMS))' in v, 'real latency missing from report'
 assert 'не ICMP' in (r/'Sources/NetworkPolicy.swift').read_text()
 assert 'latencyMS = nil' in m, 'new runs must clear old latency'
-assert '1.0.7 · iOS · build 107' in v
+assert '1.1.1 · iOS · build 111' in v
 info = plistlib.loads((r/'Info.plist').read_bytes())
-assert (info['CFBundleShortVersionString'], info['CFBundleVersion']) == ('1.0.7', '107')
+assert (info['CFBundleShortVersionString'], info['CFBundleVersion']) == ('1.1.1', '111')
 print('PASS: one direct Start, visible prior traffic consent, HTTP PING report, display/platform versions')

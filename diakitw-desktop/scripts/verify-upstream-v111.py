@@ -15,7 +15,7 @@ report=[]
 for platform in ['win32','linux']:
  name=f'electron-v45.2.3-{platform}-x64.zip';candidates=list((root/'.electron-cache').rglob(name));assert len(candidates)==1
  p=candidates[0];sha=digest(p.read_bytes());assert sha==expected[name]
- bundle=root/f'bundles-v107/diakitw-{platform}-x64';checked=[]
+ bundle=root/f'bundles-v111/diakitw-{platform}-x64';checked=[]
  with zipfile.ZipFile(p) as z:
   assert z.testzip() is None
   for info in z.infolist():
@@ -28,4 +28,4 @@ for platform in ['win32','linux']:
    checked.append({'file':target,'verification':kind,'sha256':digest(local)})
  report.append({'platform':platform,'officialRuntimeZip':name,'sha256':sha,'matchesOfficialSHASUMS':True,'bundleRuntime':checked})
 result={'source':'https://github.com/electron/electron/releases/download/v45.2.3/SHASUMS256.txt','sourceMode':'Previously fetched official checksum file, rechecked offline; no geolocation network request','checksumsFileSHA256':digest(checksums.read_bytes()),'artifacts':report}
-(root/'evidence/v107/upstream-verification.json').write_text(json.dumps(result,indent=2)+'\n');print(json.dumps({r['platform']:{'sha256':r['sha256'],'runtimeFilesVerified':len(r['bundleRuntime'])} for r in report},indent=2))
+(root/'evidence/v111/upstream-verification.json').write_text(json.dumps(result,indent=2)+'\n');print(json.dumps({r['platform']:{'sha256':r['sha256'],'runtimeFilesVerified':len(r['bundleRuntime'])} for r in report},indent=2))

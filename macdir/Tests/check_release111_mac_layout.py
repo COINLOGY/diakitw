@@ -40,17 +40,17 @@ class DashboardLayoutTests(unittest.TestCase):
         self.assertIn('snapshot.validatedDiskFree', overview)
         self.assertNotIn('bytes(snapshot.diskFree)', overview)
 
-    def test_diagnostics_fixture_is_written_in_the_107_evidence_directory(self):
+    def test_diagnostics_fixture_is_written_in_the_111_evidence_directory(self):
         harness = (ROOT / 'Tests/render_diagnostics.swift').read_text()
-        self.assertIn(r'evidence/diakitw-1.0.7/\(suffix)', harness)
+        self.assertIn(r'evidence/diakitw-1.1.1/\(suffix)', harness)
         self.assertNotIn('evidence/diakitw-1.0.6/', harness)
 
-    def test_geo_transport_fixture_links_in_the_107_evidence_directory(self):
+    def test_geo_transport_fixture_links_in_the_111_evidence_directory(self):
         script = (ROOT / 'Tests/check_geo_transport.py').read_text()
-        self.assertIn("evidence/diakitw-1.0.7/transport-checks", script)
+        self.assertIn("evidence/diakitw-1.1.1/transport-checks", script)
         self.assertNotIn("evidence/diakitw-1.0.6/transport-checks", script)
 
-    def test_active_gauge_guard_tracks_compact_107_without_a_battery_tile(self):
+    def test_active_gauge_guard_tracks_compact_111_without_a_battery_tile(self):
         guard = (ROOT / 'Tests/check_gauges.py').read_text()
         self.assertIn("main.count('GaugeTile(') == 6", guard)
         self.assertNotIn("model.snapshot.batteryPercent' in main", guard)

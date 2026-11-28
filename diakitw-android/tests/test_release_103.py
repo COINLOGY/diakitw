@@ -12,7 +12,7 @@ class Release103(unittest.TestCase):
   self.assertIn('persistentMap.update(ipSnapshot',s)
   self.assertIn('Тест интернета',s)
  def test_current_version_and_historical_candidate(self):
-  self.assertIn("versionCode 107; versionName '1.0.7'",(ROOT/'diakitw-android/app/build.gradle').read_text())
+  self.assertIn("versionCode 111; versionName '1.1.1'",(ROOT/'diakitw-android/app/build.gradle').read_text())
   workflow=(ROOT/'.github/workflows/android-release-103.yml').read_text()
   self.assertIn('feat/release-103',workflow)
   self.assertIn('build-signed-103.sh',workflow)

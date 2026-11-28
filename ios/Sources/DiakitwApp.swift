@@ -34,7 +34,7 @@ struct Instrument: View {
                 var band = Path(); band.move(to: point(f, radius)); band.addLine(to: point(f, radius - 5 * 7/9))
                 context.stroke(band, with: .color(color), lineWidth: 2)
                 if tick % 2 == 0 {
-                    var mark = Path(); mark.move(to: point(f, radius * 111/114)); mark.addLine(to: point(f, radius * (tick % 20 == 0 ? 103 : 108)/114))
+                    var mark = Path(); mark.move(to: point(f, radius * 111/114)); mark.addLine(to: point(f, radius * (tick % 20 == 0 ? 103 : 111)/114))
                     context.stroke(mark, with: .color(Theme.muted), lineWidth: tick % 20 == 0 ? 1.5 : 1)
                 }
             }
@@ -232,7 +232,7 @@ struct ContentView: View {
                     .background(Theme.panel, in: RoundedRectangle(cornerRadius: 18))
                 UpdateSection(checker: updates)
                 }
-                Text("1.0.7 · iOS · build 107").font(.caption2).foregroundStyle(Theme.muted)
+                Text("1.1.1 · iOS · build 111").font(.caption2).foregroundStyle(Theme.muted)
             }.padding(16).frame(maxWidth: 1000)
                 .frame(maxWidth: .infinity)
         }

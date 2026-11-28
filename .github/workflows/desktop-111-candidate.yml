@@ -1,13 +1,13 @@
-name: Desktop 1.0.7 portable candidates (not a release)
+name: Desktop 1.1.1 portable candidates (not a release)
 on:
   push:
-    branches: [feat/release-107-candidate]
+    branches: [feat/release-111-candidate]
   workflow_dispatch:
 permissions:
   contents: read
 jobs:
   desktop-candidate:
-    if: github.ref == 'refs/heads/feat/release-107-candidate'
+    if: github.ref == 'refs/heads/feat/release-111-candidate'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     defaults:
@@ -27,36 +27,36 @@ jobs:
           npm ci --no-audit --no-fund
           npm ci --prefix app --omit=dev --omit=optional --ignore-scripts --no-audit --no-fund
           npm test
-          mkdir -p evidence/v107 dist
-          node scripts/build-v107.mjs win32
-          node scripts/build-v107.mjs linux
-          node scripts/normalize-pe-v107.mjs
-          node scripts/verify-bundles-v107.mjs
-          python3 scripts/verify-upstream-v107.py
-          python3 scripts/archive-v107.py
-          python3 scripts/verify-archives-v107.py
-          printf '%s\n' "$GITHUB_SHA" > evidence/v107/source-commit.txt
-          sha256sum dist/* > evidence/v107/candidate-sha256.txt
+          mkdir -p evidence/v111 dist
+          node scripts/build-v111.mjs win32
+          node scripts/build-v111.mjs linux
+          node scripts/normalize-pe-v111.mjs
+          node scripts/verify-bundles-v111.mjs
+          python3 scripts/verify-upstream-v111.py
+          python3 scripts/archive-v111.py
+          python3 scripts/verify-archives-v111.py
+          printf '%s\n' "$GITHUB_SHA" > evidence/v111/source-commit.txt
+          sha256sum dist/* > evidence/v111/candidate-sha256.txt
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: diakitw-1.0.7-windows-x64-${{ github.sha }}
-          path: diakitw-desktop/dist/diakitw-1.0.7-windows-x64.zip
+          name: diakitw-1.1.1-windows-x64-${{ github.sha }}
+          path: diakitw-desktop/dist/diakitw-1.1.1-windows-x64.zip
           if-no-files-found: error
           retention-days: 14
           compression-level: 0
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: diakitw-1.0.7-linux-x64-${{ github.sha }}
-          path: diakitw-desktop/dist/diakitw-1.0.7-linux-x64.tar.gz
+          name: diakitw-1.1.1-linux-x64-${{ github.sha }}
+          path: diakitw-desktop/dist/diakitw-1.1.1-linux-x64.tar.gz
           if-no-files-found: error
           retention-days: 14
           compression-level: 0
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: diakitw-1.0.7-desktop-evidence-${{ github.sha }}
+          name: diakitw-1.1.1-desktop-evidence-${{ github.sha }}
           path: |
-            diakitw-desktop/evidence/v107/*
-            diakitw-desktop/dist/release-manifest-1.0.7.json
-            diakitw-desktop/dist/SHA256SUMS-1.0.7.txt
+            diakitw-desktop/evidence/v111/*
+            diakitw-desktop/dist/release-manifest-1.1.1.json
+            diakitw-desktop/dist/SHA256SUMS-1.1.1.txt
           if-no-files-found: error
           retention-days: 14

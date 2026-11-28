@@ -1,7 +1,7 @@
 import pathlib,tarfile,zipfile,hashlib,json,shutil,stat,struct
 root=pathlib.Path(__file__).resolve().parents[1]
 (root/'dist').mkdir(exist_ok=True)
-(root/'evidence/v107').mkdir(parents=True,exist_ok=True)
+(root/'evidence/v111').mkdir(parents=True,exist_ok=True)
 def digest(path):
  h=hashlib.sha256()
  with path.open('rb') as f:
@@ -13,20 +13,20 @@ def portable_metadata(member):
  member.pax_headers={}
  return member
 results=[]
-for name in ['diakitw-1.0.7-windows-x64.zip','diakitw-1.0.7-linux-x64.tar.gz','release-manifest-1.0.7.json','SHA256SUMS-1.0.7.txt']:
+for name in ['diakitw-1.1.1-windows-x64.zip','diakitw-1.1.1-linux-x64.tar.gz','release-manifest-1.1.1.json','SHA256SUMS-1.1.1.txt']:
  if (root/'dist'/name).exists():raise RuntimeError('Refusing overwrite '+name)
 for platform,ext in [('win32','zip'),('linux','tar.gz')]:
- folder=root/'bundles-v107'/('diakitw-'+platform+'-x64')
+ folder=root/'bundles-v111'/('diakitw-'+platform+'-x64')
  # Portable candidate: no previous-release documentation is copied.
- title='diakitw-1.0.7-'+('windows' if platform=='win32' else 'linux')+'-x64'
+ title='diakitw-1.1.1-'+('windows' if platform=='win32' else 'linux')+'-x64'
  dest=root/'dist'/(title+'.'+ext)
  if dest.exists():raise RuntimeError('Refusing overwrite '+str(dest))
  notice=folder/'README-CANDIDATE.txt'
  if notice.exists():raise RuntimeError('Refusing overwrite '+str(notice))
  if platform=='win32':
-  notice.write_text('diakitw 1.0.7 · предварительная сборка Windows x64.\nEXE неподписан (нет доверенной Authenticode-подписи); SmartScreen может заблокировать запуск. Не считать стабильным выпуском и не распространять массово. Сверяйте SHA-256 архива с evidence этого запуска GitHub Actions.\n',encoding='utf-8')
+  notice.write_text('diakitw 1.1.1 · предварительная сборка Windows x64.\nEXE неподписан (нет доверенной Authenticode-подписи); SmartScreen может заблокировать запуск. Не считать стабильным выпуском и не распространять массово. Сверяйте SHA-256 архива с evidence этого запуска GitHub Actions.\n',encoding='utf-8')
  else:
-  notice.write_text('diakitw 1.0.7 · предварительная переносимая сборка Linux x64.\nЭто не подписанный пакет и не автоустановщик. Сверяйте SHA-256 архива с evidence этого запуска GitHub Actions.\n',encoding='utf-8')
+  notice.write_text('diakitw 1.1.1 · предварительная переносимая сборка Linux x64.\nЭто не подписанный пакет и не автоустановщик. Сверяйте SHA-256 архива с evidence этого запуска GitHub Actions.\n',encoding='utf-8')
  files=sorted(p for p in folder.rglob('*') if p.is_file())
  assert not any(p.suffix=='.node' for p in files)
  if ext=='zip':
@@ -43,8 +43,8 @@ for platform,ext in [('win32','zip'),('linux','tar.gz')]:
    assert not any(m.mode&0o6000 for m in members),'No setuid/setgid allowed'
  assert all(not pathlib.PurePosixPath(n).is_absolute() and '..' not in pathlib.PurePosixPath(n).parts for n in names)
  for n in ['resources/app.asar','LICENSE','LICENSES.chromium.html']:assert title+'/'+n in names
- (root/'evidence/v107'/(title+'-manifest.txt')).write_text('\n'.join(names)+'\n')
- results.append({'platform':platform,'arch':'x64','version':'1.0.7','file':dest.name,'bytes':dest.stat().st_size,'sha256':digest(dest),'archive_entries':len(names),'runtime_tested_on_target':False})
-manifest={'product':'diakitw','version':'1.0.7','build':107,'displayVersion':'1.0.7','tag':'v1.0.7','electron':'45.2.3','artifacts':results,'verification':'candidate; target OS runtime pending'}
-(root/'dist/release-manifest-1.0.7.json').write_text(json.dumps(manifest,indent=2)+'\n')
-(root/'dist/SHA256SUMS-1.0.7.txt').write_text(''.join(r['sha256']+'  '+pathlib.Path(r['file']).name+'\n' for r in results));print(json.dumps(manifest,indent=2))
+ (root/'evidence/v111'/(title+'-manifest.txt')).write_text('\n'.join(names)+'\n')
+ results.append({'platform':platform,'arch':'x64','version':'1.1.1','file':dest.name,'bytes':dest.stat().st_size,'sha256':digest(dest),'archive_entries':len(names),'runtime_tested_on_target':False})
+manifest={'product':'diakitw','version':'1.1.1','build':111,'displayVersion':'1.1.1','tag':'v1.1.1','electron':'45.2.3','artifacts':results,'verification':'candidate; target OS runtime pending'}
+(root/'dist/release-manifest-1.1.1.json').write_text(json.dumps(manifest,indent=2)+'\n')
+(root/'dist/SHA256SUMS-1.1.1.txt').write_text(''.join(r['sha256']+'  '+pathlib.Path(r['file']).name+'\n' for r in results));print(json.dumps(manifest,indent=2))

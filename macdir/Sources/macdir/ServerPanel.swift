@@ -590,7 +590,7 @@ private struct ServerFleetRow: View {
       ServerNetworkActivity(state: state, sample: sample, now: now, range: range, compact: true)
        .frame(maxWidth: .infinity).frame(height: side)
      }.frame(maxWidth: .infinity, alignment: .leading)
-    }.frame(height: 108)
+    }.frame(height: 111)
    }.padding(10).frame(maxWidth: .infinity, alignment: .leading)
     .background(.quaternary.opacity(0.25), in: RoundedRectangle(cornerRadius: 10))
   }.buttonStyle(.plain).accessibilityLabel(config.name + ", " + (sample == nil ? "Нет свежих данных" : "На связи"))

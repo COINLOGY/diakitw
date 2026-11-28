@@ -1,9 +1,9 @@
-name: macOS 1.0.7 build-only
+name: macOS 1.1.1 build-only
 
 on:
   push:
-    branches: [feat/release-107-candidate]
-    paths: ["macdir/**", ".github/workflows/macos-build-107.yml"]
+    branches: [feat/release-111-candidate]
+    paths: ["macdir/**", ".github/workflows/macos-build-111.yml"]
   workflow_dispatch:
     inputs:
       scope:
@@ -17,7 +17,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: macos-107-build-only
+  group: macos-111-build-only
   cancel-in-progress: false
 
 jobs:
@@ -44,16 +44,16 @@ jobs:
         timeout-minutes: 3
 
         run: |
-          mkdir -p "$GITHUB_WORKSPACE/.ci-scratch" evidence/diakitw-1.0.7
+          mkdir -p "$GITHUB_WORKSPACE/.ci-scratch" evidence/diakitw-1.1.1
           export TMPDIR="$(cd "$GITHUB_WORKSPACE/.ci-scratch" && pwd -P)"
-          { xcodebuild -version; swift --version; sysctl -n hw.logicalcpu; python3 Tests/test_server_management_model.py "$TMPDIR"; } 2>&1 | tee evidence/diakitw-1.0.7/server-model.log
+          { xcodebuild -version; swift --version; sysctl -n hw.logicalcpu; python3 Tests/test_server_management_model.py "$TMPDIR"; } 2>&1 | tee evidence/diakitw-1.1.1/server-model.log
       - name: Focused rendered layout check
         if: inputs.scope == 'layout'
         timeout-minutes: 5
         run: |
-          mkdir -p "$GITHUB_WORKSPACE/.ci-scratch" evidence/diakitw-1.0.7
+          mkdir -p "$GITHUB_WORKSPACE/.ci-scratch" evidence/diakitw-1.1.1
           export TMPDIR="$(cd "$GITHUB_WORKSPACE/.ci-scratch" && pwd -P)"
-          { xcodebuild -version; swift --version; python3 Tests/check_layout.py 1.0.7; } 2>&1 | tee evidence/diakitw-1.0.7/layout.log
+          { xcodebuild -version; swift --version; python3 Tests/check_layout.py 1.1.1; } 2>&1 | tee evidence/diakitw-1.1.1/layout.log
       - name: Prepare ephemeral Developer ID and notary credentials
         if: inputs.scope == 'full'
         env:
@@ -74,8 +74,8 @@ jobs:
         if: inputs.scope == 'full'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4, verified upstream ref
         with:
-          name: diakitw-1.0.7-macos-arm64
-          path: macdir/dist/diakitw-1.0.7-macos-arm64.dmg
+          name: diakitw-1.1.1-macos-arm64
+          path: macdir/dist/diakitw-1.1.1-macos-arm64.dmg
           if-no-files-found: error
           retention-days: 14
           compression-level: 0
@@ -83,8 +83,8 @@ jobs:
         if: inputs.scope == 'full'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: diakitw-1.0.7-macos-x86_64
-          path: macdir/dist/diakitw-1.0.7-macos-x86_64.dmg
+          name: diakitw-1.1.1-macos-x86_64
+          path: macdir/dist/diakitw-1.1.1-macos-x86_64.dmg
           if-no-files-found: error
           retention-days: 14
           compression-level: 0
@@ -92,8 +92,8 @@ jobs:
         if: github.event_name == 'push' || inputs.scope == 'unsigned'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: diakitw-1.0.7-macos-unsigned-arm64
-          path: macdir/dist/diakitw-1.0.7-macos-unsigned-arm64.dmg
+          name: diakitw-1.1.1-macos-unsigned-arm64
+          path: macdir/dist/diakitw-1.1.1-macos-unsigned-arm64.dmg
           if-no-files-found: error
           retention-days: 14
           compression-level: 0
@@ -101,8 +101,8 @@ jobs:
         if: github.event_name == 'push' || inputs.scope == 'unsigned'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: diakitw-1.0.7-macos-unsigned-x86_64
-          path: macdir/dist/diakitw-1.0.7-macos-unsigned-x86_64.dmg
+          name: diakitw-1.1.1-macos-unsigned-x86_64
+          path: macdir/dist/diakitw-1.1.1-macos-unsigned-x86_64.dmg
           if-no-files-found: error
           retention-days: 14
           compression-level: 0
@@ -110,7 +110,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: diakitw-1.0.7-macos-evidence
+          name: diakitw-1.1.1-macos-evidence
           path: |
             macdir/evidence/**/*.log
             macdir/evidence/**/*.json

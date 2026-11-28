@@ -8,8 +8,8 @@ cd "$(dirname "$0")"
 CHECK_ONLY=""
 [[ "${1:-}" == "--check" ]] && CHECK_ONLY=1
 
-mkdir -p evidence/diakitw-1.0.7
-LOG="evidence/diakitw-1.0.7/local-build.log"
+mkdir -p evidence/diakitw-1.1.1
+LOG="evidence/diakitw-1.1.1/local-build.log"
 : > "$LOG"
 
 say() { printf '%s\n' "$*" | tee -a "$LOG"; }
@@ -65,13 +65,13 @@ export MACDIR_SIGNING_MODE=adhoc
 export GITHUB_ACTIONS=true
 export GITHUB_WORKSPACE="$(cd .. && pwd)"
 export GITHUB_SHA="$(git -C .. rev-parse HEAD 2>/dev/null || echo local)"
-export MACDIR_OUTPUT=dist/diakitw-1.0.7-unsigned-arm64
+export MACDIR_OUTPUT=dist/diakitw-1.1.1-unsigned-arm64
 export MACDIR_TEST_SCRATCH="$GITHUB_WORKSPACE/.ci-scratch"
 mkdir -p "$MACDIR_TEST_SCRATCH"
 export TMPDIR="$(cd "$MACDIR_TEST_SCRATCH" && pwd -P)"
 
-if [[ -e "$MACDIR_OUTPUT" || -e dist/diakitw-1.0.7-macos-unsigned-arm64.dmg ]]; then
-  say "ОШИБКА: артефакты прошлого запуска уже есть. Удалите dist/diakitw-1.0.7* и повторите."
+if [[ -e "$MACDIR_OUTPUT" || -e dist/diakitw-1.1.1-macos-unsigned-arm64.dmg ]]; then
+  say "ОШИБКА: артефакты прошлого запуска уже есть. Удалите dist/diakitw-1.1.1* и повторите."
   exit 4
 fi
 
