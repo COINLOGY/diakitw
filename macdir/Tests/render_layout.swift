@@ -47,7 +47,7 @@ MainActor.assumeIsolated {
  for dark in [true, false] {
  app.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
 
- for (width, height) in [(1440, 1200), (1440, 1000), (1180, 800), (1060, 740), (1060, 580), (800, 540), (800, 1400)] {
+ for (width, height) in [(1440, 1200), (2532, 1200), (1440, 1000), (1180, 800), (1060, 740), (1060, 580), (800, 540), (800, 1400)] {
   let model = Model()
   model.computerName = "Fixture Mac — синтетические данные"
   model.selectedInterface = "fixture0"
@@ -70,7 +70,7 @@ MainActor.assumeIsolated {
   model.current = root; model.crumbs = [root]; model.rows = root.children; model.tiles = Array(root.children.prefix(8))
   model.result = ScanResult(root: root); model.elapsed = "2.0 с"
   layoutFrames = [:]
-  let view = MacdirRootView(model: model).layoutProbe("hostRoot").coordinateSpace(name: "layoutHost").environment(\.colorScheme, dark ? .dark : .light).onPreferenceChange(LayoutFramesKey.self) { layoutFrames = $0 }
+  let view = ContentView(model: model).layoutProbe("hostRoot").coordinateSpace(name: "layoutHost").environment(\.colorScheme, dark ? .dark : .light).onPreferenceChange(LayoutFramesKey.self) { layoutFrames = $0 }
   let host = NSHostingView(rootView: view)
   host.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
   let window = NSWindow(contentRect: NSRect(x: -10000, y: -10000, width: width, height: height), styleMask: [.borderless], backing: .buffered, defer: false)
@@ -95,9 +95,16 @@ MainActor.assumeIsolated {
     // Production dashboard has .padding(14); available width comes from the actual clip.
     let available = clipInHost.insetBy(dx: 14, dy: 0)
     if !fillsHorizontally(content, available) || !fillsHorizontally(row, available) { failures.append(size+": dashboard/grid must fill actual available content") }
-    let gauges = layoutFrames.filter { ["resource-cpu", "resource-memory", "resource-swap", "resource-battery"].contains($0.key) }.map(\.value)
-    let occupied = gauges.reduce(CGRect.null) { $0.union($1) }
-    if occupied.minX < row.minX - 1 || occupied.maxX > row.maxX + 1 { failures.append(size+": gauges leave the row") }
+    let resources = ["resource-cpu", "resource-memory", "resource-swap", "disk-gauge"].compactMap { layoutFrames[$0] }
+    if resources.count != 4 { failures.append(size+": missing one of four resource cards") }
+    else {
+     let occupied = resources.reduce(CGRect.null) { $0.union($1) }
+     if abs(occupied.minX - row.minX) > 2 || abs(occupied.maxX - row.maxX) > 2 { failures.append(size+": four resource cards do not fill row") }
+     for (index, rect) in resources.enumerated() {
+      if rect.width < 140 || abs(rect.minY - resources[0].minY) > 2 || abs(rect.height - resources[0].height) > 2 || rect.height < 120 || rect.height > 200 { failures.append(size+": resource card not uniform or aligned \(index)") }
+      if index > 0 && abs(rect.minX - resources[index-1].maxX - 8) > 2 { failures.append(size+": resource card spacing changed \(index)") }
+     }
+    }
    } else { failures.append(size+": missing content geometry probes") }
   } else { failures.append(size+": missing geometry scroll view") }
 
@@ -107,35 +114,29 @@ MainActor.assumeIsolated {
   } else { failures.append(size+": no bitmap") }
   print(size, layoutFrames)
   if host.bounds.width != CGFloat(width) || host.bounds.height != CGFloat(height) { failures.append(size+": host exceeds requested size") }
-  // Native geometry at seven viewport sizes, both appearances, all three scrollbar styles.
-  if let resource = layoutFrames["resource-cpu"], let row = layoutFrames["gaugeRow"],
-     let rx = layoutFrames["network-rx"], let tx = layoutFrames["network-tx"],
-     let chart = layoutFrames["chart"], let disk = layoutFrames["disk-gauge"],
-     let overview = layoutFrames["disk-overview"], let table = layoutFrames["table"],
-     let map = layoutFrames["map"], let picker = layoutFrames["viewPicker"] {
-   if resource.minY < row.minY - 1 || resource.maxY > row.maxY + 1 ||
-      row.maxY > min(rx.minY, tx.minY) + 1 ||
-      max(rx.maxY, tx.maxY, chart.maxY) > min(disk.minY, overview.minY) + 1 ||
-      max(disk.maxY, overview.maxY) > min(table.minY, map.minY) + 1 ||
+  // Native geometry across intermediate and small viewport sizes, both appearances, all three scrollbar styles.
+  if let cpu = layoutFrames["resource-cpu"], let memory = layoutFrames["resource-memory"],
+     let swap = layoutFrames["resource-swap"], let disk = layoutFrames["disk-gauge"],
+     let row = layoutFrames["gaugeRow"], let rx = layoutFrames["network-rx"],
+     let tx = layoutFrames["network-tx"], let chart = layoutFrames["chart"],
+     let table = layoutFrames["table"], let map = layoutFrames["map"],
+     let picker = layoutFrames["viewPicker"] {
+   if !(cpu.minX < memory.minX && memory.minX < swap.minX && swap.minX < disk.minX) ||
+      abs(cpu.minY - disk.minY) > 2 || cpu.minY < row.minY - 2 || disk.maxY > row.maxY + 2 ||
+      row.maxY > min(rx.minY, tx.minY, chart.minY) + 2 ||
+      max(rx.maxY, tx.maxY, chart.maxY) > min(table.minY, map.minY) + 2 ||
       table.intersection(map).width > 1 || table.height < 300 || map.height < 300 {
-    failures.append(size+": resources/network/disk/folder order or lower panels overlap")
+    failures.append(size+": resource/network/folder order or lower panels overlap")
    }
-   if abs(rx.minY - tx.minY) > 1 || abs(rx.height - tx.height) > 1 ||
-      rx.intersection(tx).width > 1 || rx.width < 200 || tx.width < 200 ||
-      min(rx.minX, tx.minX, chart.minX, disk.minX, overview.minX) < 0 ||
-      max(rx.maxX, tx.maxX, chart.maxX, disk.maxX, overview.maxX) > CGFloat(width) {
-    failures.append(size+": network/disk clipped or two gauges not paired")
+   if abs(rx.minY - tx.minY) > 2 || abs(rx.minY - chart.minY) > 2 ||
+      abs(rx.width - tx.width) > 3 || abs(rx.height - chart.height) > 3 ||
+      rx.height < 120 || rx.width < 150 || chart.width < rx.width * 1.5 ||
+      abs(tx.minX - rx.maxX - 8) > 2 || abs(chart.minX - tx.maxX - 8) > 2 ||
+      max(disk.maxX, chart.maxX) > CGFloat(width) || min(disk.minX, rx.minX) < 0 {
+    failures.append(size+": network row must be a uniform compact strip")
    }
-   if chart.minY < rx.maxY - 1 && chart.minX < tx.maxX - 1 { failures.append(size+": chart must follow RX/TX without overlap") }
-   if chart.height < 84 || picker.minY < chart.maxY - 1 || disk.width < 200 || overview.width < 300 {
-    failures.append(size+": chart or disk dimensions invalid")
-   }
-   let resources = ["resource-cpu", "resource-memory", "resource-swap", "resource-battery"].compactMap { layoutFrames[$0] }
-   if resources.isEmpty || resources.contains(where: { $0.width < 230 || abs($0.height - 112) > 1 }) {
-    failures.append(size+": resource gauges compressed")
-   }
-   if let battery = layoutFrames["resource-battery"], battery.maxY > rx.minY + 1 {
-    failures.append(size+": battery below network")
+   if picker.minY < chart.maxY - 2 || chart.height < 140 {
+    failures.append(size+": chart controls or height invalid")
    }
   } else { failures.append(size+": missing dashboard section probes") }
   // Native offscreen geometry: row-major order and no horizontal clipping at 800px.
@@ -177,6 +178,34 @@ MainActor.assumeIsolated {
   print(failures.isEmpty ? "PASS: rendered first-page layout " + styleName : "FAIL: rendered first-page layout " + styleName)
   exit(failures.isEmpty ? 0 : 1)
  }
+ // Root zoom path also renders at small and intermediate widths; no SSH or disk scan.
+ for width in [800, 1060, 1180] {
+  let rootModel = Model()
+  layoutFrames = [:]
+  let zoomView = MacdirRootView(model: rootModel).frame(width: CGFloat(width), height: 600)
+   .coordinateSpace(name: "layoutHost")
+   .onPreferenceChange(LayoutFramesKey.self) { layoutFrames = $0 }
+  let root = NSHostingView(rootView: zoomView)
+  let window = NSWindow(contentRect: NSRect(x: -10000, y: -10000, width: CGFloat(width), height: 600), styleMask: [.borderless], backing: .buffered, defer: false)
+  window.contentView = root; window.orderFront(nil)
+  for _ in 0..<8 { root.layoutSubtreeIfNeeded(); RunLoop.main.run(until: Date().addingTimeInterval(0.04)) }
+  if root.bounds.width != CGFloat(width) { failures.append("zoom root exceeds viewport \(width)") }
+  if let dashboard = layoutFrames["zoom-dashboard"], let marker = layoutFrames["zoom-marker"],
+     let toolbar = layoutFrames["zoom-toolbar"] {
+   let expected = WindowZoom.fit(width: Double(width), height: 600 - Double(toolbar.height),
+     minimumWidth: 1180, minimumHeight: 800)
+   if abs(marker.width - CGFloat(100 * expected)) > 2 || dashboard.minX < -2 ||
+      dashboard.maxX > CGFloat(width) + 2 || dashboard.minY < toolbar.maxY - 2 ||
+      dashboard.minY >= 600 || dashboard.width <= 0 {
+    failures.append("zoom dashboard clipped or scale incorrect \(width)")
+   }
+  } else { failures.append("zoom dashboard clipped: missing native probes \(width)") }
+  if let bitmap = root.bitmapImageRepForCachingDisplay(in: root.bounds) {
+   root.effectiveAppearance.performAsCurrentDrawingAppearance { root.cacheDisplay(in: root.bounds, to: bitmap) }
+   saveFixture(bitmap, to: output.appendingPathComponent("zoom-root-\(width).png"))
+  } else { failures.append("zoom root no bitmap \(width)") }
+  window.contentView = nil; rootModel.stop()
+ }
  // Actual server panel, in-memory telemetry only; no ServersModel or SSH.
  let config = try! JSONDecoder().decode(ServerConfig.self, from: Data(#"{"id":"fixture","name":"Fixture server — синтетические данные","target":"fixture@example.invalid","role":"agent"}"#.utf8))
  for dark in [true, false] {
@@ -188,7 +217,7 @@ MainActor.assumeIsolated {
    if total == 0 && GaugeScale.fraction(sample.swapUsed, maximum: sample.swapTotal) != nil { failures.append("zero server swap needle") }
    if measuredPair(sample.swapUsed, sample.swapTotal) != (total == 0 ? "0.0 из 0.0 GiB" : "3.0 из 4.0 GiB") { failures.append("server swap pair") }
    let view = VStack(spacing: 16) {
-    ForEach(0..<2) { _ in ServerHostPanel(config: config, state: state, hardware: sample, hardwareLabel: "Fixture", now: 1000, busy: false, selection: .constant("fixture0")) }
+    ForEach(0..<2) { _ in ServerHostPanel(config: config, state: state, hardware: sample, hardwareLabel: "Fixture", now: 1000, busy: false, interval: 30, selection: .constant("fixture0")) }
    }.padding().environment(\.colorScheme, dark ? .dark : .light)
    let host = NSHostingView(rootView: view); host.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
    let window = NSWindow(contentRect: NSRect(x: -10000, y: -10000, width: 1060, height: 1100), styleMask: [.borderless], backing: .buffered, defer: false)
@@ -200,6 +229,58 @@ MainActor.assumeIsolated {
    window.contentView = nil
   }
  }
+  // Fleet overview: two in-memory servers, no SSH or saved configuration.
+  let fleetSecond = try! JSONDecoder().decode(ServerConfig.self, from: Data(#"{"id":"fixture-2","name":"Fixture server 2 — синтетические данные","target":"fixture2@example.invalid","role":"bot"}"#.utf8))
+  for dark in [true, false] {
+   for width in [1060, 1180, 1440] {
+    let servers = ServersModel()
+    servers.configs = [config, fleetSecond]
+    for (index, server) in servers.configs.enumerated() {
+     var state = ServerState()
+     let started = Date().timeIntervalSince1970 - 330
+     for tick in 0..<12 {
+      let payload: [String: Any] = ["schema":1, "sampled_at":started + Double(tick) * 30,
+       "cpu_percent": 15 + index * 20, "memory_total":8589934592, "memory_available":2147483648,
+       "swap_total":4294967296, "swap_free":3221225472,
+       "disk_total":274877906944, "disk_free":206158430208,
+       "network":[["name":"eth0", "rx_bytes_per_second":4000 + tick * 850, "tx_bytes_per_second":1200 + tick * 210]]]
+      let data = try! JSONSerialization.data(withJSONObject: payload)
+      state.accept(.success(try! ServerTelemetry.decode(data)))
+     }
+     servers.states[server.id] = state
+    }
+    layoutFrames = [:]
+    let view = ServerPanel(model: servers).frame(width: CGFloat(width), height: 780)
+     .environment(\.colorScheme, dark ? .dark : .light)
+     .coordinateSpace(name: "layoutHost")
+     .onPreferenceChange(LayoutFramesKey.self) { layoutFrames = $0 }
+    let host = NSHostingView(rootView: view); host.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
+    let window = NSWindow(contentRect: NSRect(x: -10000, y: -10000, width: CGFloat(width), height: 780), styleMask: [.borderless], backing: .buffered, defer: false)
+    window.contentView = host; window.orderFront(nil)
+    for _ in 0..<10 { host.layoutSubtreeIfNeeded(); RunLoop.main.run(until: Date().addingTimeInterval(0.04)) }
+    let bitmap = host.bitmapImageRepForCachingDisplay(in: host.bounds)!
+    host.effectiveAppearance.performAsCurrentDrawingAppearance { host.cacheDisplay(in: host.bounds, to: bitmap) }
+    saveFixture(bitmap, to: output.appendingPathComponent("fleet-\(width)-\(dark ? "dark" : "light").png"), dark: dark)
+    for server in servers.configs {
+     let prefix = "fleet-" + server.id + "-"
+     for label in ["cpu", "ram", "swap", "disk"] {
+      if let frame = layoutFrames[prefix + label] {
+       if abs(frame.width - frame.height) > 1 || frame.width > 109 || frame.width < 71 {
+        failures.append("fleet square gauge " + server.id + " " + label + " " +
+         String(Int(frame.width)) + "x" + String(Int(frame.height)))
+       }
+      } else { failures.append("fleet missing gauge " + server.id + " " + label) }
+     }
+     if let load = layoutFrames[prefix + "load"], let chart = layoutFrames[prefix + "network"], let row = layoutFrames[prefix + "row"] {
+      if load.minX < row.minX || chart.maxX > row.maxX + 2 || load.maxX > chart.minX + 2 || chart.width < 80 || load.width < 80 {
+       failures.append("fleet load/network order, visibility or overlap " + server.id +
+        " row=\(Int(row.minX))...\(Int(row.maxX)) load=\(Int(load.minX))...\(Int(load.maxX))w\(Int(load.width)) chart=\(Int(chart.minX))...\(Int(chart.maxX))w\(Int(chart.width))")
+      }
+     } else { failures.append("fleet load/network geometry missing " + server.id) }
+    }
+    window.contentView = nil
+   }
+  }
  // Internet UI fixtures: models do not start traffic without explicit Start.
  for dark in [true, false] {
   app.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)

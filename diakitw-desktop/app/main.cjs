@@ -1,5 +1,6 @@
 const {app,BrowserWindow,ipcMain,protocol,session,net,Menu,shell,dialog}=require('electron');const path=require('node:path');const {pathToFileURL}=require('node:url');const {Collector}=require('./collector.cjs');const {Sampler,validSender,allowedRequest}=require('./lifecycle.cjs');
 protocol.registerSchemesAsPrivileged([{scheme:'diakitw',privileges:{standard:true,secure:true,supportFetchAPI:true}}]);
+const {ProfileStore,ServerMonitor,saveServerSession}=require('./servers.cjs');
 const {internetTest}=require('./internet-test.cjs');const {diagnose}=require('./diagnostics.cjs');const {Egress,lookupEgress}=require('./egress.cjs');const {mapURL}=require('./geo.cjs');const {resolveTool}=require('./tools.cjs');const {dispatch}=require('./actions.cjs');
 function boot({collector=new Collector(),onWindow=()=>{},userData,lookup=lookupEgress}={}){
  if(userData)app.setPath('userData',userData);
@@ -30,6 +31,23 @@ function boot({collector=new Collector(),onWindow=()=>{},userData,lookup=lookupE
   return{ok:true,reason:diagnose(lastSnapshot)};
  });
  ipcMain.handle('command',async(event,command)=>{if(!validSender(event,win.webContents)||!['terminal','tasks','map','menu'].includes(command))return{ok:false,reason:'Команда запрещена'};if(command==='menu'){menu().popup({window:win});return{ok:true};}return invoke(command);});
+ const serverStore=new ProfileStore(path.join(app.getPath('userData'),'ssh-profiles-v1.json'));const serverMonitor=new ServerMonitor();const serverPasswords=new Map();const serverLast=new Map();const serverBusy=new Set();
+ ipcMain.handle('server-command',async(event,command,payload)=>{
+  if(!validSender(event,win.webContents)||!['list','save','remove','sample','browse-key'].includes(command))return{ok:false,reason:'Команда запрещена'};
+  try{
+   if(command==='list')return{ok:true,profiles:serverStore.list()};
+   if(command==='browse-key'){const result=await dialog.showOpenDialog(win,{title:'Выберите закрытый SSH-ключ',properties:['openFile']});return{ok:true,path:result.canceled?'':result.filePaths[0]};}
+   if(command==='save'){if(!payload||typeof payload!=='object')throw Error('Неверный профиль');const profile=saveServerSession(serverStore,serverPasswords,payload);serverMonitor.reset(profile.id);serverLast.delete(profile.id);return{ok:true,profile};}
+   const id=typeof payload?.id==='string'?payload.id:'';const profile=serverStore.list().find(p=>p.id===id);if(!profile)throw Error('Профиль не найден');
+   if(command==='remove'){serverStore.remove(id);serverPasswords.delete(id);serverMonitor.reset(id);serverLast.delete(id);return{ok:true};}
+   if(!win.isVisible()||win.isMinimized()||!win.isFocused())throw Error('Окно неактивно');
+   if(serverBusy.has(id))throw Error('Проверка уже выполняется');
+   if(Date.now()-(serverLast.get(id)||0)<10000)throw Error('Повторная проверка — через 10 секунд');
+   if(profile.auth==='password'&&typeof payload.password==='string'&&payload.password)serverPasswords.set(id,payload.password);
+   serverLast.set(id,Date.now());serverBusy.add(id);
+   try{const reading=await serverMonitor.sample(profile,serverPasswords.get(id));return{ok:true,reading,checkedAt:Date.now()};}finally{serverBusy.delete(id);}
+  }catch(e){return{ok:false,reason:e.message};}
+ });
  egress=new Egress({lookup,publish:data=>{if(!win.isDestroyed())win.webContents.send('egress',{...data,mapAvailable:data.status==='current'&&!!mapURL(data)});}});
  sampler=new Sampler(signal=>collector.sample(signal),data=>{const {networkKey,...snapshot}=data;lastSnapshot=snapshot;egress.observe(networkKey);if(!win.isDestroyed())win.webContents.send('snapshot',snapshot);});
  const stop=()=>{sampler.stop();collector.reset();egress.stop();};const start=()=>{if(win.isVisible()&&!win.isMinimized()&&win.isFocused()){sampler.start();egress.start();}};updates.start();

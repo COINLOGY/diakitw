@@ -224,3 +224,8 @@ check(partialSizes.contains { $0 > 0 && $0 < 400 }, "folder size grows before su
 check(rootPreview.root.children.contains { $0.name == "Users" && $0.isDirectory }, "root preview exposes Users before recursion")
 check(rootPreview.root.children.allSatisfy { $0.state == "Не обследовано" }, "root preview does not recurse or invent sizes")
 print("Root preview: \(rootPreview.root.children.count) entries; \(count) checks passed")
+
+check(WindowZoom.fit(width: 800, height: 540, minimumWidth: 1180, minimumHeight: 800) < 1, "small window fits")
+check(WindowZoom.fit(width: 1440, height: 900, minimumWidth: 1180, minimumHeight: 800) > 1, "large window uses available area")
+check(WindowZoom.step(1, direction: -1) < 1 && WindowZoom.step(1, direction: 1) > 1, "manual zoom steps")
+check(WindowZoom.fit(width: 0, height: 0, minimumWidth: 1180, minimumHeight: 800) == WindowZoom.minimum, "degenerate window clamped")

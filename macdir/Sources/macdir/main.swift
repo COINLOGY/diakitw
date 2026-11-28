@@ -247,29 +247,23 @@ struct ContentView: View {
   }
  }
 
- private var networkInstruments: some View {
-  let scale = model.trafficHistory.scale(in: model.trafficRange)
-  let labels = NetworkSpeedScale.labels(maximum: scale)
-  return ViewThatFits(in: .horizontal) {
-   HStack(alignment: .center, spacing: 10) {
-    receiveGauge(scale: scale, labels: labels).frame(minWidth: 210)
-    sendGauge(scale: scale, labels: labels).frame(minWidth: 210)
-    TrafficChart(history: model.trafficHistory, range: $model.trafficRange).frame(minWidth: 280, maxWidth: .infinity)
-   }
-   VStack(spacing: 10) {
-    HStack(spacing: 10) {
-     receiveGauge(scale: scale, labels: labels)
-     sendGauge(scale: scale, labels: labels)
-    }
-    TrafficChart(history: model.trafficHistory, range: $model.trafficRange).frame(maxWidth: .infinity)
-   }
-  }.fixedSize(horizontal: false, vertical: true)
- }
+  private var networkInstruments: some View {
+   let scale = model.trafficHistory.scale(in: model.trafficRange)
+   let labels = NetworkSpeedScale.labels(maximum: scale)
+   // Раньше ряд растягивался через aspectRatio(4): на широком окне это давало
+   // ~360 px высоты. Теперь та же компактная высота, что и у карточек ресурсов.
+   return HStack(alignment: .top, spacing: 8) {
+    receiveGauge(scale: scale, labels: labels).frame(width: 210, height: 158)
+    sendGauge(scale: scale, labels: labels).frame(width: 210, height: 158)
+    TrafficChart(history: model.trafficHistory, range: $model.trafficRange, expanded: true)
+     .frame(maxWidth: .infinity).frame(height: 158)
+   }.frame(height: 158)
+  }
  private func receiveGauge(scale: Double, labels: [String]) -> some View {
-  GaugeTile(symbol: "arrow.down", title: "ПРИЁМ", value: NetworkPresentation(selectedNetwork?.received).text + " ↓", detail: selectedInterface + " · 0–" + labels[2] + "/с", fraction: GaugeScale.fraction(selectedNetwork?.received, maximum: scale), neutral: true, networkRate: selectedNetwork?.received, networkDirection: "↓", tickLabels: labels, directionColor: InstrumentTheme.lime)
+  GaugeTile(symbol: "arrow.down", title: "ПРИЁМ", value: NetworkPresentation(selectedNetwork?.received).text + " ↓", detail: selectedInterface + " · 0–" + labels[2] + "/с", fraction: GaugeScale.fraction(selectedNetwork?.received, maximum: scale), neutral: true, networkRate: selectedNetwork?.received, networkDirection: "↓", tickLabels: labels, directionColor: InstrumentTheme.lime, square: true)
  }
  private func sendGauge(scale: Double, labels: [String]) -> some View {
-  GaugeTile(symbol: "arrow.up", title: "ОТДАЧА", value: NetworkPresentation(selectedNetwork?.sent).text + " ↑", detail: selectedInterface + " · 0–" + labels[2] + "/с", fraction: GaugeScale.fraction(selectedNetwork?.sent, maximum: scale), neutral: true, networkRate: selectedNetwork?.sent, networkDirection: "↑", tickLabels: labels, directionColor: InstrumentTheme.cyan)
+  GaugeTile(symbol: "arrow.up", title: "ОТДАЧА", value: NetworkPresentation(selectedNetwork?.sent).text + " ↑", detail: selectedInterface + " · 0–" + labels[2] + "/с", fraction: GaugeScale.fraction(selectedNetwork?.sent, maximum: scale), neutral: true, networkRate: selectedNetwork?.sent, networkDirection: "↑", tickLabels: labels, directionColor: InstrumentTheme.cyan, square: true)
  }
 
  var body: some View {
@@ -299,7 +293,7 @@ struct ContentView: View {
  }
  private var diskGauge: some View {
   Button { model.showCapacity.toggle() } label: {
-   GaugeTile(symbol: "internaldrive", title: "ДИСК · ЗАНЯТО", value: MetricPresentation.utilization(model.snapshot.diskOccupied, total: model.snapshot.diskTotal), detail: MetricPresentation.usedTotal(model.snapshot.diskOccupied, total: model.snapshot.diskTotal), fraction: GaugeScale.fraction(model.snapshot.diskOccupied.map(Double.init), maximum: model.snapshot.diskTotal.map(Double.init)), explanation: "APFS: занято в общем пуле, не сумма папок. Нажмите для точных байтов.")
+   GaugeTile(symbol: "internaldrive", title: "ДИСК · ЗАНЯТО", value: MetricPresentation.utilization(model.snapshot.diskOccupied, total: model.snapshot.diskTotal), detail: MetricPresentation.usedTotal(model.snapshot.diskOccupied, total: model.snapshot.diskTotal), fraction: GaugeScale.fraction(model.snapshot.diskOccupied.map(Double.init), maximum: model.snapshot.diskTotal.map(Double.init)), explanation: "APFS: занято в общем пуле, не сумма папок. Нажмите для точных байтов.", square: true)
   }.buttonStyle(.plain)
    .popover(isPresented: $model.showCapacity) { Text(model.snapshot.diskDetail).font(.system(.body, design: .monospaced)).textSelection(.enabled).padding(20) }
  }
@@ -335,7 +329,7 @@ struct ContentView: View {
      if let flag = model.egressLocation?.flag {
       Text(flag).font(.system(size: 16)).fixedSize().layoutPriority(1)
      }
-     Text(model.egressLocation.map { [$0.country, $0.city].compactMap { $0 }.joined(separator: " · ") }.flatMap { $0.isEmpty ? nil : $0 } ?? "Страна / город недоступны")
+     Text(model.egressLocation.map { [$0.country, $0.ip, $0.city].compactMap { $0 }.joined(separator: " · ") }.flatMap { $0.isEmpty ? nil : $0 } ?? "Страна / город недоступны")
       .font(.caption).lineLimit(1).minimumScaleFactor(0.75)
     }
     Text("2ip через EMCx · резерв GeoJS · выход/VPN, не GPS").font(.caption2).foregroundStyle(.secondary).lineLimit(1)
@@ -347,31 +341,21 @@ struct ContentView: View {
   }.padding(10).background(InstrumentTheme.panel, in: RoundedRectangle(cornerRadius: 12))
    .textSelection(.enabled)
  }
- private func compactResources(viewportWidth: CGFloat) -> some View {
-  VStack(alignment: .leading, spacing: 7) {
-   Text("Ресурсы").font(.headline)
-   LazyVGrid(columns: Array(repeating: GridItem(.flexible(minimum: 220), spacing: 8), count: viewportWidth >= 1040 ? 4 : 2), spacing: 8) {
-    GaugeTile(symbol: "cpu", title: "ПРОЦЕССОР", value: MetricPresentation.percent(model.snapshot.cpu), detail: "\(ProcessInfo.processInfo.processorCount) логических ядер", fraction: GaugeScale.fraction(model.snapshot.cpu, maximum: 100))
-    GaugeTile(symbol: "memorychip", title: "ПАМЯТЬ", value: MetricPresentation.utilization(model.snapshot.memoryUsed, total: model.snapshot.memoryTotal), detail: MetricPresentation.usedTotal(model.snapshot.memoryUsed, total: model.snapshot.memoryTotal), fraction: GaugeScale.fraction(model.snapshot.memoryUsed.map(Double.init), maximum: Double(model.snapshot.memoryTotal)), explanation: "Активная + wired + сжатая память; GiB = 2³⁰ байт")
-    GaugeTile(symbol: "arrow.left.arrow.right", title: "SWAP", value: MetricPresentation.utilization(model.snapshot.swap, total: model.snapshot.swapTotal), detail: MetricPresentation.usedTotal(model.snapshot.swap, total: model.snapshot.swapTotal), fraction: GaugeScale.fraction(model.snapshot.swap.map(Double.init), maximum: model.snapshot.swapTotal.map(Double.init)), explanation: MetricPresentation.swapExplanation)
-    GaugeTile(symbol: "bolt.fill", title: "БАТАРЕЯ · ЗАРЯД", value: MetricPresentation.battery(model.snapshot.batteryPercent), detail: MetricPresentation.powerState(model.snapshot.power) + " · циклы: " + (model.snapshot.batteryCycles.map(String.init) ?? "Н/Д"), fraction: GaugeScale.fraction(model.snapshot.batteryPercent, maximum: 100), battery: true)
+  private func compactResources(viewportWidth: CGFloat) -> some View {
+   VStack(alignment: .leading, spacing: 7) {
+    Text("Ресурсы").font(.headline)
+    LazyVGrid(columns: Array(repeating: GridItem(.flexible(minimum: 140), spacing: 8), count: 4), spacing: 8) {
+     GaugeTile(symbol: "cpu", title: "ПРОЦЕССОР", value: MetricPresentation.percent(model.snapshot.cpu), detail: "\(ProcessInfo.processInfo.processorCount) логических ядер", fraction: GaugeScale.fraction(model.snapshot.cpu, maximum: 100), square: true)
+     GaugeTile(symbol: "memorychip", title: "ПАМЯТЬ", value: MetricPresentation.utilization(model.snapshot.memoryUsed, total: model.snapshot.memoryTotal), detail: MetricPresentation.usedTotal(model.snapshot.memoryUsed, total: model.snapshot.memoryTotal), fraction: GaugeScale.fraction(model.snapshot.memoryUsed.map(Double.init), maximum: Double(model.snapshot.memoryTotal)), explanation: "Активная + wired + сжатая память; GiB = 2³⁰ байт", square: true)
+     GaugeTile(symbol: "arrow.left.arrow.right", title: "SWAP", value: MetricPresentation.utilization(model.snapshot.swap, total: model.snapshot.swapTotal), detail: MetricPresentation.usedTotal(model.snapshot.swap, total: model.snapshot.swapTotal), fraction: GaugeScale.fraction(model.snapshot.swap.map(Double.init), maximum: model.snapshot.swapTotal.map(Double.init)), explanation: MetricPresentation.swapExplanation, square: true)
+     diskGauge
+    }
+    // Одинаковая компактная высота: ряд ресурсов не должен занимать полэкрана.
+    .frame(height: 158)
    }
   }
- }
  private var compactNetwork: some View {
   VStack(alignment: .leading, spacing: 7) { networkSelector; networkInstruments }
- }
- private var compactDisk: some View {
-  VStack(alignment: .leading, spacing: 7) {
-   Text("Диск").font(.headline)
-   ViewThatFits(in: .horizontal) {
-    HStack(alignment: .top, spacing: 8) {
-     diskGauge.frame(width: 240)
-     DiskCapacityOverview(snapshot: model.snapshot, scan: model.result).frame(maxWidth: .infinity)
-    }
-    VStack(spacing: 8) { diskGauge; DiskCapacityOverview(snapshot: model.snapshot, scan: model.result) }
-   }
-  }
  }
  private func dashboard(viewport: CGSize) -> some View {
   VStack(alignment: .leading, spacing: 9) {
@@ -383,7 +367,6 @@ struct ContentView: View {
    compactIdentity
    compactResources(viewportWidth: viewport.width)
    compactNetwork
-   compactDisk
    if model.scanning {
     TimelineView(.periodic(from: .now, by: 1)) { context in
      HStack {
@@ -420,11 +403,11 @@ struct ContentView: View {
      }.frame(minWidth: 450)
      VStack(alignment: .leading, spacing: 10) {
       Text("Карта пространства").font(.headline)
-      Treemap(nodes: model.tiles) { model.navigate($0); model.tab = 0 }.frame(minHeight: 220)
+      Treemap(nodes: model.tiles) { model.navigate($0); model.tab = 0 }.frame(minHeight: 180)
       Text("Площадь = учтённый логический размер. После 79 элементов — группа «Остальные» с переходом. Нулевые, ссылки и неизвестные размеры — в полной таблице. Карта частичного обхода не описывает весь диск.").font(.caption).foregroundStyle(.secondary)
      }.padding(.leading, 12).frame(minWidth: 290)
     // Reserve a usable independently scrolling table; the page scrolls when needed.
-    }.frame(height: max(360, viewport.height * 0.4))
+    }.frame(height: max(300, viewport.height * 0.34))
     HStack {
      Text("\(result.files) файлов · \(result.symlinks) ссылок · \(result.hardlinks) hardlink · \(result.aliases) повторов каталогов · \(model.elapsed)").font(.caption)
      Button("Ошибки: \(result.errors)") { model.showIssues = true }
@@ -461,7 +444,7 @@ struct ContentView: View {
 final class AppDelegate: NSObject, NSApplicationDelegate {
  var status: ResourceStatusController?
  @objc func showAbout(_ sender: Any?) {
-  MainActor.assumeIsolated { NSApplication.shared.orderFrontStandardAboutPanel(options: [.applicationVersion: "1.0.6"]) }
+  MainActor.assumeIsolated { NSApplication.shared.orderFrontStandardAboutPanel(options: [.applicationVersion: "1.0.7"]) }
  }
  func applicationWillTerminate(_ notification: Notification) { MainActor.assumeIsolated { InternetTestWindow.shared.stop(); DiagnosticsWindow.shared.stop(); UpdateMenu.shared.stop(); status?.stop() } }
  func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
@@ -507,6 +490,26 @@ if CommandLine.arguments.contains("--self-check") {
  appMenu.addItem(withTitle: "О diakitw", action: #selector(AppDelegate.showAbout(_:)), keyEquivalent: "").target = delegate
 
  appMenu.addItem(.separator()); appMenu.addItem(withTitle: "Завершить diakitw", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+ // Standard text commands must live in the main menu: AppKit routes Cmd+X/C/V/A
+ // through menu key equivalents, so without them fields only had the
+ // right-click contextual menu and the keyboard did nothing.
+ let editItem = NSMenuItem(); menu.addItem(editItem)
+ let editMenu = NSMenu(title: "Правка"); editItem.submenu = editMenu
+ editMenu.addItem(withTitle: "Отменить", action: Selector(("undo:")), keyEquivalent: "z")
+ let redoItem = editMenu.addItem(withTitle: "Повторить", action: Selector(("redo:")), keyEquivalent: "z")
+ redoItem.keyEquivalentModifierMask = [.command, .shift]
+ editMenu.addItem(.separator())
+ editMenu.addItem(withTitle: "Вырезать", action: #selector(NSText.cut(_:)), keyEquivalent: "x")
+ editMenu.addItem(withTitle: "Копировать", action: #selector(NSText.copy(_:)), keyEquivalent: "c")
+ editMenu.addItem(withTitle: "Вставить", action: #selector(NSText.paste(_:)), keyEquivalent: "v")
+ editMenu.addItem(withTitle: "Выбрать всё", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
+ let windowItem = NSMenuItem(); menu.addItem(windowItem)
+ let windowMenu = NSMenu(title: "Окно"); windowItem.submenu = windowMenu
+ windowMenu.addItem(withTitle: "Свернуть", action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
+ windowMenu.addItem(withTitle: "Закрыть", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
+ windowMenu.addItem(.separator())
+ windowMenu.addItem(withTitle: "Все окна на передний план", action: #selector(NSApplication.arrangeInFront(_:)), keyEquivalent: "")
+ app.windowsMenu = windowMenu
  app.mainMenu = menu
  UpdateMenu.shared.start()
  app.activate(ignoringOtherApps: true)

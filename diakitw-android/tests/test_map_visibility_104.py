@@ -10,7 +10,7 @@ class MapVisibility104(unittest.TestCase):
         dashboard = SRC.split('LinearLayout dashboard=column();', 1)[1].split('LinearLayout page=column();', 1)[0]
         self.assertLess(dashboard.index('dashboard.addView(metrics,landscape?'), dashboard.index('dashboard.addView(geo,gp)'))
         self.assertIn('if(!landscape)gauge.setVisibility(GONE)', SRC)
-        self.assertIn('dp(landscape?140:220)', SRC)
+        self.assertIn('dp(landscape?110:145)', SRC)
         self.assertIn('gp.setMargins(dp(3),0,dp(3),dp(8))', SRC)
 
     def test_country_and_map_precede_redundant_ip_summary(self):

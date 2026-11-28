@@ -20,10 +20,12 @@ final class EntryProbe {
   p.ui(()->a.summary.requestRectangleOnScreen(new Rect(0,0,a.summary.getWidth(),a.summary.getHeight()),true));p.waitForIdleSync();
   final int[] visibility=new int[3];p.ui(()->{Rect box=new Rect();visibility[0]=a.summary.getGlobalVisibleRect(box)?1:0;visibility[1]=box.height();visibility[2]=a.summary.getHeight();});
   AccessibilityNodeInfo root=p.getUiAutomation().getRootInActiveWindow();boolean clicked=false;int entryMask=0;
-  for(AccessibilityNodeInfo n:root.findAccessibilityNodeInfosByText("IP / карта")){
-   entryMask|=1;boolean named=n.getContentDescription()!=null&&n.getContentDescription().toString().startsWith("IP / карта");
-   if(named)entryMask|=2;if(n.isVisibleToUser())entryMask|=4;if(n.isClickable())entryMask|=8;
-   if(named&&n.isVisibleToUser()&&n.isClickable()){entryMask|=16;clicked|=n.performAction(AccessibilityNodeInfo.ACTION_CLICK);}
+  java.util.ArrayDeque<AccessibilityNodeInfo> queue=new java.util.ArrayDeque<>();queue.add(root);
+  for(int inspected=0;!queue.isEmpty()&&inspected<512;inspected++){
+   AccessibilityNodeInfo n=queue.removeFirst();boolean named=n.getContentDescription()!=null&&n.getContentDescription().toString().startsWith("IP / карта");
+   if(named){entryMask|=1;if(n.isVisibleToUser())entryMask|=4;if(n.isClickable())entryMask|=8;}
+   if(named&&n.isVisibleToUser()&&n.isClickable()){entryMask|=16;clicked=n.performAction(AccessibilityNodeInfo.ACTION_CLICK);if(clicked)break;}
+   for(int child=0;child<n.getChildCount()&&queue.size()<512;child++){AccessibilityNodeInfo c=n.getChild(child);if(c!=null)queue.addLast(c);}
   }
   p.check(clicked,"Accessible click failed entryMask="+entryMask+" shown="+visibility[0]+" visible="+visibility[1]+" total="+visibility[2]);Thread.sleep(400);p.waitForIdleSync();
   p.ui(()->{p.check(a.ipDialog!=null&&a.ipDialog.isShowing(),"Entry did not open IP directly");p.check(a.testDialog==null,"Entry opened speed help instead");p.check(a.ipCards.size()==1,"Missing IP map card");p.check(!a.ipCards.get(0).copy.isEnabled(),"Unknown IP copy enabled");});

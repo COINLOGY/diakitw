@@ -134,6 +134,17 @@ struct ContentView: View {
     @StateObject private var model = Monitor()
     @StateObject private var presentation = Presentation()
     @StateObject private var updates = UpdateChecker()
+    @State private var fleet = ServerProfiles()
+    @State private var showServers = false
+    @State private var treeOpen = true
+    @State private var editing = false
+    @State private var editID: UUID?
+    @State private var confirmDelete = false
+    @State private var profileName = ""
+    @State private var profileHost = ""
+    @State private var profilePort = "22"
+    @State private var profileLogin = ""
+    @State private var profileError: String?
     @Environment(\.scenePhase) private var phase
     private func number(_ value: Double?, suffix: String = "") -> String {
         guard let value else { return "Н/Д" }
@@ -150,10 +161,18 @@ struct ContentView: View {
                     Spacer()
                     Button { presentation.help = true } label: { Image(systemName: "questionmark.circle").font(.title2).frame(width: 48, height: 48) }.accessibilityLabel("О показаниях и приватности")
                 }
+                HStack {
+                    Button("Обзор") { showServers = false }
+                        .buttonStyle(.borderedProminent).tint(showServers ? Theme.border : Theme.lime)
+                    Button("Серверы") { showServers = true }
+                        .buttonStyle(.borderedProminent).tint(showServers ? Theme.lime : Theme.border)
+                }
+                if showServers {
+                    serverContent
+                } else {
                 Text("Ресурсы").font(.title3.weight(.semibold))
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 290), spacing: 12)], spacing: 12) {
                     MetricCard(title: "RAM приложения", number: number(model.appRAM.map { $0 / 1_048_576 }, suffix: " MiB"), detail: number(ramFraction.map { $0*100 }, suffix: "% физической RAM") + "\nВсего " + number(model.physicalRAM / 1_073_741_824, suffix: " GiB"), value: ramFraction)
-                    MetricCard(title: "Батарея", number: number(model.charge.map { $0*100 }, suffix: "%"), detail: model.power, value: model.charge, battery: true)
                 }
                 Text("Сеть").font(.title3.weight(.semibold))
                 let trafficScale = max(Dial.speedScale(model.rxRate), Dial.speedScale(model.txRate))
@@ -212,7 +231,8 @@ struct ContentView: View {
                 }.padding(12).frame(maxWidth: .infinity, alignment: .leading)
                     .background(Theme.panel, in: RoundedRectangle(cornerRadius: 18))
                 UpdateSection(checker: updates)
-                Text("1.0.6 · iOS · build 106").font(.caption2).foregroundStyle(Theme.muted)
+                }
+                Text("1.0.7 · iOS · build 107").font(.caption2).foregroundStyle(Theme.muted)
             }.padding(16).frame(maxWidth: 1000)
                 .frame(maxWidth: .infinity)
         }
@@ -220,6 +240,7 @@ struct ContentView: View {
         .onAppear { model.setForeground(phase == .active); updates.setForeground(phase == .active) }
         .onChange(of: phase) { model.setForeground($0 == .active); updates.setForeground($0 == .active) }
         .onDisappear { model.setForeground(false); updates.setForeground(false) }
+        .sheet(isPresented: $editing) { profileEditor }
         .sheet(isPresented: $presentation.help) {
             NavigationStack {
                 ScrollView {
@@ -227,6 +248,154 @@ struct ContentView: View {
                 }.navigationTitle("О показаниях").toolbar { ToolbarItem(placement: .confirmationAction) { Button("Готово") { presentation.help = false } } }
             }.preferredColorScheme(.dark)
         }
+    }
+    private func metric(_ title: String, _ value: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title).font(.caption).foregroundStyle(Theme.muted)
+            Text(value).font(.system(.headline, design: .monospaced))
+        }.frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func openEditor(_ profile: ServerProfiles.Profile? = nil) {
+        editID = profile?.id
+        profileName = profile?.name ?? ""
+        profileHost = profile?.host ?? ""
+        profilePort = profile.map { String($0.port) } ?? "22"
+        profileLogin = profile?.login ?? ""
+        profileError = nil
+        editing = true
+    }
+
+    private var serverContent: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("Серверы").font(.title3.weight(.semibold))
+                Spacer()
+                Button("+ Добавить") { openEditor() }.buttonStyle(.borderedProminent).tint(Theme.lime)
+            }
+            Text("SSH-подключение недоступно в этой сборке. Показатели серверов не опрашиваются; Н/Д — не ноль.")
+                .font(.caption).foregroundStyle(Theme.muted)
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    Button { treeOpen.toggle() } label: {
+                        Image(systemName: treeOpen ? "chevron.down" : "chevron.right")
+                    }.accessibilityLabel(treeOpen ? "Свернуть дерево" : "Развернуть дерево")
+                    Button("Все серверы") { fleet.selection = nil }
+                        .fontWeight(fleet.selection == nil ? .bold : .regular)
+                    Spacer()
+                    Text("\(fleet.profiles.count)").foregroundStyle(Theme.muted)
+                }
+                if treeOpen {
+                    ForEach(fleet.profiles) { profile in
+                        Button {
+                            fleet.selection = profile.id
+                        } label: {
+                            HStack {
+                                Image(systemName: "server.rack")
+                                VStack(alignment: .leading) {
+                                    Text(profile.name)
+                                    Text("\(profile.host):\(profile.port)").font(.caption).foregroundStyle(Theme.muted)
+                                }
+                                Spacer()
+                                if fleet.selection == profile.id { Image(systemName: "checkmark") }
+                            }.padding(.leading, 20)
+                        }.buttonStyle(.plain).padding(.vertical, 5)
+                    }
+                }
+            }.padding(12).frame(maxWidth: .infinity, alignment: .leading)
+                .background(Theme.panel, in: RoundedRectangle(cornerRadius: 12))
+            if let selected = fleet.selected {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Text(selected.name).font(.headline)
+                        Spacer()
+                        Button("Изменить профиль") { openEditor(selected) }
+                    }
+                    Text("\(selected.login)@\(selected.host):\(selected.port)")
+                        .font(.caption.monospaced()).foregroundStyle(Theme.muted)
+                    Text("Нет подключения · последний снимок: Н/Д")
+                        .font(.caption).foregroundStyle(Theme.muted)
+                    let row = ServerProfiles.Row(profile: selected)
+                    HStack { metric("CPU", row.cpu); metric("RAM", row.ram) }
+                    HStack { metric("SWAP", row.swap); metric("Диск /", row.disk) }
+                    Text("Сеть и службы: Н/Д · данные не получены")
+                        .font(.caption).foregroundStyle(Theme.muted)
+                }.padding(12).frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Theme.panel, in: RoundedRectangle(cornerRadius: 12))
+            } else {
+                Text("Все серверы · сохранённые подключения").font(.headline)
+                if fleet.rows.isEmpty {
+                    Text("Серверов пока нет. Добавьте профиль; подключение остаётся недоступным.")
+                        .font(.subheadline).foregroundStyle(Theme.muted)
+                }
+                ForEach(fleet.rows, id: \.profile.id) { row in
+                    Button {
+                        fleet.selection = row.profile.id
+                    } label: {
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                Text(row.profile.name).fontWeight(.semibold)
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                            }
+                            Text("\(row.profile.host):\(row.profile.port) · \(row.profile.login) · нет подключения")
+                                .font(.caption).foregroundStyle(Theme.muted)
+                            HStack {
+                                metric("CPU", row.cpu); metric("RAM", row.ram)
+                                metric("SWAP", row.swap); metric("Диск", row.disk)
+                            }
+                        }.padding(12).frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Theme.panel, in: RoundedRectangle(cornerRadius: 12))
+                    }.buttonStyle(.plain)
+                }
+            }
+        }
+    }
+
+    private var profileEditor: some View {
+        NavigationStack {
+            Form {
+                Section("Адрес и учётная запись") {
+                    TextField("Название профиля", text: $profileName)
+                    TextField("IP-адрес или домен", text: $profileHost)
+                        .textInputAutocapitalization(.never).autocorrectionDisabled()
+                    TextField("SSH-порт", text: $profilePort).keyboardType(.numberPad)
+                    TextField("Логин", text: $profileLogin)
+                        .textInputAutocapitalization(.never).autocorrectionDisabled()
+                }
+                Section("Авторизация") {
+                    Text("Пароль и ключ не принимаются: нет SSH-клиента и проверки отпечатка хоста.")
+                        .font(.caption).foregroundStyle(Theme.muted)
+                    Button("SSH-ключ") {}.disabled(true)
+                    Button("Пароль") {}.disabled(true)
+                }
+                Section {
+                    if let profileError { Text(profileError).foregroundStyle(Theme.red) }
+                    Button("Сохранить профиль") {
+                        do {
+                            let draft = try ServerProfiles.validate(name: profileName, host: profileHost,
+                                                                   port: profilePort, login: profileLogin)
+                            fleet.save(draft, id: editID)
+                            editing = false
+                        } catch { profileError = "Проверьте название, IP/домен, порт 1–65535 и логин." }
+                    }
+                    if editID != nil {
+                        Button("Удалить профиль", role: .destructive) { confirmDelete = true }
+                    }
+                } footer: {
+                    Text("Сохраняются только адрес и подписи на этом устройстве. Подключение и сбор метрик отключены.")
+                }
+            }.navigationTitle(editID == nil ? "Добавить сервер" : "Изменить сервер")
+                .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Отмена") { editing = false } } }
+        }.preferredColorScheme(.dark)
+            .confirmationDialog("Удалить профиль с устройства?", isPresented: $confirmDelete) {
+                Button("Удалить", role: .destructive) {
+                    if let id = editID { fleet.remove(id); editing = false }
+                }
+                Button("Отмена", role: .cancel) { }
+            } message: {
+                Text("Удаляется только сохранённый адрес. Сам сервер не затрагивается.")
+            }
     }
     static let helpText = """
     RAM — резидентная память только процесса diakitw (mach_task_basic_info). Доля рассчитана от физической RAM устройства, а не от лимита приложения. Общая занятость RAM, системный CPU и SWAP на iOS здесь не измеряются.

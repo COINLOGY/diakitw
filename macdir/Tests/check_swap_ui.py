@@ -7,7 +7,9 @@ class SwapUI(unittest.TestCase):
   self.assertIn('title: "SWAP"',text)
   self.assertLess(text.index('title: "ПАМЯТЬ"'),text.index('title: "SWAP"'))
   dashboard=text.split('private func dashboard(viewport: CGSize)',1)[1]
-  self.assertLess(dashboard.index('compactResources(viewportWidth:'),dashboard.index('compactDisk'))
+  self.assertLess(dashboard.index('compactResources(viewportWidth:'),dashboard.index('compactNetwork'))
+  resources=text.split('private func compactResources(',1)[1].split('private var compactNetwork:',1)[0]
+  self.assertLess(resources.index('title: "SWAP"'),resources.index('diskGauge'))
   self.assertNotIn('ForEach(model.snapshot.networks) { net in',text)
  def test_swap_dial_on_both_panels(self):
   for filename in ['main.swift', 'ServerPanel.swift']:

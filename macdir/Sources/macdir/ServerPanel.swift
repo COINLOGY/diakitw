@@ -1,8 +1,10 @@
 import SwiftUI
+import AppKit
 import MacdirCore
 
 @MainActor final class ServersModel: ObservableObject {
  @Published var section = 0
+ @Published var selectedServerID: String?
  @Published var configs: [ServerConfig] = []
  @Published var states: [String: ServerState] = [:]
  @Published var selections: [String: String] = [:]
@@ -12,6 +14,66 @@ import MacdirCore
  private var hardwareInFlight: Set<String> = []
  private var polling: Task<Void, Never>?
  private var visible = false
+ /// Удерживает приложение от App Nap, пока идёт сбор истории.
+ private var activity: NSObjectProtocol?
+ /// Интервал опроса SSH и постоянный сбор — настройки владельца, переживают перезапуск.
+ static let intervalChoices = [5, 10, 20, 30, 60]
+ @Published var refreshInterval = ServersModel.storedInterval()
+ @Published var backgroundCollecting = ServersModel.storedBackground()
+
+ private var appActive = true
+ private static func storedInterval() -> Int {
+  let value = UserDefaults.standard.integer(forKey: "server.refreshInterval")
+  return intervalChoices.contains(value) ? value : 30
+ }
+ private static func storedBackground() -> Bool {
+  UserDefaults.standard.object(forKey: "server.backgroundCollecting") as? Bool ?? true
+ }
+ @Published var alertSettings = ServerAlertSettings.load()
+ @Published var alertsSheet = false
+ @Published var alertsAuthorized = ServerNotifier.shared.authorized
+ @Published var lastAlert: String?
+ @Published var exportStatus: String?
+ private var alertEngine = ServerAlertEngine()
+ var alertsOn: Bool { alertSettings.offlineEnabled || alertSettings.cpuEnabled || alertSettings.diskEnabled }
+ func applyAlerts(_ value: ServerAlertSettings) {
+  let clean = value.sanitized(); clean.save(); alertSettings = clean
+ }
+ func requestNotifications() {
+  ServerNotifier.shared.requestAuthorizationIfNeeded()
+  alertsAuthorized = ServerNotifier.shared.authorized
+ }
+ /// Проверка канала уведомлений по требованию владельца.
+ func sendTestAlert() {
+  ServerNotifier.shared.post(ServerAlert(serverID: "self-test", serverName: "diakitw", kind: .offline,
+                                         title: "diakitw: проверка уведомлений",
+                                         body: "Если вы это видите, оповещения работают."))
+ }
+ /// Все серверы в один CSV: строки выровнены по моментам замеров.
+ func exportHistory(_ range: ServerHistoryRange) {
+  let panel = NSSavePanel()
+  panel.canCreateDirectories = true
+  panel.nameFieldStringValue = "diakitw-history.csv"
+  guard panel.runModal() == .OK, let url = panel.url else { return }
+  let now = Date().timeIntervalSince1970
+  var chunks: [String] = []
+  var rows = 0
+  for config in configs.sorted(by: { $0.name < $1.name }) {
+   guard let state = states[config.id] else { continue }
+   let block = ServerHistoryExport.csv(server: config.name, state: state, range: range, now: now)
+   let parts = block.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+   guard parts.count > 1 else { continue }
+   rows += parts.count - 2
+   chunks.append(chunks.isEmpty ? parts.joined(separator: "\n") : parts.dropFirst().joined(separator: "\n"))
+  }
+  guard !chunks.isEmpty else { exportStatus = "Экспорт: истории пока нет"; return }
+  do {
+   try chunks.joined(separator: "\n").write(to: url, atomically: true, encoding: .utf8)
+   exportStatus = "Экспорт: \(rows) строк → \(url.lastPathComponent)"
+  } catch {
+   exportStatus = "Экспорт не удался: \(error.localizedDescription)"
+  }
+ }
  private let store = ServerConfigStore()
  private var snapshot: ServerConfigStore.Snapshot?
  private var generations: [String: UUID] = [:]
@@ -23,12 +85,40 @@ import MacdirCore
  @Published var draftAuthentication = ServerConfig.Authentication.key
  @Published var draftPassword = ""
  private var requests: [String: [ServerCancellation]] = [:]
+ private var lastSaved: [String: Double] = [:]
+ private static let historySaveInterval: Double = 30
+ /// История графиков с диска: после перезапуска линии продолжаются.
+ private func restoreHistories() {
+  let now = Date().timeIntervalSince1970
+  // Файлы серверов, удалённых пока приложение было закрыто, иначе остались бы навсегда.
+  ServerHistoryStore.prune(keeping: Set(configs.map { $0.id }))
+  for config in configs where states[config.id] == nil {
+   guard let snapshot = ServerHistoryStore.load(config.id, now: now) else { continue }
+   var state = ServerState(); state.restore(snapshot, now: now); states[config.id] = state
+  }
+ }
+ private func persistHistory(_ id: String, force: Bool = false) {
+  let now = Date().timeIntervalSince1970
+  if !force, let last = lastSaved[id], now - last < ServersModel.historySaveInterval { return }
+  guard let state = states[id] else { return }
+  if ServerHistoryStore.save(state.historySnapshot(now: now), id: id) { lastSaved[id] = now }
+ }
+ private func persistAll() { for config in configs { persistHistory(config.id, force: true) } }
  @Published var draftName = ""
  @Published var draftTarget = ""
  @Published var draftRole = "bot"
  @Published var draftIdentity = ""
  @Published var draftDomain = ""
  @Published var draftIP = ""
+ // Keep the on-disk user@host representation; expose separate editable endpoint fields.
+ var draftUser: String {
+  get { String(draftTarget.split(separator: "@", omittingEmptySubsequences: false).first ?? "") }
+  set { draftTarget = newValue + "@" + draftHost }
+ }
+ var draftHost: String {
+  get { String(draftTarget.split(separator: "@", omittingEmptySubsequences: false).dropFirst().joined(separator: "@")) }
+  set { draftTarget = draftUser + "@" + newValue }
+ }
  var canManage: Bool { snapshot != nil }
  private func apply(_ value: ServerConfigStore.Snapshot) {
   let encoder = JSONEncoder(); encoder.outputFormatting = [.sortedKeys]
@@ -44,12 +134,14 @@ import MacdirCore
    }
   }
   snapshot = value; configs = value.configs; configError = nil
+  if let selectedServerID, new[selectedServerID] == nil { self.selectedServerID = nil }
+  restoreHistories()
  }
  func reload() {
   do { apply(try store.load()) }
   catch {
    requests.values.flatMap { $0 }.forEach { $0.cancel() }; requests = [:]
-   snapshot = nil; configs = []; generations = [:]
+   snapshot = nil; configs = []; generations = [:]; selectedServerID = nil
    states = [:]; selections = [:]; inFlight = []; hardwareInFlight = []
    configError = (error as? LocalizedError)?.errorDescription ?? "Не удалось прочитать servers.json."
   }
@@ -82,7 +174,7 @@ import MacdirCore
     try ServerPasswordStore.save(draftPassword, for: config, helper: ServerAskpass.helperPath); created = config
    }
    let updated = try editing == nil ? store.add(config, expected: snapshot) : store.update(config, expected: snapshot)
-   apply(updated); created = nil; managementError = nil
+   apply(updated); selectedServerID = config.id; created = nil; managementError = nil
    // Only the old exact app-owned credential; never an SSH key or another server's entry.
    if let old = editing, old.passwordReference != nil, old.passwordReference != reference {
     do { try ServerPasswordStore.delete(old) }
@@ -102,6 +194,7 @@ import MacdirCore
   guard let snapshot else { return }
   do {
    apply(try store.remove(id: config.id, expected: snapshot)); managementError = nil
+   ServerHistoryStore.remove(config.id); lastSaved[config.id] = nil
    do { try ServerPasswordStore.delete(config) }
    catch { managementError = "Сервер удалён из мониторинга; его пароль diakitw не удалось удалить из Связки ключей." }
   }
@@ -113,16 +206,62 @@ import MacdirCore
   visible = value
   polling?.cancel(); polling = nil
   guard value else {
+   if let activity { ProcessInfo.processInfo.endActivity(activity); self.activity = nil }
+   persistAll()
    requests.values.flatMap { $0 }.forEach { $0.cancel() }; requests = [:]
    for id in generations.keys { generations[id] = UUID() }; inFlight = []; hardwareInFlight = []
    return
   }
+  applyActivity()
   reload()
+  startPolling()
+ }
+ /// До 30 с включительно опрос идёт по одному переиспользуемому SSH-соединению:
+ /// новый handshake каждые 5–30 с и есть тот самый постоянный разрыв.
+ var usesMultiplexing: Bool { refreshInterval <= 30 }
+ func setInterval(_ value: Int) {
+  guard ServersModel.intervalChoices.contains(value), value != refreshInterval else { return }
+  refreshInterval = value
+  UserDefaults.standard.set(value, forKey: "server.refreshInterval")
+  if visible { startPolling() }
+ }
+ func setBackgroundCollecting(_ value: Bool) {
+  guard value != backgroundCollecting else { return }
+  backgroundCollecting = value
+  UserDefaults.standard.set(value, forKey: "server.backgroundCollecting")
+  applyActivity()
+  if visible { startPolling() }
+ }
+ /// Активность окна важна только при выключенном постоянном сборе.
+ func setAppActive(_ value: Bool) {
+  guard appActive != value else { return }
+  appActive = value
+  applyActivity()
+  if visible { startPolling() }
+ }
+ private func applyActivity() {
+  let wanted = visible && backgroundCollecting
+  if wanted {
+   guard activity == nil else { return }
+   // App Nap иначе растягивает интервал опроса до минут, и графики пустуют.
+   activity = ProcessInfo.processInfo.beginActivity(
+    options: [.userInitiatedAllowingIdleSystemSleep, .suddenTerminationDisabled, .automaticTerminationDisabled],
+    reason: "Сбор истории загрузки серверов для графиков")
+  } else if let activity {
+   ProcessInfo.processInfo.endActivity(activity); self.activity = nil
+  }
+ }
+ private func startPolling() {
+  polling?.cancel(); polling = nil
+  guard visible else { return }
+  let interval = refreshInterval
+  let continuous = backgroundCollecting
   polling = Task { [weak self] in
    while !Task.isCancelled {
-    guard self?.visible == true else { return }
-    self?.refresh()
-    do { try await Task.sleep(for: .seconds(30)) } catch { return }
+    guard let self, self.visible else { return }
+    guard continuous || self.appActive else { return }
+    self.refresh()
+    do { try await Task.sleep(for: .seconds(interval)) } catch { return }
    }
   }
  }
@@ -132,9 +271,10 @@ import MacdirCore
    guard let generation = generations[config.id] else { continue }
    hardwareInFlight.insert(config.id)
    let cancellation = ServerCancellation(); requests[config.id, default: []].append(cancellation)
+   let controlPath = usesMultiplexing ? (try? ServerMultiplex.controlPath(for: config)) : nil
    Task {
     let result: Result<ServerTelemetry, ServerError> = await Task.detached(priority: .utility) {
-     do { return ServerSampler.sample(config, probe: try ServerSampler.bundledProbe(), specs: true, cancellation: cancellation) }
+     do { return ServerSampler.sample(config, probe: try ServerSampler.bundledProbe(), specs: true, controlPath: controlPath, cancellation: cancellation) }
      catch { return .failure(.probe) }
     }.value
     guard generations[config.id] == generation else { return }
@@ -147,15 +287,21 @@ import MacdirCore
    guard let generation = generations[config.id] else { continue }
    inFlight.insert(config.id)
    let cancellation = ServerCancellation(); requests[config.id, default: []].append(cancellation)
+   let controlPath = usesMultiplexing ? (try? ServerMultiplex.controlPath(for: config)) : nil
    Task {
     let result: Result<ServerTelemetry, ServerError> = await Task.detached(priority: .utility) {
-     do { return ServerSampler.sample(config, probe: try ServerSampler.bundledProbe(), cancellation: cancellation) }
+     do { return ServerSampler.sample(config, probe: try ServerSampler.bundledProbe(), controlPath: controlPath, cancellation: cancellation) }
      catch { return .failure(.probe) }
     }.value
     guard generations[config.id] == generation else { return }
     requests[config.id]?.removeAll { $0 === cancellation }
     var state = states[config.id] ?? ServerState(); state.accept(result); states[config.id] = state
     inFlight.remove(config.id)
+    persistHistory(config.id)
+    for alert in alertEngine.evaluate(serverID: config.id, name: config.name, result: result, settings: alertSettings) {
+     ServerNotifier.shared.post(alert)
+     lastAlert = alert.title + " · " + alert.body
+    }
     if selections[config.id] == nil {
      selections[config.id] = UserDefaults.standard.string(forKey: "server.interface." + config.id) ?? state.lastSuccess?.preferredInterface
     }
@@ -163,26 +309,78 @@ import MacdirCore
   }
  }
  func select(_ name: String, for id: String) { selections[id] = name; UserDefaults.standard.set(name, forKey: "server.interface." + id) }
- deinit { polling?.cancel(); requests.values.flatMap { $0 }.forEach { $0.cancel() } }
+ deinit { polling?.cancel(); if let activity { ProcessInfo.processInfo.endActivity(activity) }; requests.values.flatMap { $0 }.forEach { $0.cancel() } }
 }
 
 struct MacdirRootView: View {
  @ObservedObject var model: Model
  @StateObject private var servers = ServersModel()
+ @State private var zoom = 1.0
+ @State private var viewport = CGSize.zero
 
+ private var editingText: Bool {
+  NSApp.keyWindow?.firstResponder is NSTextView || NSApp.keyWindow?.firstResponder is NSTextField
+ }
+ private var shortcutsBlocked: Bool { servers.adding || servers.removing != nil }
+ /// Design size used by «По размеру»: the panel is never stretched wider than
+ /// this, so a 55 % zoom keeps the card proportions instead of inflating them.
+ private var designSize: CGSize {
+  servers.section == 1
+   ? CGSize(width: servers.selectedServerID == nil ? 1440 : 1180, height: 780)
+   : CGSize(width: 1180, height: 800)
+ }
+ private func fit() {
+  zoom = WindowZoom.fit(width: viewport.width, height: viewport.height,
+   minimumWidth: designSize.width, minimumHeight: designSize.height)
+ }
+ private func resize(_ size: CGSize) { viewport = size; fit() }
+ private func step(_ direction: Int) { if !editingText && !shortcutsBlocked { zoom = WindowZoom.step(zoom, direction: direction) } }
+ private func resetZoom() { if !editingText && !shortcutsBlocked { zoom = 1 } }
+ private var zoomToolbar: some View {
+  HStack(spacing: 6) {
+   Button("−") { step(-1) }.keyboardShortcut("-", modifiers: .command)
+    .accessibilityLabel("Уменьшить масштаб")
+   Button("\(Int((zoom * 100).rounded())) %") { resetZoom() }
+    .accessibilityLabel("Сброс масштаба до 100 %")
+   Button("+") { step(1) }.keyboardShortcut("+", modifiers: .command)
+    .accessibilityLabel("Увеличить масштаб")
+   Button("+") { step(1) }.keyboardShortcut("=", modifiers: .command).hidden()
+   Button("100 %") { resetZoom() }.keyboardShortcut("0", modifiers: .command).hidden()
+   Button("−") { step(-1) }.keyboardShortcut("-", modifiers: .control).hidden()
+   Button("+") { step(1) }.keyboardShortcut("+", modifiers: .control).hidden()
+   Button("+") { step(1) }.keyboardShortcut("=", modifiers: .control).hidden()
+   Button("100 %") { resetZoom() }.keyboardShortcut("0", modifiers: .control).hidden()
+   Button("По размеру") { fit() }
+  }.buttonStyle(.bordered).controlSize(.small)
+   .disabled(shortcutsBlocked)
+   .frame(maxWidth: .infinity, alignment: .trailing).padding(.horizontal, 12).padding(.vertical, 5)
+ }
  var body: some View {
   VStack(spacing: 0) {
-   Picker("Раздел", selection: $servers.section) { Text("Этот Mac").tag(0); Text("Серверы").tag(1) }
-    .pickerStyle(.segmented).frame(width: 300).padding(.top, 12)
-   if servers.section == 0 { ContentView(model: model) }
-   else { ServerPanel(model: servers).frame(minWidth: 1060, minHeight: 740) }
+   zoomToolbar
+   GeometryReader { geometry in
+    VStack(spacing: 0) {
+     Picker("Раздел", selection: $servers.section) { Text("Этот Mac").tag(0); Text("Серверы").tag(1) }
+      .pickerStyle(.segmented).frame(width: 300).padding(.top, 12)
+     if servers.section == 0 { ContentView(model: model) }
+     else { ServerPanel(model: servers).frame(minWidth: 1060, minHeight: 740).frame(maxWidth: 1440, alignment: .top) }
+    }
+    .frame(width: geometry.size.width / CGFloat(zoom), height: geometry.size.height / CGFloat(zoom), alignment: .top)
+    .scaleEffect(CGFloat(zoom), anchor: .topLeading)
+    .frame(width: geometry.size.width, height: geometry.size.height, alignment: .topLeading)
+    .onAppear { resize(geometry.size) }
+    .onChange(of: geometry.size) { _, size in resize(size) }
+   }
   }
   .tint(.cyan).controlSize(.large)
-  .onChange(of: servers.section) { _, new in servers.setVisible(new == 1 && NSApp.isActive) }
-  .onAppear { servers.setVisible(servers.section == 1 && NSApp.isActive) }
-  .onReceive(NotificationCenter.default.publisher(for: NSApplication.didResignActiveNotification)) { _ in servers.setVisible(false) }
-  .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in servers.setVisible(servers.section == 1) }
-  .onDisappear { servers.setVisible(false) }
+  .onChange(of: servers.section) { _, _ in fit() }
+  .onChange(of: servers.selectedServerID) { _, _ in fit() }
+  .onReceive(NotificationCenter.default.publisher(for: NSWindow.didChangeScreenNotification)) { _ in fit() }
+  // Опрос идёт всё время, пока приложение запущено: смена раздела, потеря
+  // фокуса и свёрнутое окно историю не обрывают, если включён сбор в фоне.
+  .onAppear { servers.setVisible(true) }
+  .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in servers.setAppActive(true) }
+  .onReceive(NotificationCenter.default.publisher(for: NSApplication.didResignActiveNotification)) { _ in servers.setAppActive(false) }
   .onReceive(NotificationCenter.default.publisher(for: NSApplication.willTerminateNotification)) { _ in servers.setVisible(false) }
  }
 }
@@ -204,45 +402,547 @@ private func serverTime(_ epoch: Double?) -> String {
  return formatter.string(from: Date(timeIntervalSince1970: epoch))
 }
 
+/// Одна строка о состоянии сервера: давность ответа, тренд диска, сбои.
+private func fleetStatusLine(state: ServerState, now: Double) -> String {
+ var parts: [String] = ["ответ " + state.lastAnswerText(now: now)]
+ if let trend = state.diskTrendPerDay {
+  parts.append("диск " + (trend >= 0 ? "+" : "−") + gibText(abs(trend)) + "/сут")
+ }
+ if state.failuresToday > 0 { parts.append("сбоев \(state.failuresToday)") }
+ if state.rebootsToday > 0 { parts.append("перезагрузок \(state.rebootsToday)") }
+ return parts.joined(separator: " · ")
+}
+
+private func gibText(_ bytes: Double) -> String {
+ let gib = bytes / 1_073_741_824
+ if gib >= 1 { return String(format: "%.1f ГБ", gib) }
+ return String(format: "%.0f МБ", bytes / 1_048_576)
+}
+
+
 struct ServerPanel: View {
  @ObservedObject var model: ServersModel
+ @State private var treeExpanded = true
+ @State private var historyRange: ServerHistoryRange = .fiveMinutes
  var body: some View {
   ScrollView {
-   VStack(alignment: .leading, spacing: 18) {
+   VStack(alignment: .leading, spacing: 14) {
     HStack {
      Label("Серверы", systemImage: "server.rack").font(.largeTitle.bold())
      Spacer()
-     Text("SSH · только чтение · каждые 30 с").foregroundStyle(.secondary)
+     Text("SSH · только чтение").foregroundStyle(.secondary)
+     HStack(spacing: 4) {
+      Text("Обновление").font(.caption).foregroundStyle(.secondary)
+      ForEach(ServersModel.intervalChoices, id: \.self) { seconds in
+       ModeChip(title: "\(seconds) с", isOn: model.refreshInterval == seconds) { model.setInterval(seconds) }
+      }
+     }
+     .help("Интервал опроса SSH. При 5–30 с соединение не пересоздаётся: опрос идёт по одному keep-alive-каналу")
+     ModeChip(title: "В фоне", systemImage: "arrow.triangle.2.circlepath", isOn: model.backgroundCollecting) {
+      model.setBackgroundCollecting(!model.backgroundCollecting)
+     }
+     .help("Собирать данные постоянно, в том числе когда окно неактивно: без разрывов на графиках")
+     ModeChip(title: "Оповещения", systemImage: model.alertsOn ? "bell.badge" : "bell.slash", isOn: model.alertsOn) {
+      model.requestNotifications(); model.alertsSheet = true
+     }
+     .help("Пороги: сервер не отвечает, перегрузка процессора, мало места на диске")
      Button("Добавить сервер") { model.beginAdd() }.disabled(!model.canManage || model.configs.count >= 16)
+     ModeChip(title: "Экспорт CSV", systemImage: "square.and.arrow.up", isOn: false) {
+      model.exportHistory(historyRange)
+     }
+     .help("Сохранить историю всех серверов в CSV за выбранный период")
      Button("Обновить") { model.reload(); model.refresh() }
     }
     if let error = model.configError { Text(error).foregroundStyle(.orange).textSelection(.enabled) }
     if let error = model.managementError, !model.adding { Text(error).foregroundStyle(.orange) }
-    if model.configs.isEmpty { Text("Добавьте сервер с готовым SSH-доступом. Ключи и конфигурация не входят в приложение.").foregroundStyle(.secondary) }
+    if let status = model.exportStatus { Text(status).font(.caption).foregroundStyle(.secondary).textSelection(.enabled) }
+    if let alert = model.lastAlert { Text("Последнее оповещение: " + alert).font(.caption).foregroundStyle(.orange).lineLimit(2) }
     TimelineView(.periodic(from: .now, by: 1)) { context in
-     VStack(spacing: 18) {
-      ForEach(model.configs) { config in
-       HStack {
-        Text(config.name + " · " + config.target + ":" + String(config.port)).font(.caption).foregroundStyle(.secondary)
-        Spacer()
-        Button("Настройки") { model.beginEdit(config) }.controlSize(.small)
-        Button("Удалить из мониторинга", role: .destructive) { model.removing = config }.controlSize(.small)
+     HStack(alignment: .top, spacing: 14) {
+      VStack(alignment: .leading, spacing: 9) {
+       Text("Серверы · \(model.configs.count) / 16").font(.headline)
+       Button {
+        model.selectedServerID = nil
+       } label: {
+        Label("Все серверы", systemImage: "square.stack.3d.up")
+         .frame(maxWidth: .infinity, alignment: .leading)
+       }.buttonStyle(.bordered).tint(model.selectedServerID == nil ? .green : .secondary)
+        .accessibilityAddTraits(model.selectedServerID == nil ? [.isSelected] : [])
+       DisclosureGroup("Подключения", isExpanded: $treeExpanded) {
+        ForEach(model.configs) { config in
+         let state = model.states[config.id] ?? ServerState()
+         Button { model.selectedServerID = config.id } label: {
+          HStack(spacing: 7) {
+           Circle().fill(state.current(now: context.date.timeIntervalSince1970) == nil ? Color.orange : Color.green)
+            .frame(width: 8, height: 8)
+           VStack(alignment: .leading, spacing: 2) {
+            Text(config.name).lineLimit(1)
+            Text(config.headerAddress + ":" + String(config.port)).font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+           }
+           Spacer(minLength: 0)
+          }.frame(maxWidth: .infinity, alignment: .leading)
+         }.buttonStyle(.bordered).tint(model.selectedServerID == config.id ? .green : .secondary)
+          .accessibilityAddTraits(model.selectedServerID == config.id ? [.isSelected] : [])
+        }
        }
-       ServerHostPanel(config: config, state: model.states[config.id] ?? ServerState(), hardware: model.hardwareCache.snapshot(config), hardwareLabel: model.hardwareCache.label(config, now: context.date.timeIntervalSince1970), now: context.date.timeIntervalSince1970, busy: model.inFlight.contains(config.id), selection: Binding(get: { model.selections[config.id] ?? "" }, set: { model.select($0, for: config.id) }))
-      }
+       if model.configs.isEmpty { Text("Добавьте сервер с готовым SSH-доступом.").font(.caption).foregroundStyle(.secondary) }
+      }.padding(12).frame(width: 235, alignment: .topLeading)
+       .background(.quaternary.opacity(0.25), in: RoundedRectangle(cornerRadius: 12))
+      VStack(alignment: .leading, spacing: 12) {
+       if let id = model.selectedServerID, let config = model.configs.first(where: { $0.id == id }) {
+        HStack {
+         Text("Выбранное подключение").font(.headline)
+         Spacer()
+         historyPicker
+         Button("Изменить") { model.beginEdit(config) }
+         Button("Удалить из мониторинга", role: .destructive) { model.removing = config }
+        }
+        ServerHostPanel(config: config, state: model.states[config.id] ?? ServerState(), hardware: model.hardwareCache.snapshot(config), hardwareLabel: model.hardwareCache.label(config, now: context.date.timeIntervalSince1970), now: context.date.timeIntervalSince1970, busy: model.inFlight.contains(config.id), interval: model.refreshInterval, range: historyRange, selection: Binding(get: { model.selections[config.id] ?? "" }, set: { model.select($0, for: config.id) }))
+       } else {
+        HStack {
+         Text("Все серверы").font(.title2.bold())
+         Spacer()
+         historyPicker
+         Text("На связи: \(model.configs.filter { model.states[$0.id]?.current(now: context.date.timeIntervalSince1970) != nil }.count) / \(model.configs.count)").font(.caption).foregroundStyle(.secondary)
+        }
+        ForEach(model.configs) { config in
+         ServerFleetRow(config: config, state: model.states[config.id] ?? ServerState(), hardware: model.hardwareCache.snapshot(config), now: context.date.timeIntervalSince1970, range: historyRange) {
+          model.selectedServerID = config.id
+         }
+        }
+        if model.configs.isEmpty { Text("Сохранённых подключений пока нет. Нажмите «Добавить сервер».").foregroundStyle(.secondary) }
+        Text("Показатели каждого сервера отдельно; проценты разных машин не складываются.").font(.caption).foregroundStyle(.secondary)
+       }
+      }.frame(maxWidth: .infinity, alignment: .topLeading)
      }
     }
-    Text("CPU: дельта за 1 с по всем ядрам · RAM: MemTotal − MemAvailable · диск: / · трафик одного интерфейса, без суммы мостов. Старше 90 с — Н/Д. При скрытии вкладки текущие SSH-запросы отменяются.")
+    Text("CPU: дельта за 1 с по всем ядрам · RAM: MemTotal − MemAvailable · диск: / · трафик одного интерфейса, без суммы мостов. Старше 90 с — Н/Д. Опрос идёт и в фоне: история копится, пока приложение запущено, даже если окно свёрнуто или открыт другой раздел.")
      .font(.caption).foregroundStyle(.secondary)
    }.padding(22)
   }
   .sheet(isPresented: $model.adding) { ServerAddSheet(model: model) }
+  .sheet(isPresented: $model.alertsSheet) { ServerAlertSettingsSheet(model: model) }
   .alert("Удалить из мониторинга?", isPresented: Binding(get: { model.removing != nil }, set: { if !$0 { model.removing = nil } }), presenting: model.removing) { config in
    Button("Отмена", role: .cancel) { model.removing = nil }.keyboardShortcut(.cancelAction)
    Button("Удалить из мониторинга", role: .destructive) { model.removeServer(config) }
   } message: { config in
    Text("\(config.name) · \(config.target)\nТолько из локального мониторинга. Сервер, службы, SSH-ключи, config и known_hosts не изменяются. Сохранённый пароль только этой записи diakitw будет удалён из Связки ключей. SSH-запрос отменяется.")
   }
+ }
+ private var historyPicker: some View {
+  HStack(spacing: 4) {
+   ForEach(ServerHistoryRange.allCases, id: \.self) { value in
+    ModeChip(title: value.label, isOn: historyRange == value) { historyRange = value }
+   }
+  }.accessibilityLabel("Период истории")
+ }
+}
+
+private struct ServerFleetRow: View {
+ let config: ServerConfig
+ let state: ServerState
+ let hardware: ServerTelemetry?
+ let now: Double
+ let range: ServerHistoryRange
+ let open: () -> Void
+ var body: some View {
+  let sample = state.current(now: now)
+  Button(action: open) {
+   VStack(alignment: .leading, spacing: 8) {
+    HStack(spacing: 8) {
+     VStack(alignment: .leading, spacing: 3) {
+      Text(config.name).font(.headline).lineLimit(1)
+      Text(config.target + ":" + String(config.port)).font(.caption.monospaced()).foregroundStyle(.secondary).lineLimit(1)
+      Text(fleetStatusLine(state: state, now: now))
+       .font(.caption2.monospacedDigit()).foregroundStyle(.secondary).lineLimit(1)
+     }.frame(maxWidth: .infinity, alignment: .leading)
+     Text(sample == nil ? (state.error?.rawValue ?? "Нет свежих данных") : "На связи")
+      .font(.caption).foregroundStyle(sample == nil ? Color.orange : Color.green).lineLimit(1)
+     Image(systemName: "chevron.right").foregroundStyle(.secondary)
+    }
+    GeometryReader { geometry in
+     let side = min(84, max(72, (geometry.size.width - 40) / 13))
+     let interface = sample?.preferredInterface
+     let traffic = state.traffic(for: interface, in: range, now: now)
+     let rxPeaks = traffic.compactMap { $0?.received }
+     let txPeaks = traffic.compactMap { $0?.sent }
+     let peaks = rxPeaks + txPeaks
+     // Fixed 10 MiB/s made ordinary traffic sit on zero; the dial is relative
+     // to the visible peak, the absolute value is printed under it.
+     let trafficMax = max(65_536, peaks.max() ?? 0)
+     let rx = sample?.network.first(where: { $0.name == interface })?.rx
+     let tx = sample?.network.first(where: { $0.name == interface })?.tx
+     // Ядра и полные объёмы приходят суточным замером, в живом сэмпле их нет:
+     // без подстановки на приборах было «ядер: Н/Д» и пустые знаменатели.
+     let cores = sample?.cpuCount ?? hardware?.cpuCount
+     let memoryTotal = sample?.memoryTotal ?? hardware?.memoryTotal
+     let diskTotal = sample?.diskTotal ?? hardware?.diskTotal
+     HStack(spacing: 8) {
+      fleetGauge("CPU", MetricPresentation.percent(sample?.cpuPercent), GaugeScale.fraction(sample?.cpuPercent, maximum: 100), side: side, detail: coreCount(cores))
+      fleetGauge("RAM", measuredPercent(sample?.memoryUsed, memoryTotal), GaugeScale.fraction(sample?.memoryUsed, maximum: memoryTotal), side: side, detail: gibPair(sample?.memoryUsed, memoryTotal))
+      fleetGauge("SWAP", measuredPercent(sample?.swapUsed, sample?.swapTotal), GaugeScale.fraction(sample?.swapUsed, maximum: sample?.swapTotal), side: side, detail: gibPair(sample?.swapUsed, sample?.swapTotal))
+      fleetGauge("Диск /", measuredPercent(sample?.diskUsed, diskTotal), GaugeScale.fraction(sample?.diskUsed, maximum: diskTotal), side: side, detail: gibPair(sample?.diskUsed, diskTotal))
+      fleetGauge("Приём ↓", shortRate(rx), GaugeScale.fraction(rx, maximum: trafficMax), side: side, direction: InstrumentTheme.lime, detail: "макс " + shortRate(rxPeaks.max()))
+      fleetGauge("Отдача ↑", shortRate(tx), GaugeScale.fraction(tx, maximum: trafficMax), side: side, direction: InstrumentTheme.cyan, detail: "макс " + shortRate(txPeaks.max()))
+      Spacer(minLength: 14)
+      ServerLoadActivity(state: state, sample: sample, now: now, range: range, compact: true)
+       .frame(maxWidth: .infinity).frame(height: side)
+      ServerNetworkActivity(state: state, sample: sample, now: now, range: range, compact: true)
+       .frame(maxWidth: .infinity).frame(height: side)
+     }.frame(maxWidth: .infinity, alignment: .leading)
+    }.frame(height: 108)
+   }.padding(10).frame(maxWidth: .infinity, alignment: .leading)
+    .background(.quaternary.opacity(0.25), in: RoundedRectangle(cornerRadius: 10))
+  }.buttonStyle(.plain).accessibilityLabel(config.name + ", " + (sample == nil ? "Нет свежих данных" : "На связи"))
+ }
+ private func fleetGauge(_ title: String, _ value: String, _ fraction: Double?, side: CGFloat,
+                         direction: Color? = nil, detail: String? = nil) -> some View {
+  VStack(spacing: 0) {
+   NeedleGauge(fraction: fraction, neutral: direction != nil, tickLabels: [],
+               directionColor: direction ?? InstrumentTheme.lime, gutter: 8, needleBase: 8)
+    .frame(height: side * 0.46)
+   Text(title).font(.system(size: 9, weight: .semibold)).foregroundStyle(.secondary).lineLimit(1)
+   Text(value).font(.system(size: direction == nil ? 13 : 11, weight: .semibold, design: .rounded))
+    .monospacedDigit().lineLimit(1).minimumScaleFactor(0.65)
+   Text(detail ?? " ").font(.system(size: 8, weight: .medium, design: .monospaced))
+    .foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.65)
+  }.frame(width: side, height: side).fixedSize()
+   .background(InstrumentTheme.panel, in: RoundedRectangle(cornerRadius: 9))
+   .accessibilityElement(children: .ignore).accessibilityLabel(title + ": " + value + (detail.map { ", " + $0 } ?? ""))
+ }
+ /// Short byte rate for the mini dials: "2.6 К/с", not "2.6 KiB/с".
+ private func shortRate(_ value: Double?) -> String {
+  let presentation = NetworkPresentation(value)
+  guard presentation.available else { return "Н/Д" }
+  return presentation.displayNumber + " " + (presentation.unit == "MiB" ? "М/с" : "К/с")
+ }
+ /// Same denominators as the detail cards: used/total in GiB, cores for CPU.
+ private func gibPair(_ used: Double?, _ total: Double?) -> String {
+  guard let used, let total, used.isFinite, total.isFinite, used >= 0, total >= 0, used <= total else { return "Н/Д" }
+  return String(format: "%.1f/%.1fG", used / 1_073_741_824, total / 1_073_741_824)
+ }
+ private func coreCount(_ count: Double?) -> String {
+  guard let raw = count, raw.isFinite, raw >= 1 else { return "ядра: Н/Д" }
+  let count = Int(raw.rounded())
+  let word = (count % 10 == 1 && count % 100 != 11) ? "ядро"
+   : (([2, 3, 4].contains(count % 10) && ![12, 13, 14].contains(count % 100)) ? "ядра" : "ядер")
+  return String(count) + " " + word
+ }
+}
+
+/// Monotone cubic through the real samples: no kinks and, unlike Catmull-Rom,
+/// no overshoot — the curve never leaves the range of its neighbouring points,
+/// so a single spike cannot bend back into a loop.
+/// `clampHeight` keeps every control point inside the plot.
+private func smoothPath(_ points: [CGPoint], clampHeight: CGFloat? = nil) -> Path {
+ var path = Path()
+ guard let first = points.first else { return path }
+ let clamp: (CGFloat) -> CGFloat = { value in
+  guard let clampHeight else { return value }
+  return min(max(value, 0), clampHeight)
+ }
+ path.move(to: CGPoint(x: first.x, y: clamp(first.y)))
+ guard points.count > 1 else { return path }
+ guard points.count > 2 else {
+  path.addLine(to: CGPoint(x: points[1].x, y: clamp(points[1].y)))
+  return path
+ }
+ let count = points.count
+ var slope = [CGFloat](repeating: 0, count: count - 1)
+ for index in 0..<(count - 1) {
+  let dx = points[index + 1].x - points[index].x
+  slope[index] = dx == 0 ? 0 : (points[index + 1].y - points[index].y) / dx
+ }
+ var tangent = [CGFloat](repeating: 0, count: count)
+ tangent[0] = slope[0]
+ tangent[count - 1] = slope[count - 2]
+ for index in 1..<(count - 1) {
+  tangent[index] = slope[index - 1] * slope[index] <= 0 ? 0 : (slope[index - 1] + slope[index]) / 2
+ }
+ // Fritsch–Carlson: ограничиваем наклоны, иначе на пике кривая загибается.
+ for index in 0..<(count - 1) where slope[index] != 0 {
+  let a = tangent[index] / slope[index], b = tangent[index + 1] / slope[index]
+  let norm = a * a + b * b
+  if norm > 9 {
+   let scale = 3 / norm.squareRoot()
+   tangent[index] = scale * a * slope[index]
+   tangent[index + 1] = scale * b * slope[index]
+  }
+ }
+ for index in 0..<(count - 1) {
+  let dx = points[index + 1].x - points[index].x
+  guard dx != 0 else { path.addLine(to: CGPoint(x: points[index + 1].x, y: clamp(points[index + 1].y))); continue }
+  path.addCurve(to: CGPoint(x: points[index + 1].x, y: clamp(points[index + 1].y)),
+                control1: CGPoint(x: points[index].x + dx / 3,
+                                  y: clamp(points[index].y + tangent[index] * dx / 3)),
+                control2: CGPoint(x: points[index + 1].x - dx / 3,
+                                  y: clamp(points[index + 1].y - tangent[index + 1] * dx / 3)))
+ }
+ return path
+}
+
+/// Левая шкала графика: верх, середина, ноль.
+private func chartAxisLabels(top: String, middle: String, bottom: String, compact: Bool) -> some View {
+ VStack(alignment: .trailing, spacing: 0) {
+  Text(top); Spacer(minLength: 0); Text(middle); Spacer(minLength: 0); Text(bottom)
+ }.font(.system(size: compact ? 7 : 8, weight: .medium, design: .monospaced))
+  .foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.7)
+  .frame(width: compact ? 26 : 34)
+}
+
+/// Подпись скорости для оси: «2,0 М/с», а не «2,0 MiB».
+private func axisRate(_ value: Double) -> String {
+ let presentation = NetworkPresentation(value)
+ // Ниже 1 КиБ/с показываем ноль: иначе ось пишет «1 К/с» на пустом графике.
+ guard value >= 1024, presentation.available else { return "0" }
+ return presentation.displayNumber + (presentation.unit == "MiB" ? " М/с" : " К/с")
+}
+
+/// Number only, for the compact chart title: "7.5", not "7.5 К/с".
+private func compactRate(_ value: Double?) -> String {
+ let presentation = NetworkPresentation(value)
+ guard presentation.available else { return "—" }
+ // Без буквы «14.0↓» не говорит ничего: мегабайты это или килобайты.
+ return presentation.displayNumber + (presentation.unit == "MiB" ? "М" : "К")
+}
+
+/// Light quarter grid behind both trend charts: 25/50/75 % of the plot plus a
+/// baseline, so a flat line is readable without an axis.
+private func drawChartGrid(_ context: GraphicsContext, size: CGSize) {
+ for step in 1...3 {
+  let y = size.height * Double(step) / 4
+  var grid = Path()
+  grid.move(to: CGPoint(x: 0, y: y))
+  grid.addLine(to: CGPoint(x: size.width, y: y))
+  context.stroke(grid, with: .color(.primary.opacity(0.12)),
+                 style: StrokeStyle(lineWidth: 0.5, dash: [2, 3]))
+ }
+ var baseline = Path()
+ baseline.move(to: CGPoint(x: 0, y: size.height - 0.5))
+ baseline.addLine(to: CGPoint(x: size.width, y: size.height - 0.5))
+ context.stroke(baseline, with: .color(.primary.opacity(0.20)), style: StrokeStyle(lineWidth: 0.5))
+}
+
+private struct ServerLoadActivity: View {
+ let state: ServerState
+ let sample: ServerTelemetry?
+ let now: Double
+ var range: ServerHistoryRange = .fiveMinutes
+ /// Compact mode is used by the fleet card: shorter title with the live value.
+ var compact = false
+ @State private var hoverX: CGFloat?
+ var body: some View {
+  let readings = state.load(in: range, now: now)
+  let title: String = compact
+   ? "CPU · " + MetricPresentation.percent(sample?.cpuPercent)
+   : "История нагрузки · CPU"
+  VStack(alignment: .leading, spacing: 4) {
+   Text(title)
+    .font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+   if readings.contains(where: { $0?.percent != nil }) {
+    HStack(alignment: .top, spacing: 3) {
+     chartAxisLabels(top: "100%", middle: "50%", bottom: "0%", compact: compact)
+     Canvas { context, size in
+     drawChartGrid(context, size: size)
+     // Пропуск замера заполняется половиной последнего максимума — средним
+     // между нулём и пиком: линия непрерывна и не выглядит обрывом.
+     var pts: [CGPoint] = []
+     var previous: ServerLoadPoint?
+     var dropToZero = false
+     let peak = readings.compactMap { $0?.percent }.max() ?? 0
+     let fillY = max(0, Double(size.height) * (1 - (peak / 2) / 100))
+     func zero(_ x: Double) { pts.append(CGPoint(x: x, y: fillY)) }
+     var firstSampleX: Double?
+     var firstSampleY: Double = 0
+     var lastSampleX: Double = 0
+     var lastSampleY: Double = 0
+     for point in readings {
+      guard let point, let value = point.percent else { dropToZero = true; continue }
+      let x = Double(size.width) * ((point.sampledAt - (now - range.seconds)) / range.seconds)
+      let y = Double(size.height) * (1 - value / 100)
+      let position = CGPoint(x: x, y: y)
+      if firstSampleX == nil { firstSampleX = x; firstSampleY = y }
+      lastSampleX = x; lastSampleY = y
+      if dropToZero {
+       zero(Double(pts.last?.x ?? 0)); zero(x); dropToZero = false
+      } else if let previous, !point.follows(previous) {
+       zero(Double(pts.last?.x ?? CGFloat(x))); zero(x)
+      }
+      pts.append(position)
+      previous = point
+      context.fill(Path(ellipseIn: CGRect(x: x - 1.5, y: y - 1.5, width: 3, height: 3)), with: .color(InstrumentTheme.lime))
+     }
+     if dropToZero { zero(Double(size.width)) }
+     // Края тянутся за крайними замерами: слева — первым значением, справа —
+     // последним. Линия не «догоняет» данные и не проваливается к середине.
+     if let firstX = firstSampleX, firstX > 1 {
+      pts.insert(CGPoint(x: 0, y: firstSampleY), at: 0)
+     }
+     if !dropToZero, lastSampleX < Double(size.width) - 1 {
+      pts.append(CGPoint(x: Double(size.width), y: lastSampleY))
+     }
+     if pts.count > 1 {
+      context.stroke(smoothPath(pts, clampHeight: size.height), with: .color(InstrumentTheme.lime), lineWidth: 1.5)
+     }
+     // Курсор: время замера и его значение прямо на графике.
+     if let hoverX, size.width > 0 {
+      let moment = now - range.seconds + Double(hoverX / size.width) * range.seconds
+      let measured = readings.compactMap { $0 }.filter { $0.percent != nil }
+      if let nearest = measured.min(by: { abs($0.sampledAt - moment) < abs($1.sampledAt - moment) }) {
+       let x = size.width * CGFloat((nearest.sampledAt - (now - range.seconds)) / range.seconds)
+       let y = size.height * CGFloat(1 - (nearest.percent ?? 0) / 100)
+       drawChartCursor(context, size: size, x: x, accent: InstrumentTheme.lime)
+       drawChartDot(context, x: x, y: y, accent: InstrumentTheme.lime)
+       drawChartTip(context, size: size, at: x,
+                    lines: [chartTimeLabel(nearest.sampledAt),
+                            "CPU " + MetricPresentation.percent(nearest.percent)],
+                    accent: InstrumentTheme.lime)
+      }
+     }
+     }.chartHoverTracking($hoverX)
+      .frame(maxWidth: .infinity, maxHeight: .infinity)
+      .accessibilityLabel("История реально измеренной загрузки CPU: шкала 0–100 %")
+    }
+   } else {
+    Text("История CPU: Н/Д").font(.caption2).foregroundStyle(.secondary)
+     .frame(maxWidth: .infinity, maxHeight: .infinity)
+   }
+   ServerHistoryAxis(range: range, now: now)
+  }.frame(maxWidth: .infinity)
+ }
+}
+
+private struct ServerHistoryAxis: View {
+ let range: ServerHistoryRange
+ let now: Double
+ private func clock(_ time: Double) -> String {
+  guard time.isFinite, time >= 0, time < 4_102_444_800 else { return "—" }
+  let components = Calendar.current.dateComponents([.hour, .minute], from: Date(timeIntervalSince1970: time))
+  return String(format: "%02d:%02d", components.hour ?? 0, components.minute ?? 0)
+ }
+ var body: some View {
+  HStack(spacing: 1) {
+   Text(clock(now - range.seconds))
+   Spacer(minLength: 1)
+   Text(clock(now - range.seconds / 2))
+   Spacer(minLength: 1)
+   Text(clock(now))
+  }.font(.system(size: 8, weight: .medium, design: .monospaced))
+   .foregroundStyle(.secondary).lineLimit(1)
+   .accessibilityLabel("Время от " + clock(now - range.seconds) + " до " + clock(now))
+ }
+}
+
+private struct ServerNetworkActivity: View {
+ let state: ServerState
+ let sample: ServerTelemetry?
+ let now: Double
+ var range: ServerHistoryRange = .fiveMinutes
+ var interface: String? = nil
+ /// Compact mode (fleet card): short title that carries both live rates, and no
+ /// separate rate widgets, which keeps the chart's minimum width small.
+ var compact = false
+ @State private var hoverX: CGFloat?
+ var body: some View {
+  let name = interface ?? sample?.preferredInterface ?? state.knownInterface
+  let rx = sample?.network.first(where: { $0.name == name })?.rx
+  let tx = sample?.network.first(where: { $0.name == name })?.tx
+  let readings = state.traffic(for: name, in: range, now: now)
+  let rxMax = readings.compactMap { $0?.received }.max() ?? 0
+  let txMax = readings.compactMap { $0?.sent }.max() ?? 0
+  let scale = max(1, max(rxMax, txMax))
+  let down = compactRate(rx) + "↓"
+  let up = compactRate(tx) + "↑"
+  let rates = down + " " + up
+  let title: String = compact ? "Сеть · " + rates : "Сеть · " + (name ?? "Н/Д")
+  VStack(alignment: .leading, spacing: 4) {
+   HStack(spacing: 6) {
+    Text(title)
+     .font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+    Spacer(minLength: 0)
+    if !compact {
+     NetworkRateValue(value: rx, direction: "↓", size: 11)
+      .foregroundStyle(InstrumentTheme.lime)
+     NetworkRateValue(value: tx, direction: "↑", size: 11)
+      .foregroundStyle(InstrumentTheme.cyan)
+    }
+   }
+   if readings.contains(where: { $0?.hasMeasurement == true }) {
+    HStack(alignment: .top, spacing: 3) {
+     chartAxisLabels(top: axisRate(scale), middle: axisRate(scale / 2), bottom: "0", compact: compact)
+     Canvas { context, size in
+     drawChartGrid(context, size: size)
+     for incoming in [true, false] {
+      let color = incoming ? InstrumentTheme.lime : InstrumentTheme.cyan
+      // То же для приёма и отдачи: пропуск садится на половину своего пика.
+      var pts: [CGPoint] = []
+      var previous: ServerTrafficPoint?
+      var dropToZero = false
+      let seriesPeak = readings.compactMap { incoming ? $0?.received : $0?.sent }.max() ?? 0
+      let fillY = max(0, Double(size.height) * (1 - min(1, (seriesPeak / 2) / scale)))
+      func zero(_ x: Double) { pts.append(CGPoint(x: x, y: fillY)) }
+      var firstSampleX: Double?
+      var firstSampleY: Double = 0
+      var lastSampleX: Double = 0
+      var lastSampleY: Double = 0
+      for point in readings {
+       guard let point, let value = incoming ? point.received : point.sent else { dropToZero = true; continue }
+       let x = Double(size.width) * ((point.sampledAt - (now - range.seconds)) / range.seconds)
+       let y = Double(size.height) * (1 - min(1, value / scale))
+       let position = CGPoint(x: x, y: y)
+       if firstSampleX == nil { firstSampleX = x; firstSampleY = y }
+       lastSampleX = x; lastSampleY = y
+       if dropToZero {
+        zero(Double(pts.last?.x ?? 0)); zero(x); dropToZero = false
+       } else if let previous, !point.follows(previous) {
+        zero(Double(pts.last?.x ?? CGFloat(x))); zero(x)
+       }
+       pts.append(position)
+       previous = point
+       context.fill(Path(ellipseIn: CGRect(x: x - 1.5, y: y - 1.5, width: 3, height: 3)),
+        with: .color(color))
+      }
+      if dropToZero { zero(Double(size.width)) }
+      // Та же непрерывность для приёма и отдачи: края держат крайние значения.
+      if let firstX = firstSampleX, firstX > 1 {
+       pts.insert(CGPoint(x: 0, y: firstSampleY), at: 0)
+      }
+      if !dropToZero, lastSampleX < Double(size.width) - 1 {
+       pts.append(CGPoint(x: Double(size.width), y: lastSampleY))
+      }
+      if pts.count > 1 {
+       context.stroke(smoothPath(pts, clampHeight: size.height), with: .color(color), lineWidth: 1.5)
+      }
+     }
+     // Курсор: время замера и обе скорости в этой точке.
+     if let hoverX, size.width > 0 {
+      let moment = now - range.seconds + Double(hoverX / size.width) * range.seconds
+      let measured = readings.compactMap { $0 }.filter { $0.hasMeasurement }
+      if let nearest = measured.min(by: { abs($0.sampledAt - moment) < abs($1.sampledAt - moment) }) {
+       let x = size.width * CGFloat((nearest.sampledAt - (now - range.seconds)) / range.seconds)
+       drawChartCursor(context, size: size, x: x, accent: InstrumentTheme.cyan)
+       if let received = nearest.received {
+        drawChartDot(context, x: x, y: size.height * CGFloat(1 - min(1, received / scale)), accent: InstrumentTheme.lime)
+       }
+       if let sent = nearest.sent {
+        drawChartDot(context, x: x, y: size.height * CGFloat(1 - min(1, sent / scale)), accent: InstrumentTheme.cyan)
+       }
+       drawChartTip(context, size: size, at: x,
+                    lines: [chartTimeLabel(nearest.sampledAt),
+                            chartRateText(nearest.received) + " ↓   " + chartRateText(nearest.sent) + " ↑"],
+                    accent: InstrumentTheme.cyan)
+      }
+     }
+     }.chartHoverTracking($hoverX)
+      .frame(maxWidth: .infinity, maxHeight: .infinity)
+      .accessibilityLabel("История реально измеренной активности сети: шкала по максимуму периода " + axisRate(scale))
+    }
+   } else {
+    Text("Нет свежих данных сети").font(.caption2).foregroundStyle(.secondary)
+     .frame(maxWidth: .infinity, maxHeight: .infinity)
+   }
+   ServerHistoryAxis(range: range, now: now)
+  }.frame(maxWidth: .infinity)
  }
 }
 
@@ -253,8 +953,9 @@ private struct ServerAddSheet: View {
    Text(model.editing == nil ? "Добавить сервер" : "Настройки сервера").font(.title2.bold())
    Form {
     TextField("Название", text: $model.draftName)
-    TextField("SSH: логин@хост", text: $model.draftTarget)
-    TextField("SSH порт (1–65535)", text: $model.draftPort)
+    TextField("IP-адрес или домен SSH", text: Binding(get: { model.draftHost }, set: { model.draftHost = $0 }))
+    TextField("Логин SSH", text: Binding(get: { model.draftUser }, set: { model.draftUser = $0 }))
+    TextField("SSH-порт (1–65535)", text: $model.draftPort)
     Picker("Аутентификация", selection: $model.draftAuthentication) {
      Text("SSH-ключ / ssh-agent").tag(ServerConfig.Authentication.key)
      Text("Логин и пароль").tag(ServerConfig.Authentication.password)
@@ -280,7 +981,7 @@ private struct ServerAddSheet: View {
     Spacer()
     Button("Отмена", role: .cancel) { model.draftPassword = ""; model.adding = false; model.managementError = nil }.keyboardShortcut(.cancelAction)
     Button(model.editing == nil ? "Добавить и начать мониторинг" : "Сохранить настройки") { model.addServer() }
-     .disabled(model.draftName.isEmpty || model.draftTarget.isEmpty || (try? ServerConfig.parsePort(model.draftPort)) == nil)
+     .disabled(model.draftName.isEmpty || model.draftHost.isEmpty || model.draftUser.isEmpty || (try? ServerConfig.parsePort(model.draftPort)) == nil)
    }
   }.padding(24).frame(width: 640)
    .onDisappear { model.draftPassword = "" }
@@ -295,6 +996,8 @@ private struct ServerHostPanel: View {
  let hardwareLabel: String
  let now: Double
  let busy: Bool
+ let interval: Int
+ var range: ServerHistoryRange = .fiveMinutes
  @Binding var selection: String
  private var sample: ServerTelemetry? { state.current(now: now) }
  private var network: ServerNetwork? { sample?.network.first { $0.name == selection } }
@@ -306,7 +1009,7 @@ private struct ServerHostPanel: View {
      Text(config.headerAddress).font(.system(.caption, design: .monospaced)).foregroundStyle(.secondary).textSelection(.enabled)
      Text(ServerTelemetry.hardwareSummary(hardware)).font(.system(.caption, design: .monospaced)).foregroundStyle(.secondary).textSelection(.enabled)
       .help("vCPU — логические процессоры ОС, не физические ядра. RAM — MemTotal; диск — полный размер файловой системы /. GiB = 2³⁰ байт.")
-     Text(hardwareLabel).font(.caption2).foregroundStyle(.secondary).help(hardwareLabel + ". Кэш характеристик: 24 ч; при ошибке повтор через 30 мин. Живые показатели и их знаменатели RAM/диска обновляются каждые 30 с.")
+     Text(hardwareLabel).font(.caption2).foregroundStyle(.secondary).help(hardwareLabel + ". Кэш характеристик: 24 ч; при ошибке повтор через 30 мин. Живые показатели и их знаменатели RAM/диска обновляются каждые \(interval) с.")
     }
     Text(config.role == "bot" ? "VPN / bot" : "EMCx / Hermes").font(.caption).foregroundStyle(.secondary)
     Spacer()
@@ -315,10 +1018,10 @@ private struct ServerHostPanel: View {
      .foregroundStyle(sample != nil ? Color.green : Color.secondary)
    }
    HStack(spacing: 10) {
-    GaugeTile(symbol: "cpu", title: "CPU", value: MetricPresentation.percent(sample?.cpuPercent), detail: "Логические ядра: " + (hardware?.cpuCount.map { String(format: "%.0f", $0) } ?? "Н/Д"), fraction: GaugeScale.fraction(sample?.cpuPercent, maximum: 100))
-    GaugeTile(symbol: "memorychip", title: "RAM", value: measuredPercent(sample?.memoryUsed, sample?.memoryTotal), detail: measuredPair(sample?.memoryUsed, sample?.memoryTotal), fraction: GaugeScale.fraction(sample?.memoryUsed, maximum: sample?.memoryTotal), explanation: "MemTotal − MemAvailable; GiB = 2³⁰ байт")
-    GaugeTile(symbol: "arrow.left.arrow.right", title: "SWAP", value: measuredPercent(sample?.swapUsed, sample?.swapTotal), detail: measuredPair(sample?.swapUsed, sample?.swapTotal), fraction: GaugeScale.fraction(sample?.swapUsed, maximum: sample?.swapTotal), explanation: MetricPresentation.swapExplanation)
-    GaugeTile(symbol: "internaldrive", title: "ДИСК /", value: measuredPercent(sample?.diskUsed, sample?.diskTotal), detail: measuredPair(sample?.diskUsed, sample?.diskTotal) + "\nКорневая файловая система", fraction: GaugeScale.fraction(sample?.diskUsed, maximum: sample?.diskTotal))
+    GaugeTile(symbol: "cpu", title: "CPU", value: MetricPresentation.percent(sample?.cpuPercent), detail: "Логические ядра: " + (hardware?.cpuCount.map { String(format: "%.0f", $0) } ?? "Н/Д"), fraction: GaugeScale.fraction(sample?.cpuPercent, maximum: 100), tickLabels: [])
+    GaugeTile(symbol: "memorychip", title: "RAM", value: measuredPercent(sample?.memoryUsed, sample?.memoryTotal), detail: measuredPair(sample?.memoryUsed, sample?.memoryTotal), fraction: GaugeScale.fraction(sample?.memoryUsed, maximum: sample?.memoryTotal), tickLabels: [], explanation: "MemTotal − MemAvailable; GiB = 2³⁰ байт")
+    GaugeTile(symbol: "arrow.left.arrow.right", title: "SWAP", value: measuredPercent(sample?.swapUsed, sample?.swapTotal), detail: measuredPair(sample?.swapUsed, sample?.swapTotal), fraction: GaugeScale.fraction(sample?.swapUsed, maximum: sample?.swapTotal), tickLabels: [], explanation: MetricPresentation.swapExplanation)
+    GaugeTile(symbol: "internaldrive", title: "ДИСК /", value: measuredPercent(sample?.diskUsed, sample?.diskTotal), detail: measuredPair(sample?.diskUsed, sample?.diskTotal) + "\nКорневая файловая система", fraction: GaugeScale.fraction(sample?.diskUsed, maximum: sample?.diskTotal), tickLabels: [])
    }
    HStack {
     Picker("Интерфейс", selection: $selection) {
@@ -342,18 +1045,11 @@ private struct ServerHostPanel: View {
       .foregroundStyle(["active", "running"].contains(service.state) ? Color.green : Color.secondary)
     } }.font(.caption)
    } else { Text("Службы: Н/Д").font(.caption).foregroundStyle(.secondary) }
-   HStack {
-    Text("CPU · последние 60 опросов\n0–100 % · пропуски не соединяются").font(.caption2).foregroundStyle(.secondary)
-    Canvas { context, size in
-     var path = Path(); var connected = false
-     for (i, value) in state.cpuHistory.enumerated() {
-      guard let value else { connected = false; continue }
-      let point = CGPoint(x: size.width * Double(i) / 59, y: size.height * (1 - value / 100))
-      if connected { path.addLine(to: point) } else { path.move(to: point) }; connected = true
-     }
-     context.stroke(path, with: .color(.blue), lineWidth: 1.5)
-    }.frame(height: 28).accessibilityLabel("История реально измеренной загрузки CPU")
-   }
+   HStack(spacing: 10) {
+    ServerLoadActivity(state: state, sample: sample, now: now, range: range)
+    ServerNetworkActivity(state: state, sample: sample, now: now, range: range, interface: selection)
+   }.frame(height: 150)
+
   }.padding(16).background(.quaternary.opacity(0.25), in: RoundedRectangle(cornerRadius: 16))
  }
 }

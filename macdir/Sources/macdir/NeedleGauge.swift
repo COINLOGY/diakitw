@@ -26,12 +26,14 @@ func gaugeColor(_ fraction: Double?, battery: Bool = false) -> Color {
 
 struct InstrumentNeedle: Shape {
  var fraction: Double
+ var gutter: Double = 44
+ var needleBase: Double = 16
  var animatableData: Double {
   get { fraction }
   set { fraction = newValue }
  }
  func path(in rect: CGRect) -> Path {
-  let points = GaugeGeometry(width: rect.width, height: rect.height).needlePoints(fraction: fraction)
+  let points = GaugeGeometry(width: rect.width, height: rect.height, gutter: gutter, needleBase: needleBase).needlePoints(fraction: fraction)
   var path = Path()
   if let first = points.first {
    path.move(to: first)
@@ -49,6 +51,10 @@ struct NeedleGauge: View {
  var upperLabel = "100%"
  var tickLabels: [String]? = nil
  var directionColor: Color = InstrumentTheme.lime
+ /// 44/16 keep the full dial unchanged; compact cards shrink the label gutter
+ /// and the needle hub so the radius stays large enough to draw a needle.
+ var gutter: Double = 44
+ var needleBase: Double = 16
  private var labels: [String] {
   if let tickLabels { return tickLabels }
   if neutral { return ["0", "5", String(upperLabel.split(separator: " ").first ?? "10")] }
@@ -60,7 +66,7 @@ struct NeedleGauge: View {
  }
  var body: some View {
   GeometryReader { geo in
-   let geometry = GaugeGeometry(width: geo.size.width, height: geo.size.height)
+   let geometry = GaugeGeometry(width: geo.size.width, height: geo.size.height, gutter: gutter, needleBase: needleBase)
    let radius = geometry.radius
    let center = geometry.center
    ZStack(alignment: .topLeading) {
@@ -81,7 +87,7 @@ struct NeedleGauge: View {
      }
     }
     if let fraction, fraction.isFinite, (0...1).contains(fraction) {
-     InstrumentNeedle(fraction: fraction).fill(color(fraction))
+     InstrumentNeedle(fraction: fraction, gutter: gutter, needleBase: needleBase).fill(color(fraction))
       .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: fraction)
      Circle().fill(Color(red: 0.078, green: 0.102, blue: 0.129))
       .overlay(Circle().strokeBorder(color(fraction), lineWidth: 1.5))
@@ -89,13 +95,13 @@ struct NeedleGauge: View {
     } else {
      Text("Н/Д").font(.caption).foregroundStyle(.secondary).position(x: center.x, y: center.y - 18)
     }
-    ForEach(0..<3) { i in
+    if labels.count == 3 { ForEach(0..<3) { i in
      let box = geometry.labelBox(i)
      Text(labels[i]).font(.system(size: 10, weight: .semibold, design: .monospaced))
       .lineLimit(1).minimumScaleFactor(0.75)
       .frame(width: box.width, height: box.height)
       .position(x: box.midX, y: box.midY)
-    }
+    } }
    }.foregroundStyle(.primary.opacity(0.85))
   }.accessibilityHidden(true)
  }
@@ -116,26 +122,56 @@ struct GaugeTile: View {
  var directionColor: Color = InstrumentTheme.lime
  var amountOnly = false
  var explanation: String?
+ var square = false
+
+ @ViewBuilder private var dial: some View {
+  if amountOnly {
+   Image(systemName: symbol).font(.system(size: 30, weight: .light)).foregroundStyle(.secondary)
+  } else {
+   NeedleGauge(fraction: fraction, battery: battery, neutral: neutral, upperLabel: upperLabel,
+               tickLabels: tickLabels, directionColor: directionColor)
+  }
+ }
+
  var body: some View {
   let network = NetworkPresentation(networkRate)
-  HStack(spacing: 4) {
-   VStack(alignment: .leading, spacing: 5) {
-    Label(title, systemImage: symbol).font(.system(size: 10, weight: .semibold)).foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.75)
-    if neutral {
-     NetworkRateValue(value: networkRate, direction: networkDirection, size: 16)
-      .foregroundStyle(network.available ? directionColor : Color.secondary)
-    } else {
-     Text(value).font(.system(size: 22, weight: .semibold, design: .rounded)).foregroundStyle(gaugeColor(fraction, battery: battery)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.65)
+  Group {
+   if square {
+    // Без геометрической обёртки: она схлопывается до идеальных 10×10, если у
+    // ячейки нет аспекта. Высота задана явно, карточка заполняет ячейку.
+    VStack(spacing: 0) {
+     dial.frame(maxWidth: 220).frame(height: 88)
+     Label(title, systemImage: symbol).font(.system(size: 11, weight: .semibold))
+      .foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.75)
+     if neutral {
+      NetworkRateValue(value: networkRate, direction: networkDirection, size: 16)
+       .foregroundStyle(network.available ? directionColor : Color.secondary)
+     } else {
+      Text(value).font(.system(size: 26, weight: .semibold, design: .rounded))
+       .foregroundStyle(gaugeColor(fraction, battery: battery))
+       .monospacedDigit().lineLimit(1).minimumScaleFactor(0.65)
+     }
+     Text(detail).font(.system(size: 10)).foregroundStyle(.secondary)
+      .lineLimit(2).multilineTextAlignment(.center).frame(height: 20, alignment: .top)
     }
-    Text(detail).font(.system(size: 10)).foregroundStyle(.secondary).lineLimit(2).frame(minHeight: 22, alignment: .topLeading)
-   }.frame(maxWidth: .infinity, alignment: .leading)
-   if amountOnly {
-    Image(systemName: symbol).font(.system(size: 30, weight: .light)).foregroundStyle(.secondary).frame(width: 100, height: 88)
+    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
    } else {
-    NeedleGauge(fraction: fraction, battery: battery, neutral: neutral, upperLabel: upperLabel, tickLabels: tickLabels, directionColor: directionColor).frame(width: 100, height: 88)
+    HStack(spacing: 4) {
+     VStack(alignment: .leading, spacing: 5) {
+      Label(title, systemImage: symbol).font(.system(size: 10, weight: .semibold)).foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.75)
+      if neutral {
+       NetworkRateValue(value: networkRate, direction: networkDirection, size: 16)
+        .foregroundStyle(network.available ? directionColor : Color.secondary)
+      } else {
+       Text(value).font(.system(size: 22, weight: .semibold, design: .rounded))
+        .foregroundStyle(gaugeColor(fraction, battery: battery)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.65)
+      }
+      Text(detail).font(.system(size: 10)).foregroundStyle(.secondary).lineLimit(2).frame(minHeight: 22, alignment: .topLeading)
+     }.frame(maxWidth: .infinity, alignment: .leading)
+     dial.frame(width: 100, height: 88)
+    }.frame(maxWidth: .infinity, alignment: .leading).frame(height: 88).padding(12)
    }
-  }.frame(maxWidth: .infinity, alignment: .leading).frame(height: 88).padding(12)
-   .background(InstrumentTheme.panel, in: RoundedRectangle(cornerRadius: 14))
+  }.background(InstrumentTheme.panel, in: RoundedRectangle(cornerRadius: 14))
    .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(.primary.opacity(0.06)))
    .accessibilityElement(children: .ignore)
    .accessibilityLabel(title)

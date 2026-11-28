@@ -3,7 +3,7 @@
     "path": "macdir/Sources/MacdirCore/GaugeScale.swift",
     "start": " public init(width:",
     "end": " /// Approved",
-    "source": " Double, height: Double) {\n  self.width = max(0, width)\n  radius = max(0, min(60, width / 2 - 12, height - 44))\n  center = CGPoint(x: width / 2, y: radius + 22)\n }\n"
+    "source": " Double, height: Double, gutter: Double = 44, needleBase: Double = 16) {\n  self.width = max(0, width)\n  self.needleBase = max(0, needleBase)\n  radius = max(0, min(60, width / 2 - 12, height - gutter))\n  center = CGPoint(x: width / 2, y: radius + gutter / 2)\n }\n"
   },
   {
     "path": "macdir/Sources/MacdirCore/GaugeScale.swift",

@@ -33,11 +33,21 @@ public struct ServerConfig: Codable, Identifiable {
   guard data.count <= 65536, let list = try? JSONDecoder().decode([Self].self, from: data), list.count <= 16, Set(list.map(\.id)).count == list.count else { throw ServerError.config }
   for c in list { _ = try c.sshArguments() }; return list
  }
- public func sshArguments(specs: Bool = false) throws -> [String] {
+ public func sshArguments(specs: Bool = false, controlPath: String? = nil) throws -> [String] {
   guard target.range(of: "\\A[A-Za-z0-9_][A-Za-z0-9_.-]*@[A-Za-z0-9][A-Za-z0-9.-]*\\z", options: .regularExpression) != nil, ["bot", "agent"].contains(role), !id.isEmpty, id.count <= 64, !name.isEmpty, name.count <= 80, !name.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) }) else { throw ServerError.config }
   guard (1...65535).contains(port) else { throw ServerError.config }
   if let passwordReference, UUID(uuidString: passwordReference) == nil { throw ServerError.config }
-  var args = ["-T", "-p", String(port), authentication == .key ? "-oBatchMode=yes" : "-oBatchMode=no", "-oStrictHostKeyChecking=yes", "-oConnectTimeout=8", "-oServerAliveInterval=5", "-oServerAliveCountMax=1", "-oForwardAgent=no", "-oClearAllForwardings=yes", "-oControlMaster=no", "-oControlPath=none"]
+  // Frequent polling must reuse one SSH session: a fresh handshake every 5–30 s
+  // is exactly the "connection is constantly being re-established" the owner sees.
+  // Alive settings are looser for a persistent master, so an idle minute does not
+  // tear the socket down between samples.
+  var args = ["-T", "-p", String(port), authentication == .key ? "-oBatchMode=yes" : "-oBatchMode=no", "-oStrictHostKeyChecking=yes", "-oConnectTimeout=8", "-oServerAliveInterval=" + (controlPath == nil ? "5" : "15"), "-oServerAliveCountMax=" + (controlPath == nil ? "1" : "3"), "-oForwardAgent=no", "-oClearAllForwardings=yes"]
+  if let controlPath {
+   guard controlPath.hasPrefix("/"), !controlPath.contains("\n"), !controlPath.contains(" "), controlPath.utf8.count <= 100 else { throw ServerError.config }
+   args += ["-oControlMaster=auto", "-oControlPath=" + controlPath, "-oControlPersist=120"]
+  } else {
+   args += ["-oControlMaster=no", "-oControlPath=none"]
+  }
   if authentication == .password {
    // Ignore user ssh config: no proxy/local commands can inherit askpass access.
    args = ["-F", "/dev/null"] + args + ["-oPreferredAuthentications=password", "-oPasswordAuthentication=yes", "-oPubkeyAuthentication=no", "-oKbdInteractiveAuthentication=no", "-oNumberOfPasswordPrompts=1", "-oPermitLocalCommand=no"]
@@ -57,9 +67,18 @@ public enum ServerSampler {
   return .unavailable
  }
  // Blocking worker primitive: callers dispatch off the main actor.
- public static func sample(_ config: ServerConfig, probe: Data, specs: Bool = false, cancellation: ServerCancellation = ServerCancellation()) -> Result<ServerTelemetry, ServerError> {
+ public static func sample(_ config: ServerConfig, probe: Data, specs: Bool = false, controlPath: String? = nil, cancellation: ServerCancellation = ServerCancellation()) -> Result<ServerTelemetry, ServerError> {
+  let first = attempt(config, probe: probe, specs: specs, controlPath: controlPath, cancellation: cancellation)
+  // Мастер-канал не должен выключать мониторинг: любая его ошибка повторяется
+  // обычным одноразовым соединением.
+  if case .failure(let error) = first, controlPath != nil, error != .cancelled {
+   return attempt(config, probe: probe, specs: specs, controlPath: nil, cancellation: cancellation)
+  }
+  return first
+ }
+ private static func attempt(_ config: ServerConfig, probe: Data, specs: Bool, controlPath: String?, cancellation: ServerCancellation) -> Result<ServerTelemetry, ServerError> {
   do {
-   let args = try config.sshArguments(specs: specs)
+   let args = try config.sshArguments(specs: specs, controlPath: controlPath)
    guard !probe.isEmpty, probe.count <= 65536 else { return .failure(.probe) }
    var environment: [String: String] = [:]
    if config.authentication == .password {
@@ -82,6 +101,35 @@ public enum ServerSampler {
   guard let url = Bundle.main.url(forResource: "server_probe", withExtension: "py"), let data = try? Data(contentsOf: url), !data.isEmpty, data.count <= 65536 else { throw ServerError.probe }; return data
  }
 
+}
+/// Control sockets for SSH multiplexing. A frequent poll (5–30 s) keeps one
+/// master session per server instead of paying a handshake on every sample.
+public enum ServerMultiplex {
+ /// Путь обязан быть без пробелов: ssh разбирает значение `-o ControlPath=…`
+ /// по пробелам и падает с «keyword controlpath extra arguments at end of line».
+ /// `~/Library/Application Support` для этой цели не годится.
+ public static func directory() throws -> URL {
+  let url = FileManager.default.homeDirectoryForCurrentUser
+   .appendingPathComponent("Library/Caches/macdir/ssh-control", isDirectory: true)
+  var isDirectory: ObjCBool = false
+  if FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory) {
+   guard isDirectory.boolValue else { throw ServerError.config }
+  } else {
+   try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+  }
+  return url
+ }
+ /// Stable socket name from the exact endpoint: no user or host text in the path,
+ /// so it survives renames of the display name and stays under the 104-char limit.
+ public static func controlPath(for config: ServerConfig) throws -> String {
+  var hash: UInt64 = 0xcbf2_9ce4_8422_2325
+  for byte in (config.id + "|" + config.target + "|" + String(config.port)).utf8 {
+   hash ^= UInt64(byte); hash = hash &* 0x0000_0100_0000_01b3
+  }
+  let path = try directory().appendingPathComponent("s" + String(hash, radix: 16) + ".sock").path
+  guard path.utf8.count <= 100 else { throw ServerError.config }
+  return path
+ }
 }
 public enum BoundedServerProcess {
  public struct Output { public let stdout: Data; public let stderr: Data; public let status: Int32 }

@@ -10,6 +10,7 @@ import Foundation
   precondition(parse(",\"country_code\":\"GB\"")!.summary == "🇬🇧 United Kingdom · A & B", "GeoJS country_code flag beside country")
   let proxy = EgressLocation.decodeProxy(Data(#"{"ip":"203.0.113.5","country":"Germany","city":"Berlin","code":"DE"}"#.utf8), status: 200)!
   precondition(proxy.summary == "🇩🇪 Germany · Berlin" && proxy.flag == "🇩🇪", "Validated VPN exit flag for status bar")
+  precondition(proxy.summaryWithAddress == "🇩🇪 Germany · 203.0.113.5 · Berlin", "Exit address sits right beside the country: \(proxy.summaryWithAddress)")
   for code in ["ZZ", "UK", "DE\n", "de", "D", "DEU", "🇩🇪"] {
    let raw = Data("{\"ip\":\"203.0.113.5\",\"country\":\"Germany\",\"code\":\"\(code.replacingOccurrences(of: "\n", with: "\\n"))\"}".utf8)
    precondition(EgressLocation.decodeProxy(raw, status: 200)?.summary == "Germany", "Invalid ISO code must not display a flag: \(code)")

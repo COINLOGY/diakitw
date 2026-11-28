@@ -33,8 +33,45 @@ state.accept(.failure(.denied))
 check(state.current(now: 1002) == nil && state.lastSuccess?.cpuPercent == 25, "failure clears current retains separate last success")
 let networking = try sample("{\"schema\":1,\"services\":[{\"name\":\"hermes\",\"state\":\"running\"}],\"network\":[{\"name\":\"br-a\"},{\"name\":\"lo\"},{\"name\":\"ens3\"}]}")
 check(networking.preferredInterface == "ens3" && networking.services.first?.state == "running", "physical network and container running")
-for _ in 0..<100 { state.accept(.success(good)) }
-check(state.cpuHistory.count == 60, "bounded real CPU history")
+// Окно истории — час по времени: на 30-секундном опросе это 121 точка,
+// а не «сколько успело накопиться». Раньше здесь 130 раз подавался один и
+// тот же замер, поэтому проверялось только ограничение по числу точек.
+var cadence = ServerState()
+for index in 0..<200 {
+ let time = 10_000.0 + Double(index) * 30
+ let payload = "{\"schema\":1,\"sampled_at\":\(time),\"cpu_percent\":25,\"network\":[{\"name\":\"ens3\",\"rx_bytes_per_second\":100,\"tx_bytes_per_second\":200}]}"
+ cadence.accept(.success(try sample(payload)))
+}
+check(cadence.cpuHistory.count == 121 && cadence.load(in: .hour, now: 10_000 + 199 * 30).compactMap { $0 }.count == 121, "60 minute CPU history at 30 second cadence")
+var fast = ServerState()
+for index in 0..<1_000 {
+ let time = 50_000.0 + Double(index) * 5
+ fast.accept(.success(try sample("{\"schema\":1,\"sampled_at\":\(time),\"cpu_percent\":30}")))
+}
+check(fast.cpuHistory.count == ServerState.historyLimit, "five second polling is capped at 720 points")
+check(fast.load(in: .hour, now: 50_000 + 999 * 5).compactMap { $0 }.count <= ServerState.historyLimit, "fast history never exceeds the hour window")
+var timedHistory = ServerState()
+for (time, cpu) in [(1000.0, 25.0), (1030.0, 50.0), (1200.0, 75.0)] {
+ let payload = "{\"schema\":1,\"sampled_at\":\(time),\"cpu_percent\":\(cpu),\"network\":[{\"name\":\"ens3\",\"rx_bytes_per_second\":100,\"tx_bytes_per_second\":200}]}"
+ timedHistory.accept(.success(try sample(payload)))
+}
+check(timedHistory.load(in: .minute, now: 1200).compactMap { $0?.percent } == [75], "one minute selects timestamp not index")
+check(timedHistory.load(in: .fiveMinutes, now: 1200).compactMap { $0?.percent } == [25, 50, 75], "five minutes retains measured points")
+check(timedHistory.traffic(in: .minute, now: 1200).compactMap { $0?.received } == [100], "network window uses sample time")
+let loadPoints = timedHistory.load(in: .fiveMinutes, now: 1200).compactMap { $0 }
+check(!loadPoints[2].follows(loadPoints[1]), "poll gap never connects")
+timedHistory.accept(.failure(.timeout))
+check(timedHistory.current(now: 1201) == nil && timedHistory.load(in: .hour, now: 1201).last! == nil, "failed poll leaves honest gap")
+var interfaces = ServerState()
+for (time, rx) in [(1000, 300), (1030, 301)] {
+ let payload = "{\"schema\":1,\"sampled_at\":\(time),\"network\":[{\"name\":\"ens3\",\"rx_bytes_per_second\":100},{\"name\":\"br0\",\"rx_bytes_per_second\":\(rx)}]}"
+ interfaces.accept(.success(try sample(payload)))
+}
+check(interfaces.traffic(for: "br0", in: .fiveMinutes, now: 1030).compactMap { $0?.received } == [300, 301], "selected secondary interface has measured history")
+check(interfaces.traffic(for: "ens3", in: .fiveMinutes, now: 1030).compactMap { $0?.received } == [100, 100], "preferred interface history remains isolated")
+interfaces.accept(.failure(.timeout))
+check(interfaces.traffic(for: "br0", in: .fiveMinutes, now: 1031).last! == nil, "failed sample breaks selected-interface line")
+check(interfaces.traffic(for: "not-measured", in: .hour, now: 1031).isEmpty, "unknown interface never borrows another interface")
 let output = try BoundedServerProcess.run(executable: "/bin/cat", arguments: [], input: Data("fixture".utf8))
 check(String(decoding: output.stdout, as: UTF8.self) == "fixture", "process stdin drained")
 let start = ProcessInfo.processInfo.systemUptime
