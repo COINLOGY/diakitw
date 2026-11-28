@@ -79,7 +79,7 @@ for f in list((p/'Sources/MacdirCore').glob('*.swift'))+list((p/'Sources/macdir'
                 expected = 1
             assert text.count(token) == expected, token
             text=text.replace(token, token.rstrip('\n')+'.layoutProbe("fleet-" + config.id + "-'+chart+'")\n', 1)
-        text=text.replace('}.frame(height: 108)\n', '}.frame(height: 108).layoutProbe("fleet-" + config.id + "-row")\n', 1)
+        text=text.replace('}.frame(height: 111)\n', '}.frame(height: 111).layoutProbe("fleet-" + config.id + "-row")\n', 1)
     if f.name=='NeedleGauge.swift':
         text=text.replace('.help(explanation ?? detail)', '.help(explanation ?? detail).layoutProbe("gauge-" + title)')
     text=text.replace('import MacdirCore\n','').replace('MacdirCore.Scanner','Scanner')

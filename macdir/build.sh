@@ -9,7 +9,7 @@ export TMPDIR="$(cd "$TMPDIR" && pwd -P)"
 export DEVELOPER_DIR="${DEVELOPER_DIR:-$(xcode-select -p)}"
 export MACOSX_DEPLOYMENT_TARGET=14.0
 # Refuse prior outputs before compiling or writing any release artifacts.
-OUTPUT="${MACDIR_OUTPUT:-dist/diakitw-1.0.7-arm64}"
+OUTPUT="${MACDIR_OUTPUT:-dist/diakitw-1.1.1-arm64}"
 if [[ -e "$OUTPUT" || -L "$OUTPUT" ]]; then
   printf '%s\n' "Refusing existing output: $OUTPUT" >&2
   exit 1
@@ -28,17 +28,17 @@ else
   bash sign-and-notarize.sh preflight
 fi
 python3 Tests/check_updates_wiring.py
-python3 Tests/test_release_107_mac.py
-python3 Tests/check_release107_mac_layout.py
-python3 Tests/test_compact_107.py
-python3 Tests/test_approved_square_107.py
-python3 Tests/test_macos_adhoc_route_107.py
+python3 Tests/test_release_111_mac.py
+python3 Tests/check_release111_mac_layout.py
+python3 Tests/test_compact_111.py
+python3 Tests/test_approved_square_111.py
+python3 Tests/test_macos_adhoc_route_111.py
 python3 Tests/check_update_prompt.py
-mkdir -p evidence/diakitw-1.0.7
-swiftc -j 2 -parse-as-library Sources/macdir/UpdateOfferPromptPolicy.swift Tests/update_prompt_checks.swift -o evidence/diakitw-1.0.7/update-prompt-checks
-evidence/diakitw-1.0.7/update-prompt-checks
-swiftc -j 2 -parse-as-library Sources/MacdirCore/UpdateChecker.swift Tests/update_checks.swift -o evidence/diakitw-1.0.7/update-checks
-evidence/diakitw-1.0.7/update-checks
+mkdir -p evidence/diakitw-1.1.1
+swiftc -j 2 -parse-as-library Sources/macdir/UpdateOfferPromptPolicy.swift Tests/update_prompt_checks.swift -o evidence/diakitw-1.1.1/update-prompt-checks
+evidence/diakitw-1.1.1/update-prompt-checks
+swiftc -j 2 -parse-as-library Sources/MacdirCore/UpdateChecker.swift Tests/update_checks.swift -o evidence/diakitw-1.1.1/update-checks
+evidence/diakitw-1.1.1/update-checks
 python3 Tests/check_expressive_v4.py
 python3 Tests/check_menu_spaces.py
 python3 Tests/check_rebrand.py
@@ -52,8 +52,8 @@ python3 Tests/check_release_artifacts.py
 # Предупреждение SwiftPM об устаревании флага безвредно — убрать его можно
 # только вместе с переписыванием всех -I путей.
 swift build --jobs 2 --build-system native -c release --triple arm64-apple-macosx14.0 --sdk "$(xcrun --sdk macosx --show-sdk-path)" -Xswiftc -file-prefix-map -Xswiftc "$PWD=/diakitw-src" -Xswiftc -debug-prefix-map -Xswiftc "$PWD=/diakitw-src"
- swiftc -j 2 -parse-as-library Tests/battery_cycles_checks.swift -I .build/release/Modules .build/release/MacdirCore.build/*.o -o evidence/diakitw-1.0.7/battery-cycles-checks
- evidence/diakitw-1.0.7/battery-cycles-checks
+ swiftc -j 2 -parse-as-library Tests/battery_cycles_checks.swift -I .build/release/Modules .build/release/MacdirCore.build/*.o -o evidence/diakitw-1.1.1/battery-cycles-checks
+ evidence/diakitw-1.1.1/battery-cycles-checks
 .build/release/CoreChecks
 .build/release/CacheChecks
 .build/release/ServerChecks
@@ -63,9 +63,9 @@ swift build --jobs 2 --build-system native -c release --triple arm64-apple-macos
 python3 Tests/check_diagnostics_ui.py
 python3 Tests/check_diagnostic_presentation.py
 python3 Tests/check_diagnostic_allocation.py
-mkdir -p evidence/diakitw-1.0.7
-swiftc -j 2 -parse-as-library Sources/macdir/DiagnosticControls.swift Tests/render_diagnostics.swift -I .build/release/Modules .build/release/MacdirCore.build/*.o -o evidence/diakitw-1.0.7/render-diagnostics
-evidence/diakitw-1.0.7/render-diagnostics
+mkdir -p evidence/diakitw-1.1.1
+swiftc -j 2 -parse-as-library Sources/macdir/DiagnosticControls.swift Tests/render_diagnostics.swift -I .build/release/Modules .build/release/MacdirCore.build/*.o -o evidence/diakitw-1.1.1/render-diagnostics
+evidence/diakitw-1.1.1/render-diagnostics
 python3 Tests/run_server_auth_checks.py "${TMPDIR:?Set an owned scratch directory}"
 python3 Tests/check_server_metric_integration.py
 python3 Tests/run_server_management_checks.py "${TMPDIR:?Set an owned scratch directory}"
@@ -75,43 +75,43 @@ python3 Tests/test_server_probe.py
 python3 Tests/check_servers_ui.py
 python3 Tests/check_alerts_export.py
 python3 Tests/check_chart_hover.py
-python3 Tests/test_fleet_compact_107.py
-python3 Tests/test_native_zoom_107.py
+python3 Tests/test_fleet_compact_111.py
+python3 Tests/test_native_zoom_111.py
 python3 Tests/test_ui_revision_r2.py
-swiftc -j 2 -parse-as-library Tests/fleet_traffic_checks.swift -I .build/release/Modules .build/release/MacdirCore.build/*.o -o evidence/diakitw-1.0.7/fleet-traffic-checks
-evidence/diakitw-1.0.7/fleet-traffic-checks
+swiftc -j 2 -parse-as-library Tests/fleet_traffic_checks.swift -I .build/release/Modules .build/release/MacdirCore.build/*.o -o evidence/diakitw-1.1.1/fleet-traffic-checks
+evidence/diakitw-1.1.1/fleet-traffic-checks
 python3 Tests/check_mac_identity.py
 python3 Tests/check_geo_wiring.py
 python3 Tests/check_geo_transport.py
-swiftc -j 2 -parse-as-library Sources/MacdirCore/MacIdentity.swift Sources/MacdirCore/EgressLocation.swift Tests/geo_checks.swift -o evidence/diakitw-1.0.7/geo-checks
-evidence/diakitw-1.0.7/geo-checks
+swiftc -j 2 -parse-as-library Sources/MacdirCore/MacIdentity.swift Sources/MacdirCore/EgressLocation.swift Tests/geo_checks.swift -o evidence/diakitw-1.1.1/geo-checks
+evidence/diakitw-1.1.1/geo-checks
 python3 Tests/test_country_flag_status.py
-swiftc -j 2 -parse-as-library Sources/macdir/StatusTypography.swift Tests/status_country_flag_checks.swift -o evidence/diakitw-1.0.7/status-country-flag-checks
-evidence/diakitw-1.0.7/status-country-flag-checks
-swiftc -j 2 -parse-as-library Sources/macdir/DesktopActions.swift Tests/desktop_actions_checks.swift -o evidence/diakitw-1.0.7/desktop-actions-checks
-evidence/diakitw-1.0.7/desktop-actions-checks
-swiftc -j 2 -parse-as-library Sources/MacdirCore/IdentityRefreshPolicy.swift Tests/identity_refresh_checks.swift -o evidence/diakitw-1.0.7/identity-refresh-checks
-evidence/diakitw-1.0.7/identity-refresh-checks
+swiftc -j 2 -parse-as-library Sources/macdir/StatusTypography.swift Tests/status_country_flag_checks.swift -o evidence/diakitw-1.1.1/status-country-flag-checks
+evidence/diakitw-1.1.1/status-country-flag-checks
+swiftc -j 2 -parse-as-library Sources/macdir/DesktopActions.swift Tests/desktop_actions_checks.swift -o evidence/diakitw-1.1.1/desktop-actions-checks
+evidence/diakitw-1.1.1/desktop-actions-checks
+swiftc -j 2 -parse-as-library Sources/MacdirCore/IdentityRefreshPolicy.swift Tests/identity_refresh_checks.swift -o evidence/diakitw-1.1.1/identity-refresh-checks
+evidence/diakitw-1.1.1/identity-refresh-checks
 python3 Tests/check_cache_ui.py
 python3 Tests/check_startup.py
 python3 Tests/check_gauges.py
 python3 Tests/check_instrument_style.py
-swiftc -j 2 -parse-as-library Sources/MacdirCore/GaugeScale.swift Tests/gauge_geometry_checks.swift -o evidence/diakitw-1.0.7/geometry-checks
-evidence/diakitw-1.0.7/geometry-checks
-swiftc -j 2 -parse-as-library Sources/MacdirCore/GaugeScale.swift Tests/needle_geometry_checks.swift -o evidence/diakitw-1.0.7/needle-checks
-evidence/diakitw-1.0.7/needle-checks
-swiftc -j 2 -parse-as-library Sources/macdir/NeedleGauge.swift Sources/macdir/NetworkRateValue.swift Tests/render_gauge_geometry.swift -I .build/release/Modules .build/release/MacdirCore.build/*.o -o evidence/diakitw-1.0.7/gauge-checks
-evidence/diakitw-1.0.7/gauge-checks evidence/diakitw-1.0.7/gauge-green
-swiftc -j 2 -parse-as-library Sources/MacdirCore/GaugeScale.swift Tests/speed_scale_checks.swift -o evidence/diakitw-1.0.7/speed-checks
-evidence/diakitw-1.0.7/speed-checks
+swiftc -j 2 -parse-as-library Sources/MacdirCore/GaugeScale.swift Tests/gauge_geometry_checks.swift -o evidence/diakitw-1.1.1/geometry-checks
+evidence/diakitw-1.1.1/geometry-checks
+swiftc -j 2 -parse-as-library Sources/MacdirCore/GaugeScale.swift Tests/needle_geometry_checks.swift -o evidence/diakitw-1.1.1/needle-checks
+evidence/diakitw-1.1.1/needle-checks
+swiftc -j 2 -parse-as-library Sources/macdir/NeedleGauge.swift Sources/macdir/NetworkRateValue.swift Tests/render_gauge_geometry.swift -I .build/release/Modules .build/release/MacdirCore.build/*.o -o evidence/diakitw-1.1.1/gauge-checks
+evidence/diakitw-1.1.1/gauge-checks evidence/diakitw-1.1.1/gauge-green
+swiftc -j 2 -parse-as-library Sources/MacdirCore/GaugeScale.swift Tests/speed_scale_checks.swift -o evidence/diakitw-1.1.1/speed-checks
+evidence/diakitw-1.1.1/speed-checks
 python3 Tests/check_swap_ui.py
 python3 Tests/check_network_colors.py
 python3 Tests/check_hud.py
 python3 Tests/check_status_legibility.py
-python3 Tests/check_layout.py 1.0.7
-mkdir -p evidence/diakitw-1.0.7/status
-swiftc -j 2 Sources/macdir/StatusTypography.swift Tests/render_status.swift -o evidence/diakitw-1.0.7/status/render-status
-evidence/diakitw-1.0.7/status/render-status evidence/diakitw-1.0.7/status
+python3 Tests/check_layout.py 1.1.1
+mkdir -p evidence/diakitw-1.1.1/status
+swiftc -j 2 Sources/macdir/StatusTypography.swift Tests/render_status.swift -o evidence/diakitw-1.1.1/status/render-status
+evidence/diakitw-1.1.1/status/render-status evidence/diakitw-1.1.1/status
 # Versioned output: never replace the user's installed app or previous distributions.
 APP="$OUTPUT/diakitw.app"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"

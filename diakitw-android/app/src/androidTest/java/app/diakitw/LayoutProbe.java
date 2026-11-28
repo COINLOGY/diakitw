@@ -154,14 +154,14 @@ public final class LayoutProbe extends Instrumentation {
   if("proxy".equals(mode)){ProxyProbe.run();out.putString("stream","PASS proxy fixtures\n");finish(Activity.RESULT_OK,out);return;}
   if("ip".equals(mode)){IpProbe.run();out.putString("stream","PASS IP parsing IPv4/IPv6 and malformed schema\n");finish(Activity.RESULT_OK,out);return;}
   Intent launch=new Intent(getTargetContext(),MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-  if("arrow".equals(mode)||"entry".equals(mode)||"release103".equals(mode)||"release104".equals(mode)||"release107".equals(mode))launch.putExtra("diakitw.test.offline",true);
+  if("arrow".equals(mode)||"entry".equals(mode)||"release103".equals(mode)||"release104".equals(mode)||"release111".equals(mode))launch.putExtra("diakitw.test.offline",true);
   MainActivity a=(MainActivity)startActivitySync(launch);
   Thread.sleep("arrow".equals(mode)?300:3500);waitForIdleSync();
-  if("release104".equals(mode)||"release107".equals(mode)){
-    if("release107".equals(mode))ui(()->{
-     check(BuildConfig.VERSION_NAME.equals("1.0.7")&&BuildConfig.VERSION_CODE==107,"Wrong release107 package version");
+  if("release104".equals(mode)||"release111".equals(mode)){
+    if("release111".equals(mode))ui(()->{
+     check(BuildConfig.VERSION_NAME.equals("1.1.1")&&BuildConfig.VERSION_CODE==111,"Wrong release111 package version");
      a.updatesMenu();
-     check(visibleText(a.updateDialog.getWindow().getDecorView(),"Обновления · 1.0.7 (107)"),"Native version title not visible");
+     check(visibleText(a.updateDialog.getWindow().getDecorView(),"Обновления · 1.1.1 (111)"),"Native version title not visible");
      a.updateDialog.dismiss();
     });
    if(requestedOrientation!=null)check(a.getResources().getConfiguration().orientation==Integer.parseInt(requestedOrientation),"release104 orientation mismatch");
@@ -181,7 +181,7 @@ public final class LayoutProbe extends Instrumentation {
     check(a.storageDetail.getText().toString().contains("доступно")&&a.storageDetail.getText().toString().contains("GiB"),"Real disk capacity unavailable");
     check(a.folderResult.getText().toString().contains("выберите"),"Folder map pretends access without grant");
     check(a.testOffline&&a.test==null&&!SpeedTest.BUSY.get(),"Offline probe started paid speed test");});
-   ui(a::finish);out.putString("stream",("release107".equals(mode)?"PASS release107 offline resources, RX/TX, disk, map visible, folder grant gate\n":"PASS release104 offline resources, RX/TX, disk, map visible, folder grant gate\n"));finish(Activity.RESULT_OK,out);return;
+   ui(a::finish);out.putString("stream",("release111".equals(mode)?"PASS release111 offline resources, RX/TX, disk, map visible, folder grant gate\n":"PASS release104 offline resources, RX/TX, disk, map visible, folder grant gate\n"));finish(Activity.RESULT_OK,out);return;
   }
   if("release103".equals(mode)){
    if(requestedOrientation!=null)check(a.getResources().getConfiguration().orientation==Integer.parseInt(requestedOrientation),"Orientation not applied");

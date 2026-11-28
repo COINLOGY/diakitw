@@ -4,20 +4,20 @@ const fs=require('node:fs');
 const html=fs.readFileSync('app/index.html','utf8');
 const css=fs.readFileSync('app/style.css','utf8');
 const renderer=fs.readFileSync('app/renderer.js','utf8');
-const workflow=()=>fs.readFileSync('../.github/workflows/desktop-107-candidate.yml','utf8');
+const workflow=()=>fs.readFileSync('../.github/workflows/desktop-111-candidate.yml','utf8');
 
-test('107 metadata and visible version agree, with Windows PE fixed and string versions',()=>{
+test('111 metadata and visible version agree, with Windows PE fixed and string versions',()=>{
  const app=require('../app/package.json'),build=require('../package.json');
- assert.equal(app.version,'1.0.7');assert.equal(app.displayVersion,'1.0.7');assert.equal(app.build,107);assert.equal(build.version,'1.0.7');
- const lock=require('../package-lock.json');assert.equal(lock.version,'1.0.7');assert.equal(lock.packages[''].version,'1.0.7');
- assert.match(html,/diakitw 1\.0\.7/);
- const builder=fs.readFileSync('scripts/build-v107.mjs','utf8');
- const pe=fs.readFileSync('scripts/normalize-pe-v107.mjs','utf8');
- const verify=fs.readFileSync('scripts/verify-bundles-v107.mjs','utf8');
- for(const source of [builder,pe,verify])assert.match(source,/1\.0\.7/);
- assert.match(builder,/buildVersion:'1\.0\.7\.107'/);
- assert.match(pe,/setFileVersion\(1,0,7,107,0\)/);
- assert.match(verify,/FileVersion==='1\.0\.7\.107'/);
+ assert.equal(app.version,'1.1.1');assert.equal(app.displayVersion,'1.1.1');assert.equal(app.build,111);assert.equal(build.version,'1.1.1');
+ const lock=require('../package-lock.json');assert.equal(lock.version,'1.1.1');assert.equal(lock.packages[''].version,'1.1.1');
+ assert.match(html,/diakitw 1\.1\.1/);
+ const builder=fs.readFileSync('scripts/build-v111.mjs','utf8');
+ const pe=fs.readFileSync('scripts/normalize-pe-v111.mjs','utf8');
+ const verify=fs.readFileSync('scripts/verify-bundles-v111.mjs','utf8');
+ for(const source of [builder,pe,verify])assert.match(source,/1\.1\.1/);
+ assert.match(builder,/buildVersion:'1\.1\.1\.111'/);
+ assert.match(pe,/setFileVersion\(1,0,7,111,0\)/);
+ assert.match(verify,/FileVersion==='1\.1\.1\.111'/);
 });
 
 test('compact layout groups existing measured resources with network, then disk and honest explorer',()=>{
@@ -46,7 +46,7 @@ test('compact gauges reserve enough canvas height to keep measured dial arcs vis
 });
 
 test('bundle verifier hashes nested runtime dependencies, not directories as files',()=>{
- const source=fs.readFileSync('scripts/verify-bundles-v107.mjs','utf8');
+ const source=fs.readFileSync('scripts/verify-bundles-v111.mjs','utf8');
  assert.match(source,/sourceFiles\(absolute,relative\+'\/'\)/);
  assert.match(source,/node_modules\/ssh2\/lib\/client\.js/);
  assert.match(source,/asar\.statFile\(archive,n\)/);
@@ -54,12 +54,12 @@ test('bundle verifier hashes nested runtime dependencies, not directories as fil
  assert.doesNotMatch(source,/assert\.deepEqual\(list\.map\(n=>n\.replace/);
 });
 
-test('107 candidate workflow binds exact source SHA, preserves archive modes and never publishes',()=>{
+test('111 candidate workflow binds exact source SHA, preserves archive modes and never publishes',()=>{
  const w=workflow();
- for(const s of ['feat/release-107-candidate','npm test','build-v107.mjs win32','build-v107.mjs linux','normalize-pe-v107.mjs','verify-bundles-v107.mjs','verify-upstream-v107.py','archive-v107.py','verify-archives-v107.py','source-commit.txt','GITHUB_SHA','diakitw-1.0.7-windows-x64.zip','diakitw-1.0.7-linux-x64.tar.gz','release-manifest-1.0.7.json'])assert.ok(w.includes(s),s);
- assert.match(w,/if: github\.ref == 'refs\/heads\/feat\/release-107-candidate'/);
+ for(const s of ['feat/release-111-candidate','npm test','build-v111.mjs win32','build-v111.mjs linux','normalize-pe-v111.mjs','verify-bundles-v111.mjs','verify-upstream-v111.py','archive-v111.py','verify-archives-v111.py','source-commit.txt','GITHUB_SHA','diakitw-1.1.1-windows-x64.zip','diakitw-1.1.1-linux-x64.tar.gz','release-manifest-1.1.1.json'])assert.ok(w.includes(s),s);
+ assert.match(w,/if: github\.ref == 'refs\/heads\/feat\/release-111-candidate'/);
  assert.doesNotMatch(w,/gh release |overwrite: true|git push|pages|feed\.json/);
- const archive=fs.readFileSync('scripts/archive-v107.py','utf8');
+ const archive=fs.readFileSync('scripts/archive-v111.py','utf8');
  assert.match(archive,/README-CANDIDATE\.txt/);assert.match(archive,/EXE неподписан/);assert.match(archive,/tarfile\.open/);
- const verification=fs.readFileSync('scripts/verify-archives-v107.py','utf8');assert.match(verification,/m\.mode&0o777/);
+ const verification=fs.readFileSync('scripts/verify-archives-v111.py','utf8');assert.match(verification,/m\.mode&0o777/);
 });

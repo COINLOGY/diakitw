@@ -2,8 +2,8 @@
 from pathlib import Path
 root = Path(__file__).resolve().parents[1]
 main = (root / 'Sources/macdir/main.swift').read_text()
-# The 1.0.7 compact dashboard intentionally has no old battery tile;
-# battery cycle data remains covered by test_compact_107.py and native Resources checks.
+# The 1.1.1 compact dashboard intentionally has no old battery tile;
+# battery cycle data remains covered by test_compact_111.py and native Resources checks.
 for expression in ['MetricPresentation.percent(model.snapshot.cpu)', 'MetricPresentation.utilization(model.snapshot.memoryUsed', 'MetricPresentation.usedTotal(model.snapshot.memoryUsed', 'MetricPresentation.utilization(model.snapshot.swap', 'MetricPresentation.usedTotal(model.snapshot.swap', 'explanation: MetricPresentation.swapExplanation', 'MetricPresentation.utilization(model.snapshot.diskOccupied', 'MetricPresentation.usedTotal(model.snapshot.diskOccupied', 'ProcessInfo.processInfo.processorCount']:
     assert expression in main, expression
 for obsolete in ['scalePercent', '001.0', '010.0', 'Wh Н/Д', 'Текущий объём; 0']:

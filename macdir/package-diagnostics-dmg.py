@@ -11,10 +11,10 @@ from contextlib import contextmanager
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
-VERSION = '1.0.7'
-BUILD = '107'
+VERSION = '1.1.1'
+BUILD = '111'
 NAME = 'diakitw'
-README = 'README-diakitw-1.0.7-RU.txt'
+README = 'README-diakitw-1.1.1-RU.txt'
 
 
 def artifact_paths(root, arch, mode="signed"):

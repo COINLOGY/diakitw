@@ -1,6 +1,6 @@
-# diakitw iOS 1.0.7 (107)
+# diakitw iOS 1.1.1 (111)
 
-User-facing version **1.0.7**. Apple platform metadata and iOS updater identity are **1.0.7**, build **107**. The updater only offers a newer, matching iOS asset when the public feed actually contains one; it does not install unsigned archives.
+User-facing version **1.1.1**. Apple platform metadata and iOS updater identity are **1.1.1**, build **111**. The updater only offers a newer, matching iOS asset when the public feed actually contains one; it does not install unsigned archives.
 
 The battery card reports charge and power state only; iOS battery cycle count is not claimed.
 
