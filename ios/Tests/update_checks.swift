@@ -40,7 +40,7 @@ final class FixtureProtocol: URLProtocol {
         require(try UpdateContract.select(nextRelease, channel: "preview", platform: "macos-arm64", current: "1.0.0", currentBuild: 100)?.version == "1.1.1", "1.0.0 sees 1.1.1")
         require(try UpdateContract.select(nextRelease, channel: "preview", platform: "macos-arm64", current: "1.0.1", currentBuild: 101)?.build == 111, "1.0.1 updates to 1.1.1")
         require(try UpdateContract.select(nextRelease, channel: "preview", platform: "macos-arm64") == nil, "1.1.1 does not self-offer")
-        require(try UpdateContract.select(try fixture(version: "1.1.1", build: 111), channel: "preview", platform: "macos-arm64")?.build == 111, "newer build of same version offered")
+        require(try UpdateContract.select(try fixture(version: "1.1.1", build: 112), channel: "preview", platform: "macos-arm64")?.build == 112, "newer build of same version offered")
         let nextIOS = try fixture(version: "1.1.1", build: 111, platform: "ios-unsigned")
         require(try UpdateContract.select(nextIOS, channel: "preview", platform: "ios-unsigned", current: "1.0.4", currentBuild: 104)?.build == 111, "1.0.4 iOS sees matching 111 asset")
         #if os(iOS)
