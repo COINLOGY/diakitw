@@ -329,7 +329,7 @@ struct ContentView: View {
      if let flag = model.egressLocation?.flag {
       Text(flag).font(.system(size: 16)).fixedSize().layoutPriority(1)
      }
-     Text(model.egressLocation.map { [$0.country, $0.city].compactMap { $0 }.joined(separator: " · ") }.flatMap { $0.isEmpty ? nil : $0 } ?? "Страна / город недоступны")
+     Text(model.egressLocation.map { [$0.country, $0.ip, $0.city].compactMap { $0 }.joined(separator: " · ") }.flatMap { $0.isEmpty ? nil : $0 } ?? "Страна / город недоступны")
       .font(.caption).lineLimit(1).minimumScaleFactor(0.75)
     }
     Text("2ip через EMCx · резерв GeoJS · выход/VPN, не GPS").font(.caption2).foregroundStyle(.secondary).lineLimit(1)

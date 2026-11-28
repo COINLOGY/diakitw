@@ -110,7 +110,7 @@ import MacdirCore
    "Порядок значков: удерживайте ⌘ и перетащите"
   ]
   for (detail, text) in zip(details, lines) { detail.title = text }
-  let country = location.flatMap { $0.summary.isEmpty ? nil : $0.summary } ?? "нет данных"
+  let country = location.flatMap { $0.summary.isEmpty ? nil : $0.summaryWithAddress } ?? "нет данных"
   item?.button?.toolTip = "Страна выхода (VPN, не GPS): " + country + "\n" + lines.prefix(6).joined(separator: "\n")
   item?.button?.setAccessibilityLabel("diakitw: страна выхода " + country + "; " + lines.prefix(6).joined(separator: "; "))
  }

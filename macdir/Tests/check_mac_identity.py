@@ -40,3 +40,10 @@ assert 'networkRate: selectedNetwork?.received' in main
 assert 'networkRate: selectedNetwork?.sent' in main
 assert 'NetworkRateValue(value: networkRate' in (root / 'Sources/macdir/NeedleGauge.swift').read_text()
 assert server_ui.count('NetworkRateValue(') >= 2
+
+hud = (root / 'Sources/macdir/ResourceHUD.swift').read_text()
+egress = (root / 'Sources/MacdirCore/EgressLocation.swift').read_text()
+main_window = (root / 'Sources/macdir/main.swift').read_text()
+assert '[labeledCountry, ip, city]' in egress, 'exit address must be part of the location line'
+assert 'location.flatMap { $0.summary.isEmpty ? nil : $0.summaryWithAddress }' in hud, 'status menu must show the exit address'
+assert '[$0.country, $0.ip, $0.city]' in main_window, 'window header must show the exit address too'

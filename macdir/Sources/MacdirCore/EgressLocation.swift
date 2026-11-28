@@ -21,14 +21,22 @@ public struct EgressLocation {
          let a = Unicode.Scalar(127397 + first.value), let b = Unicode.Scalar(127397 + second.value) else { return nil }
    return "\(String(a))\(String(b))"
   }
-  public var summary: String {
-  let labeledCountry = country.map { name -> String in
+  /// Страна с флагом: только проверенный ISO-код из того же ответа даёт флаг.
+ public var labeledCountry: String? {
+  country.map { name -> String in
    guard let countryCode, let first = countryCode.unicodeScalars.first,
          let second = countryCode.unicodeScalars.dropFirst().first,
          let a = Unicode.Scalar(127397 + first.value), let b = Unicode.Scalar(127397 + second.value) else { return name }
    return "\(String(a))\(String(b)) \(name)"
   }
-  return [labeledCountry, city].compactMap { $0 }.joined(separator: " · ")
+ }
+ public var summary: String {
+  [labeledCountry, city].compactMap { $0 }.joined(separator: " · ")
+ }
+ /// То же, но с адресом выхода сразу после страны: в меню видно, какой
+ /// именно узел даёт эту страну, и не приходится гадать по флагу.
+ public var summaryWithAddress: String {
+  [labeledCountry, ip, city].compactMap { $0 }.joined(separator: " · ")
  }
  public static func clean(_ value: String?) -> String? {
   guard let value, value.count <= 160 else { return nil }
