@@ -154,8 +154,9 @@ public struct ServerState {
    if bounded.compactMap({ $0 }).isEmpty { trafficByInterface.removeValue(forKey: name) }
    else { trafficByInterface[name] = bounded }
   }
-  // cpuHistory — только значения без меток времени: окно по времени задаёт loadHistory.
-  cpuHistory = cpuHistory.count > ServerState.historyLimit ? Array(cpuHistory.suffix(ServerState.historyLimit)) : cpuHistory
+  // cpuHistory — значения без меток времени: держим их ровно по окну loadHistory,
+  // иначе два ряда одной истории расходятся по длине.
+  cpuHistory = Array(cpuHistory.suffix(loadHistory.count))
   trafficHistory = ServerState.trim(trafficHistory, newest: newest, timestamp: { $0.sampledAt })
   loadHistory = ServerState.trim(loadHistory, newest: newest, timestamp: { $0.sampledAt })
   diskHistory = ServerState.trim(diskHistory, newest: newest, timestamp: { $0.sampledAt })

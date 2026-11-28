@@ -32,7 +32,9 @@ import MacdirCore
   state.accept(.success(try sample(now, 42, 11, interface: "en0")))
   assert(state.trafficHistory[2]?.interface == "en0")
   assert(state.current(now: now) != nil)
-  for i in 0..<200 { state.accept(.success(try sample(now, Double(i), Double(i)))) }
+  // Замеры должны идти во времени: окно истории теперь часовое, и одинаковые
+  // метки времени не отбрасываются — проверяем именно ограничение окна.
+  for i in 0..<200 { state.accept(.success(try sample(now + Double(i) * 30, Double(i), Double(i)))) }
   assert(state.trafficHistory.count == 121)
   assert(state.trafficHistory.compactMap { $0 }.last?.received == 199)
   assert(state.current(now: now + 91) == nil)

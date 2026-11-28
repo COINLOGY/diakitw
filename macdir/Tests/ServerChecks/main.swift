@@ -33,8 +33,23 @@ state.accept(.failure(.denied))
 check(state.current(now: 1002) == nil && state.lastSuccess?.cpuPercent == 25, "failure clears current retains separate last success")
 let networking = try sample("{\"schema\":1,\"services\":[{\"name\":\"hermes\",\"state\":\"running\"}],\"network\":[{\"name\":\"br-a\"},{\"name\":\"lo\"},{\"name\":\"ens3\"}]}")
 check(networking.preferredInterface == "ens3" && networking.services.first?.state == "running", "physical network and container running")
-for _ in 0..<130 { state.accept(.success(good)) }
-check(state.cpuHistory.count == 121, "60 minute CPU history at 30 second cadence")
+// Окно истории — час по времени: на 30-секундном опросе это 121 точка,
+// а не «сколько успело накопиться». Раньше здесь 130 раз подавался один и
+// тот же замер, поэтому проверялось только ограничение по числу точек.
+var cadence = ServerState()
+for index in 0..<200 {
+ let time = 10_000.0 + Double(index) * 30
+ let payload = "{\"schema\":1,\"sampled_at\":\(time),\"cpu_percent\":25,\"network\":[{\"name\":\"ens3\",\"rx_bytes_per_second\":100,\"tx_bytes_per_second\":200}]}"
+ cadence.accept(.success(try sample(payload)))
+}
+check(cadence.cpuHistory.count == 121 && cadence.load(in: .hour, now: 10_000 + 199 * 30).compactMap { $0 }.count == 121, "60 minute CPU history at 30 second cadence")
+var fast = ServerState()
+for index in 0..<1_000 {
+ let time = 50_000.0 + Double(index) * 5
+ fast.accept(.success(try sample("{\"schema\":1,\"sampled_at\":\(time),\"cpu_percent\":30}")))
+}
+check(fast.cpuHistory.count == ServerState.historyLimit, "five second polling is capped at 720 points")
+check(fast.load(in: .hour, now: 50_000 + 999 * 5).compactMap { $0 }.count <= ServerState.historyLimit, "fast history never exceeds the hour window")
 var timedHistory = ServerState()
 for (time, cpu) in [(1000.0, 25.0), (1030.0, 50.0), (1200.0, 75.0)] {
  let payload = "{\"schema\":1,\"sampled_at\":\(time),\"cpu_percent\":\(cpu),\"network\":[{\"name\":\"ens3\",\"rx_bytes_per_second\":100,\"tx_bytes_per_second\":200}]}"
